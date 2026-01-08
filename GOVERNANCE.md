@@ -26,9 +26,9 @@ Maintainers are responsible for:
 
 | Name | Organization | GitHub |
 |------|--------------|--------|
-| _TBD_ | _TBD_ | _TBD_ |
-
-> **Note:** Initial maintainers to be added as the working group forms.
+| Kurtis Van Gent | Google | [@kurtisvg](https://github.com/kurtisvg) |
+| Basil Hosmer | Anthropic | [@bhosmer-ant](https://github.com/bhosmer-ant) |
+| Peter Alexander | Anthropic | [@pja-ant](https://github.com/pja-ant) |
 
 ### Active Contributors
 
@@ -40,9 +40,7 @@ Active contributors regularly participate in discussions, meetings, or code cont
 
 **Current Active Contributors:**
 
-| Name | Organization | GitHub |
-|------|--------------|--------|
-| _TBD_ | _TBD_ | _TBD_ |
+_None yet — get involved!_
 
 ### Contributors
 
