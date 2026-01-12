@@ -24,10 +24,10 @@ The Transports Working Group coordinates community stakeholders to:
 
 ## Meetings
 
-**Cadence:** Weekly
-**Day:** Wednesdays at 1:00pm PT
-**Duration:** 60 minutes
-**Format:** Virtual
+**Cadence:** Weekly 
+**Day:** Wednesdays at 1:00pm PST 
+**Duration:** 60 minutes 
+**Format:** Virtual 
 
 > **Note:** See [meet.modelcontextprotocol.io](https://meet.modelcontextprotocol.io) for meeting links and calendar.
 
@@ -63,7 +63,8 @@ Our work focuses on:
 ├── GOVERNANCE.md            # Governance model, roles, and members
 ├── CONTRIBUTING.md          # Contribution guidelines
 ├── proposals/               # Transport proposals and specifications
-└── docs/                    # Guides and documentation
+├── docs/                    # Guides and documentation
+└── meetings/               # Agendas and notes from working group meetings
 ```
 
 ## Contributing
