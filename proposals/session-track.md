@@ -15,6 +15,8 @@
 
 **Key Design Decision: Lifecycle Management**
 
+> (Gabriel Z) Another key decision is around parallel tool calling. I think the decision was that parallel tool calling would just overwrite the session data nondeterministically if multiple tools decided to add session data. It could be good to at least add a warning to that effect.
+
 * **Implicit vs. Explicit:** We must decide between allowing lazy initialization (Implicit) versus requiring a formal setup handshake (Explicit).  
   * *Consideration:* The need to **copy or fork** session data (e.g., branching an agent's state) strongly suggests preferring an **Explicit** mechanism (e.g., `session/create`, `session/fork`) to ensure these operations are predictable and race-free.
 
