@@ -17,3 +17,48 @@
 
 * **Implicit vs. Explicit:** We must decide between allowing lazy initialization (Implicit) versus requiring a formal setup handshake (Explicit).  
   * *Consideration:* The need to **copy or fork** session data (e.g., branching an agent's state) strongly suggests preferring an **Explicit** mechanism (e.g., `session/create`, `session/fork`) to ensure these operations are predictable and race-free.
+
+---
+
+## Prior Art
+
+This section is for summarising the relevant parts of how other Agent systems and specifications handle Sessions.
+
+### Agent Client Protocol (Specification)
+
+Sessions are created by the Client (Host) and resumable, with the option of the Agent replaying messages to rehydrate Client state. There is no "close" operation. 
+
+
+#### In-flight Proposals
+
+##### Session Listing
+
+##### Session Forking
+
+##### MCP/ACP transport
+
+
+#### Secretive Shell Description
+
+### Claude Code
+
+
+### Intra-Inference
+
+#### Responses / Open Resonses
+
+#### Anthropic
+
+#### Gemini
+
+### `fast-agent`
+
+Sub-agents only retain state within the tool loop.
+
+Agents hosted as  MCP Servers can have an instance type of `connection`, `request` or `shared`.
+
+### 
+
+
+
+
