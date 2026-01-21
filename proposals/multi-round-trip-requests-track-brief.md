@@ -11,6 +11,9 @@ tool call):
 * **Persistent:** Tools that *do* need to store state on the server side
   in the course of handling a tool call.  Example: Modifying the state of a VM.
 
+Note: This doc uses tools as the primary example, but the mechanism is
+intended to work for any client-initiated request.
+
 **Goal** To make it cheaper, easier, and more fault tolerant to implement
 mutli round-trip requests, especially for ephemeral tool implementations.
 
