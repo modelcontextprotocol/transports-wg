@@ -251,8 +251,8 @@ This could look like, and would replace the response in step 6 above:
 Pros: 
 - Consistent message structure for all Result types from Tasks & Tools which simplifies the SDK implementations. 
 - Consistent handling of isError or other future result metadata fields.
-- With Tasks this structure would allow for partial results & elicitation & sampling requests to be part of the same message.
-- Supports multiple Elicitation & Sampling requests at the same time.  Notably with Tasks this structure would allow for partial results to also be retured as part of the 'result' message in addition to Elicitation or Sampling requests. 
+- With Tasks this structure would allow for partial results & additional input to requested on the same get/results 
+- Supports multiple Elicitation & Sampling requests at the same time.  
 
 Cons: Larger change to existing implementations. 
 - Requires deprecating the existing `Elicitation` and `Sampling` messages returned by Tasks since out of band messages are no longer needed. 
