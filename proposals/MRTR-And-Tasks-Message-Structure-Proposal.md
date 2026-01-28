@@ -68,8 +68,8 @@ The below example uses an Echo Tool with an optional input parameter, when missi
     "result":  
     {
         "taskId":  "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5",
-        "status":  "InputRequired",
-        "statusMessage":  "Input Required to Proceed call get/result",
+        "status":  "input_require",
+        "statusMessage":  "Input Required to Proceed call tasks/result",
         "createdAt":  "2026-01-27T03:38:07.7534643Z",
         "ttl":  60000,
         "pollInterval":  100
