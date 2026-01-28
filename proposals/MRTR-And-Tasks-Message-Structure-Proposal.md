@@ -3,6 +3,23 @@
 ## Overview
 This document provides an overview of how the [Multi-Round-Trip Request Proposal](https://github.com/modelcontextprotocol/transports-wg/pull/7/changes#diff-c42674696a4c91ccc0d2daf8425dbcb52201ec1ef75921ae1e4865b5b911018d) (MRTR) fits with the Tasks by walking thorugh an example with Elicitations.
 
+A few notes the Goals of MRTR are to:
+1. Ensure the protocol itself is stateless while allowing for stateful application semantics
+2. Eliminating the need for the SSE stream, this is marked as Optional in the transport today so should only be used for optimization/performance not required.
+3. Remove the ability for sampling/elicitation to be sent out of band (i.e. without a client request).
+
+In Tasks this means:
+1. TaskId is used to represent the application state
+2. Remove the guidance around using SSE stream, and model the call flow as request/response semantics.
+
+Tasks & Tool Calls provide mecahnisms for implementing two different kinds of messaging patterns. 
+1. Tool Calls: short running/sync - i.e. return within ms/seconds, low cost to compute/answer
+2. Tasks: long running/async - i.e. can run for minutes to hours, higher cost to compute.
+
+Given the above these patterns will manifest MRTR in two different ways.
+1. Tool Calls: Server sends a Result with an elicitation/sampling request. The server stops processing the request at this point, and the client must retry
+2. Tasks: Server sets status to input_required. The client will make a request for the Result which should contain the elicitation/sampling request. The server can pause processing, while the client gathers the info, and then updates the server. Once the necessary info has been retrieved the server can resume processing.
+
 It also raises open questions and proposed solutions for discussion on what the return type should be for Tool Requests that require Elicitation or Sampling to complete.
 
 ## Tasks Background
