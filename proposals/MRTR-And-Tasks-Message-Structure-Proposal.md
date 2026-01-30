@@ -1,7 +1,7 @@
 # MRTR And Tasks Message Structure Proposal
 
 ## Overview
-This document provides an overview of how the [Multi-Round-Trip Request Proposal](https://github.com/modelcontextprotocol/transports-wg/pull/7/changes#diff-c42674696a4c91ccc0d2daf8425dbcb52201ec1ef75921ae1e4865b5b911018d) (MRTR) fits with the Tasks by walking thorugh an example with Elicitations.
+This document provides an overview of how the [Multi-Round-Trip Request Proposal](https://github.com/modelcontextprotocol/transports-wg/pull/7/changes#diff-c42674696a4c91ccc0d2daf8425dbcb52201ec1ef75921ae1e4865b5b911018d) (MRTR) fits with the Tasks by walking through an example with Elicitations.
 
 A few notes the Goals of MRTR are to:
 1. Ensure the protocol itself is stateless while allowing for stateful application semantics
