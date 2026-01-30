@@ -5,16 +5,16 @@ This document provides an overview of how the [Multi-Round-Trip Request Proposal
 
 A few notes the Goals of MRTR are to:
 1. Ensure the protocol itself is stateless while allowing for stateful application semantics
-2. Eliminating the need for the SSE stream, this is marked as Optional in the transport today so should only be used for optimization/performance not required.
+2. Making the GET SSE stream truly optional, i.e. not required for core functionality
 3. Remove the ability for sampling/elicitation to be sent out of band (i.e. without a client request).
 
 In Tasks this means:
 1. TaskId is used to represent the application state
-2. Remove the guidance around using SSE stream, and model the call flow as request/response semantics.
+2. Remove the guidance around using SSE stream, and model the call flow as request/response semantics only.
 
 Tasks & Tool Calls provide mecahnisms for implementing two different kinds of messaging patterns. 
-1. Tool Calls: short running/sync - i.e. return within ms/seconds, low cost to compute/answer
-2. Tasks: long running/async - i.e. can run for minutes to hours, higher cost to compute.
+1. Tool Calls: short running/sync/stateless - i.e. return within ms/seconds, low cost to compute/answer. 
+2. Tasks: long running/async/stateful - i.e. can run for minutes to hours, higher cost to compute. Server may be storing state between calls related to TaskId.
 
 Given the above these patterns will manifest MRTR in two different ways.
 1. Tool Calls: Server sends a Result with an elicitation/sampling request. The server stops processing the request at this point, and the client must retry
@@ -85,7 +85,7 @@ The below example uses an Echo Tool with an optional input parameter, when missi
     "result":  
     {
         "taskId":  "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5",
-        "status":  "input_require",
+        "status":  "input_required",
         "statusMessage":  "Input Required to Proceed call tasks/result",
         "createdAt":  "2026-01-27T03:38:07.7534643Z",
         "ttl":  60000,
