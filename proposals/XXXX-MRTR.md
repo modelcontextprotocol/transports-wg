@@ -136,7 +136,7 @@ map with string keys:
 ```typescript
 export interface DependentRequests { [key: string]: ServerRequest; }
 
-export interface DependentResponses { [key: string]: ServerResult; }
+export interface DependentResponses { [key: string]: ClientResult; }
 ```
 
 TODO: The above schema definitions are not quite right, because
@@ -414,13 +414,209 @@ The workflow here would look like this:
 
 ### Persistent Tool Workflow
 
-The persistent tool workflow will leverage Tasks.
+The persistent tool workflow will leverage Tasks. [`Tasks`](https://modelcontextprotocol.io/specification/draft/basic/utilities/tasks) already provide a mechanism to indicate that more information is needed to complete the request. The `input_required` Task Status allows the server to indicate that additional information is needed to complete processing the task. 
 
-TODO: @CaitieM20 to fill in the details here
+The workflow for `Tasks` is as follows:
+
+1. Server sets Task Status to `input_required` 
+2. Client retrieves the Task and sees that more information is needed.
+3. Client calls `task/result` 
+4. Server returns the `DependentRequets` object. The Server can pause processing the request at this point.
+5. Client sends `DependentResponses` object to server along with `Task` metadata field.
+6. Server resumes processing sets TaskStatus back to `Working`.
+
+Since `Tasks` are likely longer running, have state associated with them, and are likely more costly to compute, the request for more information does not end the original request. Instead, the server can resume processing once the necessary information is provided.
 
 #### Example Flow for Persistent Tools
+The below example walks through the entire Task Message flow for a Echo Tool which can request additional information from the client via Elicitation.
 
-TODO: @CaitieM20 to fill in example here
+1. <b>Client Request</b> to invoke EchoTool.
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params":{
+        "name": "echo",
+        "task":{
+            "ttl": 60000
+        }
+    }
+}
+```
+
+2. <b>Server Response</b> with a `Task`
+```json
+{
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result":{
+        "task":{
+            "taskId":"echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5",
+            "status":  "Working",
+            "statusMessage": "Task has been created for echo tool invocation.",
+            "createdAt":  "2026-01-27T03:32:48.3148180Z",
+            "ttl": 60000,
+            "pollInterval": 100
+        }
+    }
+}
+```
+
+3. <b>Client Request</b> periodically checks the status of the `Task` using `tasks/get`.
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tasks/get",
+    "params":{
+        "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+    }
+}
+``` 
+
+4. <b>Server Response</b> with Task status `input_required`
+```json
+{
+    "id":  2,
+    "jsonrpc":  "2.0",
+    "result":{
+      "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5",
+      "status": "input_required",
+      "statusMessage": "Input Required to Proceed call tasks/result",
+      "createdAt": "2026-01-27T03:38:07.7534643Z",
+      "ttl": 60000,
+      "pollInterval": 100
+    },
+}
+```
+
+5. <b>Client Request</b> sends message `tasks/result` to discover what input is required to proceed.
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tasks/result",
+    "params":{
+      "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+    }
+}
+```
+
+6. <b>Server Response</b> returns `dependent_requests` to request additional input
+```json
+{
+    "id": 3,
+    "jsonrpc": "2.0",
+    "dependent_requests":{
+      "echo_input":{
+        "method": "elicitation/create",
+        "params":{
+          "mode": "form",
+          "message": "Please provide the input string to echo back",
+          "requestedSchema":{
+            "type": "object",
+            "properties":{
+              "input": { "type": "string"}
+            },
+            "required": ["input"]
+          }
+        }
+      }
+    },
+    "_meta":{
+      "io.modelcontextprotocol/related-task":{
+        "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+      }
+    } 
+}
+```
+
+7. <b>Client Request</b> presents the Elicitation to the user and collects the input, then sends message to the server.
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 4,
+    "dependent_responses":{
+      "echo_input":{
+        "result":{
+          "action": "accept",
+          "content":{
+            "input": "Hello World!"
+          }
+        }
+      }
+    }, 
+    "_meta":{
+      "io.modelcontextprotocol/related-task":{
+        "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+      }
+    }
+}
+```
+
+8. <b>Server Response</b> Currently there is no required response to this message, but the server can now proceed to complete the `Task` using the provided input, and the `Task` status changes to `Working`
+
+9. <b>Client Request</b> continues to poll the input status using `tasks/get` until server responds with Task Status of `Completed`
+Client Request
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tasks/get",
+  "params": {
+      "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+  }
+}
+```
+10. <b>Server Response</b> with Task status `Completed`
+```json
+{
+  "id": 5,
+  "jsonrpc": "2.0",
+  "result":{
+    "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5",
+    "status": "Completed",
+    "statusMessage": "Task has been completed successfully, call get/result",
+    "createdAt": "2026-01-27T03:38:07.7534643Z",
+    "ttl": 60000,
+    "pollInterval": 100
+  },
+}
+```
+
+11. <b>Client Request</b> calls `tasks/result` to get the final result of the `Task` from the server.
+Client Message
+```json
+{
+  "id": 6,
+  "jsonrpc": "2.0",
+  "method": "tasks/result",
+  "params":{
+    "taskId":  "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+  },
+}
+```
+12. <b>Server Response</b> with the final result of the `Task`
+```json
+{
+  "id": 6,
+  "jsonrpc": "2.0",
+  "result":{
+    "isError": false,
+    "content":[{
+        "type": "text",
+        "text": "Echo: Hello World!"
+    }],
+    "_meta":{
+      "io.modelcontextprotocol/related-task":{
+        "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+      }
+    }
+  },
+}
+```
+
 
 ### Interactions Between Ephemeral and Persistent Workflows
 
