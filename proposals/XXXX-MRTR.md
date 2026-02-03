@@ -1,0 +1,509 @@
+# SEP-XXXX: Multi Round-Trip Requests
+
+- **Status**: Draft
+- **Type**: Standards Track
+- **Created**: 2026-02-03
+- **Author(s)**: Mark D. Roth (@markdroth), Caitie McCaffrey (@CaitieM20)
+- **Sponsor**: None
+- **PR**: https://github.com/modelcontextprotocol/specification/pull/{NUMBER}
+
+## Abstract
+
+This proposal specifies a simple way to handle server-initiated requests
+in the context of a client-initiated request (e.g., an elicitation
+request in the context of a tool call) without requiring a shared
+storage layer shared across server instances or statefulness in
+load balancing, which will significantly reduce the cost of operating
+MCP servers at scale in the common case.  It also reduces the HTTP
+transport's dependence on SSE streams, which cause problems in a lot of
+environments that cannot support long-lived connections.
+
+## Motivation
+
+Note: This SEP is intended to provide a generic mechanism for handling
+any server-initiated request in the context of any client-initiated
+request.  However, for clarity, throughout this document, we will use
+the example of an elicitation request in the context of a tool call.
+
+We start with the observation that there are two types of MCP tools:
+1. **Ephemeral**: No state is accumulated in the course of evaluating
+   the tool call.
+   - If server needs more info to process the tool call, it can start from
+     scratch when it gets that additional info.
+   - Examples: weather app, accessing email
+2. **Persistent**: Tool behavior depends on previous state.
+   - Server may not ask for the same info every time the same tool call is
+     issued and needs to pick up from previous state when it gets the
+     additional info from the client.
+   - Example: accessing an agent
+
+The vast majority of MCP tools will be ephemeral, and it is extremely
+common for tools to be deployed in a horizontally scaled, load balanced
+service, so we need to optimize for this case.
+
+Today, if a tool needs to send an elicitation request in order to make
+progress, the workflow works like this:
+
+1. Client sends tool call request.  For this example, let's assume that
+   the load balancers happen to send this request to server instance A.
+2. Server A opens an SSE stream and sends the elicitation response on that
+   stream.
+3. Client sends the elicitation response as a separate request, for which
+   the load balancers will choose a server instance completely
+   independently of the one they chose in step 1.  In this example,
+   let's assume that the load balancers happen to send this request to
+   server instance B.
+4. Server A must somehow discover the elicitation result delivered to
+   server B.
+5. Server A then sends the tool call result on the SSE stream opened in
+   step 2.
+
+The difficult part here is step 4, which requires some sort of
+statefulness on the server side.  The main way to solve this problem
+today is to have a storage layer shared across all server instances, so
+that multiple server instances can match up the elicitation response
+on one server instance with the original ongoing tool call on a
+different server instance.  
+
+There are two main approaches that can be used to solve this problem today:
+- **Shared Storage Layer Across Server Instances**: This allows multiple
+  server instances to match up the elicitation response on one server
+  instance with the original ongoing tool call on a different server
+  instance.  This approach has a number of drawbacks:
+  - It is extremely expensive, especially for ephemeral tools that may not
+    already have a common storage layer (e.g., a weather tool).
+  - It requires special code to figure out when the shared state can be
+    cleaned up (e.g., did the client go away permanently, or is there
+    just a temporary network problem?).
+  - It requires special behavior in the tool implementation to integrate
+    with the shared storage layer.  The MCP SDKs today do not have any
+    special hooks for this sort of storage layer integration, which
+    means that it's very hard to write in-line code via the SDKs.
+- **Statefulness in Load Balancing**: With the use of cookies, it is
+  possible for the load balancing layer to ensure that the elicitation
+  request in step 3 is delivered to the same server instance that the
+  original request was delivered to in step 1.  This approach, while
+  often cheaper than a shared storage layer, has the following
+  drawbacks:
+  - It requires special configuration and behavior in the load
+    balancers, which is often difficult to manage.
+  - It breaks normal load balancing models, resulting in uneven load
+    distribution, thus increasing the cost of running the service.
+  - It requires special behavior in clients to propagate the cookies
+    used for statefulness.
+  - It requires the tool implementation to match up the elicitation
+    request with the ongoing tool call.  (The MCP SDKs have some code to
+    handle this, but it's still a very strange pattern in the HTTP
+    world.)
+  - It is not fault tolerant.  If the server instance goes down, all
+    state is lost, and the tool call would need to start over from
+    scratch.  (This doesn't necessarily matter for ephemeral tools,
+    but it is an issue for persistent tools.)
+
+Also, both of these approaches rely on the use of an SSE stream, which
+causes problems in environments that cannot support long-lived
+connections.
+
+The goal of this SEP is to propose a simpler way to handle the pattern
+of server-initiated requests within the context of a client-initiated
+request.  Specifically, we need to make it cheaper to support this pattern
+in the common case of an ephemeral tool in a horizontally scaled, load
+balanced deployment.  This means that we need a solution that does not
+depend on an SSE stream and does not require either a shared storage
+layer or stateful load balancing, which in turn means that we need to
+avoid dependencies between requests: servers must be able to process
+each individual request using no information other than what is present
+in that individual request.
+
+Note that while the goal here is to optimize the common case of ephemeral
+tools, we do want to continue to support persistent tools, which generally
+already require a shared storage layer.
+
+## Specification
+
+This SEP proposes a new mechanism for handling server requests in the
+context of a client request.  This new mechanism will have a slightly
+different workflow for ephemeral tools and persistent tools, the latter
+of which will leverage Tasks.  However, both workflows will use the same
+data structures.
+
+First, we introduce the notion of "dependent requests", which represents
+a set of one or more server-initiated request to be sent to the client,
+and "dependent responses", which represents the client's responses to
+those requests.  The individual requests and responses are stored in a
+map with string keys:
+
+```typescript
+export interface DependentRequests { [key: string]: ServerRequest; }
+
+export interface DependentResponses { [key: string]: ServerResult; }
+```
+
+TODO: The above schema definitions are not quite right, because
+ServerRequest and ServerResult include the JSON-RPC request id field,
+which is not necessary here.  Figure out what schema refactoring is
+needed to get the types without that field.
+
+The keys are assigned by the server when issuing the requests.  The client
+will send the response for each request using the corresponding key.
+For example, a server might send the following dependent requests:
+
+```json5
+"dependent_requests": {
+  // Elicitation request.
+  "github_login": {
+    "method": "elicitation/create",
+    "params": {
+      "mode": "form",
+      "message": "Please provide your GitHub username",
+      "requestedSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["name"]
+      }
+    }
+  },
+  // Sampling request.
+  "capital_of_france" : {
+    "method": "sampling/createMessage",
+    "params": {
+      "messages": [
+        {
+          "role": "user",
+          "content": {
+            "type": "text",
+            "text": "What is the capital of France?"
+          }
+        }
+      ],
+      "modelPreferences": {
+        "hints": [
+          {
+            "name": "claude-3-sonnet"
+          }
+        ],
+        "intelligencePriority": 0.8,
+        "speedPriority": 0.5
+      },
+      "systemPrompt": "You are a helpful assistant.",
+      "maxTokens": 100
+    }
+  }
+}
+```
+
+The client would then send the responses in the following form:
+
+```json5
+"dependent_responses": {
+  // Elicitation response.
+  "github_login": {
+    "result": {
+      "action": "accept",
+      "content": {
+        "name": "octocat"
+      }
+    }
+  },
+  // Sampling response.
+  "capital_of_france": {
+    "result": {
+      "role": "assistant",
+      "content": {
+        "type": "text",
+        "text": "The capital of France is Paris."
+      },
+      "model": "claude-3-sonnet-20240307",
+      "stopReason": "endTurn"
+    }
+  }
+}
+```
+
+These types will be used in two different workflows, one for ephemeral
+tools and another for persistent tools.
+
+### Ephemeral Tool Workflow
+
+For ephemeral tools, we will adopt the following workflow:
+
+1. Client sends tool call request.
+2. Server sends back a single response (**not** an SSE stream)
+   indicating that the request is incomplete and including the dependent
+   requests that the client must complete.  This terminates the original
+   request.
+3. Client sends a new tool call request, completely independent of the
+   original one, which includes the responses to the dependent requests
+   from step 2.
+4. Server sends back a CallToolResponse.
+
+Note that the requests in steps 1 and 3 are completely independent: the
+server that processes the request in step 3 does not need any
+information that is not directly present in the request.
+
+```typescript
+// Similar to existing JSONRPCResultResponse.
+// Used in cases where the server needs the results of one or more requests
+// of its own before it can complete the client's request.
+export interface JSONRPCIncompleteResultResponse {
+  jsonrpc: typeof JSONRPC_VERSION;
+  id: RequestId;
+  // Requests issued by the server that must be complete before the
+  // client can retry.
+  dependent_requests: { [key: string]: ServerRequest };
+}
+
+// Existing type, modified to include JSONRPCIncompleteResultResponse.
+export type JSONRPCResponse = JSONRPCResultResponse | JSONRPCErrorResponse |
+                              JSONRPCIncompleteResultResponse;
+
+// Existing type, modified to encode responses to dependent requests.
+export interface JSONRPCRequest extends Request {
+  jsonrpc: typeof JSONRPC_VERSION;
+  id: RequestId;
+  // New field to carry the responses for the server's requests from the
+  // JSONRPCIncompleteResultResponse message.  For each key in the
+  // response's dependent_requests field, the same key must appear here
+  // with the associated response.
+  dependent_responses: { [key: string]: ClientResult };
+}
+```
+
+#### Example Flow for Ephemeral Tools
+
+Note: This is a contrived example, just to illustrate the flow.
+
+1. The client sends the initial call tool request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "get_weather",
+    "arguments": {
+      "location": "New York"
+    }
+  }
+}
+```
+
+2. The server responds with an incomplete response, indicating that the
+   client needs to respond to an elicitation request in order for the tool
+   call to complete:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "dependent_requests": {
+    "github_login": {
+      "method": "elicitation/create",
+      "params": {
+        "mode": "form",
+        "message": "Please provide your GitHub username",
+        "requestedSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": ["name"]
+        }
+      }
+    }
+  }
+}
+```
+
+3. The client then retries the original tool call, this time including the
+   responses to the dependent server request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "get_weather",
+    "arguments": {
+      "location": "New York"
+    }
+  }
+  "dependent_responses": {
+    "github_login": {
+      "result": {
+        "action": "accept",
+        "content": {
+          "name": "octocat"
+        }
+      }
+    }
+  }
+}
+```
+
+4. Finally, the server completes the tool call:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Current weather in New York:\nTemperature: 72°F\nConditions: Partly cloudy"
+      }
+    ],
+    "isError": false
+  }
+}
+```
+
+#### Interaction with SEP-1685
+
+The client-side state mechanism described in
+[SEP-1685](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1685)
+is very useful in conjunction with the dependent requests model for
+ephemeral tools.
+
+For example, let's say that you are doing a rolling upgrade of your
+horizontally scaled server instances to deploy a new version of a tool
+implementation.  The old version had two dependent requests with keys
+"github_login" and "google_login".  However, in the new version of
+the tool implementation, it still uses the "github_login" dependent
+request, but it replaces the "google_login" dependent request with a new
+"microsoft_login" dependent request.
+
+If the first request goes to an old version of the server but the second
+attempt (that includes the dependent responses) goes to a new version
+of the server, then the server will see the result for "github_login",
+which it needs, but it won't see the result for "microsoft_login".
+(It will also see the result for "google_login", but it no longer needs
+that, so it doesn't matter.)  At this point, the server needs to send a
+new dependent request for "microsoft_login", but it also doesn't want
+to lose the answer that it's already gotten for "github_login", so it
+would use the kind of state proposed in 1685 to retain that information
+without having to store the state on the server side.
+
+The workflow here would look like this:
+
+1. Client sends tool call request that hits a server instance running
+   the old version.
+2. Server sends back an incomplete response indicating the dependent
+   requests for "github_login" and "google_login".
+3. Client sends a new tool call request that includes the responses to
+   the dependent requests for "github_login" and "google_login".  This
+   time it hits a server instance running the new version.
+4. Server sends back another incomplete response indicating the
+   dependent request for "microsoft_login", which the client has not
+   already provided.  However, the response also includes SEP-1685 state
+   containing the already-provided "github_login" response, so that the
+   client does not need to prompt the user for the same information a
+   second time.
+5. Client sends a third tool call request that includes the response to
+   the "microsoft_login" dependent request as well as echoing back the
+   SEP-1685 state provided by the server in step 4.
+6. Server now sees the "github_login" info in the SEP-1685 state and the
+   "microsoft_login" state in the dependent responses, so the request
+   now contains everything the server needs to perform the tool call and
+   send back a complete response.
+
+### Persistent Tool Workflow
+
+The persistent tool workflow will leverage Tasks.
+
+TODO: @CaitieM20 to fill in the details here
+
+#### Example Flow for Persistent Tools
+
+TODO: @CaitieM20 to fill in example here
+
+### Interactions Between Ephemeral and Persistent Workflows
+
+If a tool implementation needs the client to respond to a set of
+dependent requests before it can even start processing but then later
+needs to do persistent processing, it can start using the ephemeral
+workflow and then switch to the persistent workflow by creating a task
+at that point.  This avoids the need for the server to store state until
+it actually has the information needed to start processing the request.
+This workflow would look like this:
+
+1. Client sends tool call request.
+2. Server sends back an incomplete response indicating the dependent
+   requests that the client must complete.  This terminates the original
+   request.
+3. Client sends a new tool call request, completely independent of the
+   original one, which includes the responses to the dependent requests
+   from step 2.
+4. Server sends back a task ID, indicating that it will be processing the
+   request in the background.  All subsequent interaction will be done
+   via the Tasks API.
+
+Note that the opposite is not true: Once a tool implementation returns a
+task, it has committed to storing state on the server side for the
+duration of the task, and there is no way to transition back to the
+ephemeral model.  All subsequent interactions must be performed via the
+Tasks API.
+
+## Rationale
+
+We considered a bidirectional stream approach to replace SSE streams.
+However, that approach would have made the wire protocol more
+complicated (e.g., it would have required HTTP/2 or HTTP/3).  Also, it
+would not have eliminated problems for environments that cannot support
+long-lived connections, nor would it have addressed fault tolerance
+issues.
+
+There was discussion about whether the dependent requests should be a
+map or just a single object, possibly leveraging some field inside of
+the requests (e.g., the elicitation ID) to differentiate between them.
+We decided that the map makes sense, since it structurally guarantees
+the uniqueness of keys, which will avoid the need for explicit checks in
+SDKs and applications to avoid conflicts.
+
+## Backward Compatibility
+
+Today there may be ephemeral tools written in an in-line but async
+fashion to wait for the elicitation response before sending the tool
+call response on the original SSE stream:
+
+```python
+def my_tool():
+  do_mutation1()
+  await elicit_more_info()
+  do_mutation2()
+```
+
+For new tools, we want to instead suggest that they be written like
+this:
+
+```python
+def my_tool(request):
+  github_login = request.dependent_responses().get('github_login', None)
+  if github_login is None:
+    return IncompleteResponse({'github_login': elicitation_request})
+  result = GetResult(github_login)
+  return Result(result)
+```
+
+However, we need to consider how to avoid breaking things for existing
+tools that are written the old way.  Ideally, we will be able to modify
+the SDKs to support the old tool implementations via some sort of
+backward compatibility layer.
+
+## Security Implications
+
+This proposal is not expected to introduce any security implications.
+
+## Reference Implementation
+
+TBD
+
+### Acknowledgments
+
+Thanks to Luca Chang (@LucaButBoring) for his valuable input on how to
+integrate dependent requests into Tasks.
