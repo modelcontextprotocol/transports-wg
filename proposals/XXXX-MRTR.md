@@ -419,13 +419,15 @@ The persistent tool workflow will leverage Tasks. [`Tasks`](https://modelcontext
 The workflow for `Tasks` is as follows:
 
 1. Server sets Task Status to `input_required` 
-2. Client retrieves the Task and sees that more information is needed.
+2. Client retrieves the Task Status by calling `tasks/get` and sees that more information is needed.
 3. Client calls `task/result` 
 4. Server returns the `DependentRequets` object. The Server can pause processing the request at this point.
 5. Client sends `DependentResponses` object to server along with `Task` metadata field.
 6. Server resumes processing sets TaskStatus back to `Working`.
 
 Since `Tasks` are likely longer running, have state associated with them, and are likely more costly to compute, the request for more information does not end the original request. Instead, the server can resume processing once the necessary information is provided.
+
+The above workflow and below example do not leverage any of the optional Task Status Notifications although this SEP does not preclude their use.
 
 #### Example Flow for Persistent Tools
 The below example walks through the entire Task Message flow for a Echo Tool which can request additional information from the client via Elicitation.
@@ -452,10 +454,10 @@ The below example walks through the entire Task Message flow for a Echo Tool whi
     "jsonrpc": "2.0",
     "result":{
         "task":{
-            "taskId":"echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5",
-            "status":  "Working",
+            "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5",
+            "status": "Working",
             "statusMessage": "Task has been created for echo tool invocation.",
-            "createdAt":  "2026-01-27T03:32:48.3148180Z",
+            "createdAt": "2026-01-27T03:32:48.3148180Z",
             "ttl": 60000,
             "pollInterval": 100
         }
@@ -478,8 +480,8 @@ The below example walks through the entire Task Message flow for a Echo Tool whi
 4. <b>Server Response</b> with Task status `input_required`
 ```json
 {
-    "id":  2,
-    "jsonrpc":  "2.0",
+    "id": 2,
+    "jsonrpc": "2.0",
     "result":{
       "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5",
       "status": "input_required",
@@ -628,13 +630,10 @@ at that point.  This avoids the need for the server to store state until
 it actually has the information needed to start processing the request.
 This workflow would look like this:
 
-1. Client sends tool call request.
-2. Server sends back an incomplete response indicating the dependent
-   requests that the client must complete.  This terminates the original
-   request.
+1. Client sends tool call request with task metadata.
+2. Server sends back `dependent_requests` response indicating that more information is needed to process the request. This terminates the original request.
 3. Client sends a new tool call request, completely independent of the
-   original one, which includes the responses to the dependent requests
-   from step 2.
+   original one, which includes the `dependent_responses` object along with the task metadata.
 4. Server sends back a task ID, indicating that it will be processing the
    request in the background.  All subsequent interaction will be done
    via the Tasks API.
