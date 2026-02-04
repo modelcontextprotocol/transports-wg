@@ -26,16 +26,19 @@ request.  However, for clarity, throughout this document, we will use
 the example of an elicitation request in the context of a tool call.
 
 We start with the observation that there are two types of MCP tools:
-1. **Ephemeral**: No state is accumulated in the course of evaluating
-   the tool call.
+1. **Ephemeral**: No state is accumulated on the server side.
    - If server needs more info to process the tool call, it can start from
      scratch when it gets that additional info.
    - Examples: weather app, accessing email
-2. **Persistent**: Tool behavior depends on previous state.
-   - Server may not ask for the same info every time the same tool call is
-     issued and needs to pick up from previous state when it gets the
-     additional info from the client.
-   - Example: accessing an agent
+2. **Persistent**: State is accumulated on the server side.
+   - Server may generate a large amount of state before requesting more
+     info from the client, and it may need to pick up that state to
+     continue processing after it receives the info from the client.
+   - Server may need to continue processing in the background while
+     waiting for more info from the client, in which case server-side
+     state is needed to track that ongoing processing.
+   - Examples: accessing an agent, spinning up a VM and needing user
+     interaction to manipulate the VM
 
 The vast majority of MCP tools will be ephemeral, and it is extremely
 common for tools to be deployed in a horizontally scaled, load balanced
