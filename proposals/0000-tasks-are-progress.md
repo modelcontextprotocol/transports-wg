@@ -5,7 +5,7 @@
 - **Created**: 2026-01-30
 - **Author(s)**: Luca Chang (@LucaButBoring)
 - **Sponsor**: None
-- **PR**: https://github.com/modelcontextprotocol/transports-wg/pull/{NUMBER}
+- **PR**: https://github.com/modelcontextprotocol/transports-wg/pull/11
 
 ## Abstract
 
