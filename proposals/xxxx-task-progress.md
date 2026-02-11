@@ -1,4 +1,4 @@
-# SEP-XXXX: Task Progress
+# SEP-XXXX: Tasks are (not) Progress
 
 - **Status**: Proposal
 - **Type**: Standards Track
