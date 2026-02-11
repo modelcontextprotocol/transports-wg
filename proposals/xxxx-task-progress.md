@@ -22,9 +22,9 @@ Today, tasks and progress notifications represent mirrored execution models:
 
 Each protocol feature can be used independently of the other; they can also be used together. Tasks were given a `statusMessage` field that mirrors progress's `message` field, but were deliberately not given an equivalent to progress's `progress` and `total` fields to attempt to avoid creating ambiguity between their use cases. It would have been a mistake for the two to differ _only_ by execution model when tasks also imply a degree of state management around results that progress notifications lack.
 
-Additionally, a change was made to progress notifications to specify that in the case of task-augmented execution, progress tokens remain active for the entire polling lifecycle of a task, rather than only for the duration of the initial request (which may return either `CreateTaskResult` or a standard result type). This was intended to allow progress notifications to remain unique and compatible with tasks, even though tasks also benefit from a notion of progress but conflict with the progress feature's execution model.
+However, in Streamable HTTP, combining these features creates ambiguous behavioral tradeoffs regarding the `input_required` status, which is not specified to be used with notifications in the first place - only with requests. If a server wishes to send progress notifications to a client, it must decide if those notifications should be sent on the GET stream used for background messages, side-channeled on the SSE stream during the `tasks/get` operation, or side-channeled during the `tasks/result` operation. In the case of the background stream and `tasks/result`, this forces the server to keep an active handler for the full duration of the task lifetime, and in the case of `tasks/get`, the server must be able to dequeue server-to-client events in a consistent order from any invocation of the `tasks/get` method.
 
-Looking forward towards the stabilization of tasks as a protocol feature, there are opportunities to simplify their execution model by introducing a notion of progress into tasks directly. This enables tasks to communicate progress when polled without requiring its association with a separate notification message.
+To sidestep this complexity, this proposal introduces progress fields directly into tasks, allowing servers to simply always have a mechanism for communicating progress changes without navigating stream selection at all.
 
 ## Specification
 
@@ -60,7 +60,11 @@ To support use cases that leverage the existing task status notifications, we wi
 
 ### Why duplicate progress into tasks?
 
-TODO
+It has been previously-suggested to build progress support into tasks (for example [here](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/1732#discussion_r2501534339)), and the two features have always served recognizably-similar roles if you squint hard enough, with progress representing the simple use case of "I have a long-running operation and want to show a completion rate for it in my UI" and tasks representing the more complex use case of "and specifically, I want to dispatch background work that I'll choose to fetch the actual result for sometime after it completes."
+
+Tasks serve a use case that progress could not meet in its current form, as notifications fundamentally imply some sort of active process on the server that is able to asynchronously dispatch those notifications in the first place. With tasks, an entire operation flow can be executed on stateless infrastructure (for example, a serverless function) by offloading execution to another system (such as an external job manager) without wasting compute by forcing a single instance to actively poll the upstream system internally to e.g. a tool call.
+
+At the time that tasks were proposed, the distinctions between progress and tasks made it unreasonable to force tasks into the paradigm of progress, or to add progress fields to tasks, which would have rendered progress somewhat redundant. However, in light of the fact that communicating progress for a task is useful, combined with the complexities around streaming progress notifications back to the client from within a task (described in the Motivation section), it is clear now that duplicating a notion of progress into tasks would not render progress notifications redundant at all, and indeed there are use cases where progress is relevant despite not using tasks at all.
 
 ## Backward Compatibility
 
