@@ -109,7 +109,7 @@ Standalone server-initiated elicitation on independent communication streams (un
 This change is expected to have **minimal to no impact** on existing implementations:
 
 1. **Common usage patterns are preserved** - Sampling/elicitation within tool execution, resource reading, and prompt handling remain fully supported
-2. **No known implementations affected** - Research conducted on GitHub has shown few implementations of this pattern in practice.
+2. **No known implementations affected** - Research conducted on GitHub has shown only one implementation of this pattern. This singular implementation is owned by the SEP author. 
 3. **stdio transport unaffected** - The stdio transport already operates in a request-scoped manner where all server messages naturally associate with client operations. 
 
 **TODO** 
