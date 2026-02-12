@@ -41,7 +41,7 @@ Making this constraint explicit:
 
 1. **Simplifies transport implementations** - Transports don't need to support arbitrary server-initiated request/response flows; they only need request-scoped bidirectional communication
 2. **Clarifies user experience** - Users understand that sampling/elicitation happens *because* they initiated an action, not spontaneously
-3. **Reduces security surface** - Prevents unexpected server-initiated prompts or LLM usage outside user-visible operations
+3. **Reduces security surface** - Ensures client has context for what scope the additional requested information  will be used for. This allows clients to make better informed decisions on whether to provide the requested info. 
 4. **Aligns with practice** - Most (likely all) existing implementations already follow this pattern
 
 ## Specification Changes
