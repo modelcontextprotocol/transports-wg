@@ -1,5 +1,5 @@
 
-# SEP-XXXX: Require Sampling and Elicitation Requests to Associate with Client Requests
+# SEP-XXXX: Restrict Sampling & Elicitation to Client Request Scope
 
 ## Status
 **Proposed**
