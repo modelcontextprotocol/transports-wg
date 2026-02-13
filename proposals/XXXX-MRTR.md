@@ -285,6 +285,10 @@ export interface JSONRPCRequest extends Request {
 }
 ```
 
+Note that this workflow eliminates the need for the
+`URLElicitationRequiredError` error code.  That code will be removed
+from the spec.
+
 #### Example Flow for Ephemeral Tools
 
 Note: This is a contrived example, just to illustrate the flow.
