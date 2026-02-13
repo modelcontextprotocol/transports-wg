@@ -3,7 +3,8 @@
 - **Status**: Draft
 - **Type**: Standards Track
 - **Created**: 2026-02-03
-- **Author(s)**: Mark D. Roth (@markdroth), Caitie McCaffrey (@CaitieM20)
+- **Author(s)**: Mark D. Roth (@markdroth), Caitie McCaffrey (@CaitieM20),
+  Gabriel Zimmerman (@gjz22)
 - **Sponsor**: None
 - **PR**: https://github.com/modelcontextprotocol/specification/pull/{NUMBER}
 
@@ -130,16 +131,16 @@ different workflow for ephemeral tools and persistent tools, the latter
 of which will leverage Tasks.  However, both workflows will use the same
 data structures.
 
-First, we introduce the notion of "dependent requests", which represents
+First, we introduce the notion of "input requests", which represents
 a set of one or more server-initiated request to be sent to the client,
-and "dependent responses", which represents the client's responses to
+and "input responses", which represents the client's responses to
 those requests.  The individual requests and responses are stored in a
 map with string keys:
 
 ```typescript
-export interface DependentRequests { [key: string]: ServerRequest; }
+export interface InputRequests { [key: string]: ServerRequest; }
 
-export interface DependentResponses { [key: string]: ClientResult; }
+export interface InputResponses { [key: string]: ClientResult; }
 ```
 
 TODO: The above schema definitions are not quite right, because
@@ -149,10 +150,10 @@ needed to get the types without that field.
 
 The keys are assigned by the server when issuing the requests.  The client
 will send the response for each request using the corresponding key.
-For example, a server might send the following dependent requests:
+For example, a server might send the following input requests:
 
 ```json5
-"dependent_requests": {
+"input_requests": {
   // Elicitation request.
   "github_login": {
     "method": "elicitation/create",
@@ -202,7 +203,7 @@ For example, a server might send the following dependent requests:
 The client would then send the responses in the following form:
 
 ```json5
-"dependent_responses": {
+"input_responses": {
   // Elicitation response.
   "github_login": {
     "result": {
@@ -236,11 +237,11 @@ For ephemeral tools, we will adopt the following workflow:
 
 1. Client sends tool call request.
 2. Server sends back a single response (**not** an SSE stream)
-   indicating that the request is incomplete and including the dependent
+   indicating that the request is incomplete and including the input
    requests that the client must complete.  This terminates the original
    request.
 3. Client sends a new tool call request, completely independent of the
-   original one, which includes the responses to the dependent requests
+   original one, which includes the responses to the input requests
    from step 2.
 4. Server sends back a CallToolResponse.
 
@@ -257,22 +258,22 @@ export interface JSONRPCIncompleteResultResponse {
   id: RequestId;
   // Requests issued by the server that must be complete before the
   // client can retry.
-  dependent_requests: { [key: string]: ServerRequest };
+  input_requests: { [key: string]: ServerRequest };
 }
 
 // Existing type, modified to include JSONRPCIncompleteResultResponse.
 export type JSONRPCResponse = JSONRPCResultResponse | JSONRPCErrorResponse |
                               JSONRPCIncompleteResultResponse;
 
-// Existing type, modified to encode responses to dependent requests.
+// Existing type, modified to encode responses to input requests.
 export interface JSONRPCRequest extends Request {
   jsonrpc: typeof JSONRPC_VERSION;
   id: RequestId;
   // New field to carry the responses for the server's requests from the
   // JSONRPCIncompleteResultResponse message.  For each key in the
-  // response's dependent_requests field, the same key must appear here
+  // response's input_requests field, the same key must appear here
   // with the associated response.
-  dependent_responses: { [key: string]: ClientResult };
+  input_responses: { [key: string]: ClientResult };
 }
 ```
 
@@ -302,7 +303,7 @@ Note: This is a contrived example, just to illustrate the flow.
 {
   "jsonrpc": "2.0",
   "id": 2,
-  "dependent_requests": {
+  "input_requests": {
     "github_login": {
       "method": "elicitation/create",
       "params": {
@@ -324,7 +325,7 @@ Note: This is a contrived example, just to illustrate the flow.
 ```
 
 3. The client then retries the original tool call, this time including the
-   responses to the dependent server request:
+   responses to the input server request:
 ```json
 {
   "jsonrpc": "2.0",
@@ -336,7 +337,7 @@ Note: This is a contrived example, just to illustrate the flow.
       "location": "New York"
     }
   }
-  "dependent_responses": {
+  "input_responses": {
     "github_login": {
       "result": {
         "action": "accept",
@@ -370,24 +371,24 @@ Note: This is a contrived example, just to illustrate the flow.
 
 The client-side state mechanism described in
 [SEP-1685](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1685)
-is very useful in conjunction with the dependent requests model for
+is very useful in conjunction with the input requests model for
 ephemeral tools.
 
 For example, let's say that you are doing a rolling upgrade of your
 horizontally scaled server instances to deploy a new version of a tool
-implementation.  The old version had two dependent requests with keys
+implementation.  The old version had two input requests with keys
 "github_login" and "google_login".  However, in the new version of
-the tool implementation, it still uses the "github_login" dependent
-request, but it replaces the "google_login" dependent request with a new
-"microsoft_login" dependent request.
+the tool implementation, it still uses the "github_login" input
+request, but it replaces the "google_login" input request with a new
+"microsoft_login" input request.
 
 If the first request goes to an old version of the server but the second
-attempt (that includes the dependent responses) goes to a new version
+attempt (that includes the input responses) goes to a new version
 of the server, then the server will see the result for "github_login",
 which it needs, but it won't see the result for "microsoft_login".
 (It will also see the result for "google_login", but it no longer needs
 that, so it doesn't matter.)  At this point, the server needs to send a
-new dependent request for "microsoft_login", but it also doesn't want
+new input request for "microsoft_login", but it also doesn't want
 to lose the answer that it's already gotten for "github_login", so it
 would use the kind of state proposed in 1685 to retain that information
 without having to store the state on the server side.
@@ -396,22 +397,22 @@ The workflow here would look like this:
 
 1. Client sends tool call request that hits a server instance running
    the old version.
-2. Server sends back an incomplete response indicating the dependent
+2. Server sends back an incomplete response indicating the input
    requests for "github_login" and "google_login".
 3. Client sends a new tool call request that includes the responses to
-   the dependent requests for "github_login" and "google_login".  This
+   the input requests for "github_login" and "google_login".  This
    time it hits a server instance running the new version.
 4. Server sends back another incomplete response indicating the
-   dependent request for "microsoft_login", which the client has not
+   input request for "microsoft_login", which the client has not
    already provided.  However, the response also includes SEP-1685 state
    containing the already-provided "github_login" response, so that the
    client does not need to prompt the user for the same information a
    second time.
 5. Client sends a third tool call request that includes the response to
-   the "microsoft_login" dependent request as well as echoing back the
+   the "microsoft_login" input request as well as echoing back the
    SEP-1685 state provided by the server in step 4.
 6. Server now sees the "github_login" info in the SEP-1685 state and the
-   "microsoft_login" state in the dependent responses, so the request
+   "microsoft_login" state in the input responses, so the request
    now contains everything the server needs to perform the tool call and
    send back a complete response.
 
@@ -424,8 +425,8 @@ The workflow for `Tasks` is as follows:
 1. Server sets Task Status to `input_required` 
 2. Client retrieves the Task Status by calling `tasks/get` and sees that more information is needed.
 3. Client calls `task/result` 
-4. Server returns the `DependentRequets` object. The Server can pause processing the request at this point.
-5. Client sends `DependentResponses` object to server along with `Task` metadata field.
+4. Server returns the `InputRequets` object. The Server can pause processing the request at this point.
+5. Client sends `InputResponses` object to server along with `Task` metadata field.
 6. Server resumes processing sets TaskStatus back to `Working`.
 
 Since `Tasks` are likely longer running, have state associated with them, and are likely more costly to compute, the request for more information does not end the original request. Instead, the server can resume processing once the necessary information is provided.
@@ -508,12 +509,12 @@ The below example walks through the entire Task Message flow for a Echo Tool whi
 }
 ```
 
-6. <b>Server Response</b> returns `dependent_requests` to request additional input
+6. <b>Server Response</b> returns `input_requests` to request additional input
 ```json
 {
     "id": 3,
     "jsonrpc": "2.0",
-    "dependent_requests":{
+    "input_requests":{
       "echo_input":{
         "method": "elicitation/create",
         "params":{
@@ -542,7 +543,7 @@ The below example walks through the entire Task Message flow for a Echo Tool whi
 {
     "jsonrpc": "2.0",
     "id": 4,
-    "dependent_responses":{
+    "input_responses":{
       "echo_input":{
         "result":{
           "action": "accept",
@@ -626,7 +627,7 @@ Client Message
 ### Interactions Between Ephemeral and Persistent Workflows
 
 If a tool implementation needs the client to respond to a set of
-dependent requests before it can even start processing but then later
+input requests before it can even start processing but then later
 needs to do persistent processing, it can start using the ephemeral
 workflow and then switch to the persistent workflow by creating a task
 at that point.  This avoids the need for the server to store state until
@@ -634,9 +635,9 @@ it actually has the information needed to start processing the request.
 This workflow would look like this:
 
 1. Client sends tool call request with task metadata.
-2. Server sends back `dependent_requests` response indicating that more information is needed to process the request. This terminates the original request.
+2. Server sends back `input_requests` response indicating that more information is needed to process the request. This terminates the original request.
 3. Client sends a new tool call request, completely independent of the
-   original one, which includes the `dependent_responses` object along with the task metadata.
+   original one, which includes the `input_responses` object along with the task metadata.
 4. Server sends back a task ID, indicating that it will be processing the
    request in the background.  All subsequent interaction will be done
    via the Tasks API.
@@ -656,7 +657,7 @@ would not have eliminated problems for environments that cannot support
 long-lived connections, nor would it have addressed fault tolerance
 issues.
 
-There was discussion about whether the dependent requests should be a
+There was discussion about whether the input requests should be a
 map or just a single object, possibly leveraging some field inside of
 the requests (e.g., the elicitation ID) to differentiate between them.
 We decided that the map makes sense, since it structurally guarantees
@@ -681,7 +682,7 @@ this:
 
 ```python
 def my_tool(request):
-  github_login = request.dependent_responses().get('github_login', None)
+  github_login = request.input_responses().get('github_login', None)
   if github_login is None:
     return IncompleteResponse({'github_login': elicitation_request})
   result = GetResult(github_login)
@@ -704,4 +705,4 @@ TBD
 ### Acknowledgments
 
 Thanks to Luca Chang (@LucaButBoring) for his valuable input on how to
-integrate dependent requests into Tasks.
+integrate input requests into Tasks.
