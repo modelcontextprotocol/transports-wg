@@ -450,7 +450,7 @@ The workflow for `Tasks` is as follows:
 5. Client sends `InputResponses` object to server along with `Task` metadata field.
 6. Server resumes processing sets TaskStatus back to `Working`.
 
-Since `Tasks` are likely longer running, have state associated with them, and are likely more costly to compute, the request for more information does not end the original request. Instead, the server can resume processing once the necessary information is provided.
+Since `Tasks` are likely longer running, have state associated with them, and are likely more costly to compute, the request for more information does not end the originally requested operation (e.g., the tool call). Instead, the server can resume processing once the necessary information is provided.
 
 The above workflow and below example do not leverage any of the optional Task Status Notifications although this SEP does not preclude their use.
 
