@@ -107,7 +107,7 @@ Standalone server-initiated elicitation on independent communication streams (un
 
 <Warning>
 
-Servers **MUST** send `ping` requests only in association with an originating client request (e.g., during `tools/call`, `resources/read`, or `prompts/get` processing).
+Servers **MUST** send `ping` requests only in association with an outstanding client request (e.g., during `tools/call`, `resources/read`, or `prompts/get` processing).
 
 Standalone server-initiated elicitation on independent communication streams (unrelated to any client request) is not supported and **MUST NOT** be implemented. Future transport implementations are not required to support this pattern.
 
