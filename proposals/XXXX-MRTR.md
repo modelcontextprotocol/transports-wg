@@ -251,6 +251,8 @@ Note that the requests in steps 1 and 3 are completely independent: the
 server that processes the request in step 3 does not need any
 information that is not directly present in the request.
 
+The schema would look something like this:
+
 ```typescript
 // Similar to existing JSONRPCResultResponse.
 // Used in cases where the server needs the results of one or more requests
@@ -259,9 +261,10 @@ export interface JSONRPCIncompleteResultResponse {
   jsonrpc: typeof JSONRPC_VERSION;
   id: RequestId;
   // Requests issued by the server that must be complete before the
-  // client can retry.
+  // client can retry the original request.
   input_requests?: InputRequests;
-  // Request state to be passed back to the server when the client retries.
+  // Request state to be passed back to the server when the client
+  // retries the original request.
   // Note: The client must treat this as an opaque blob; it must not
   // interpret it in any way.
   request_state?: string;
@@ -284,6 +287,11 @@ export interface JSONRPCRequest extends Request {
   request_state?: string;
 }
 ```
+
+Note that both the "input_requests" and "request_state" fields affect
+only the client's next retry of the original request.  They will not
+be used for any other request that the client may be sending in parallel
+(e.g., a tool list or even another tool call).
 
 Note that this workflow eliminates the need for the
 `URLElicitationRequiredError` error code.  That code will be removed
