@@ -8,11 +8,11 @@
 
 This SEP clarifies that server-to-client requests (e.g. `sampling/createMessage, `elicitation/create`) requests **MUST** be associated with an originating client-to-server request (e.g., during `tools/call`, `resources/read`, or `prompts/get` processing). Standalone server-initiated requests outside notifications **MUST NOT** be implemented.
 
-Logically any server-to-client request **MUST** be associated with a valid client-to-server JSON-RPC Request Id. 
+Although not enforced in the current MCP Data Layer, logically any server-to-client request **MUST** be associated with a valid client-to-server JSON-RPC Request Id.
 
 ## Motivation
 
-### Current Ambiguity
+### Current Specification
 
 The current specification uses **SHOULD** language in the transport layer:
 
@@ -26,20 +26,19 @@ For the optional GET SSE Stream [(2025-11-25/basic/transports.mdx:146-L148)](htt
 >
 > - "These messages **SHOULD** be unrelated to any concurrently-running JSON-RPC _request_ from the client."
 
-
-
-This creates ambiguity about whether servers can initiate sampling/elicitation requests:
-- On standalone SSE streams (HTTP GET without prior client request)
-- Independent of any client operation
-- As "push" notifications to request user input or LLM completions
+Although the GET stream allows "unsolicited" requests, it's use is entirely optional and cannot be relied upon by MCP Server authors.
 
 ### Design Intent
 
-The design intent of both sampling and elicitation has always been to operate **nested within** other MCP operations:
+The design intent of MCP Server Reqeusts is to operate reactively **nested within** other MCP operations:
 
 - **Sampling** enables servers to request LLM assistance while processing a tool call, resource request, or prompt
 - **Elicitation** enables servers to gather additional user input needed to complete an operation
-- Both are **reactive** capabilities, not proactive push mechanisms
+- **List Roots** enables servers to identify shared storage locations
+
+**Ping** has a special status as it is primarily intended as a keep-alive/health-check mechanism. 
+
+For Streamable HTTP Servers this enables SSE Streams to be maintained for extended periods if no Notifications or Requests are available to be sent. For client-to-server Requests they are associable. Future transport implementations will remove the need for dissociated Pings.
 
 The current specification already describes this pattern:
 
@@ -54,7 +53,7 @@ Making this constraint explicit:
 1. **Simplifies transport implementations** - Transports don't need to support arbitrary server-initiated request/response flows, which require a persistent connection from Server to Client; they only need request-scoped bidirectional communication
 2. **Clarifies user experience** - Users understand that sampling/elicitation happens *because* they initiated an action, not spontaneously
 3. **Reduces security surface** - Ensures client has context for what scope the additional requested information  will be used for. This allows clients to make better informed decisions on whether to provide the requested info. 
-4. **Aligns with practice** - Most (likely all) existing implementations already follow this pattern
+4. **Aligns with practice** - Based on a scan of GitHub all existing implementations already follow this pattern, except one repo owned by the SEP author with a contrived scenario. 
 
 ## Specification Changes
 
@@ -87,6 +86,36 @@ Standalone server-initiated elicitation on independent communication streams (un
 
 </Warning>
 ```
+
+**In `client/roots.mdx` (in `User Interaction Model` section):**
+
+```markdown
+
+<Warning>
+
+Servers **MUST** send `elicitation/create` requests only in association with an originating client request (e.g., during `tools/call`, `resources/read`, or `prompts/get` processing).
+
+Standalone server-initiated elicitation on independent communication streams (unrelated to any client request) is not supported and **MUST NOT** be implemented. Future transport implementations are not required to support this pattern.
+
+</Warning>
+
+```
+
+**In `base/utilities/ping.mdx` (In `Overview` section):**
+
+```markdown
+
+<Warning>
+
+Servers **MUST** send `ping` requests only in association with an originating client request (e.g., during `tools/call`, `resources/read`, or `prompts/get` processing).
+
+Standalone server-initiated elicitation on independent communication streams (unrelated to any client request) is not supported and **MUST NOT** be implemented. Future transport implementations are not required to support this pattern.
+
+</Warning>
+
+```
+
+
 
 ### 2. Clarify Transport Layer Constraints
 
@@ -122,9 +151,6 @@ This change is expected to have **minimal to no impact** on existing implementat
 
 1. **Common usage patterns are preserved** - Sampling/elicitation within tool execution, resource reading, and prompt handling remain fully supported
 2. **No known implementations affected** - Research conducted on GitHub has shown only one implementation of this pattern. This singular implementation is owned by the SEP author. 
-3. **stdio transport unaffected** - The stdio transport already operates in a request-scoped manner where all server messages naturally associate with client operations. 
-
-**TODO** 
 
 ### What's Disallowed
 
@@ -159,14 +185,14 @@ async def analyze_data(data: str, ctx: Context) -> str:
 ### For Server Implementers
 
 **No changes required** if your server:
-- Only uses sampling/elicitation within tool handlers
-- Only uses sampling/elicitation within resource/prompt handlers  
-- Uses sampling/elicitation synchronously as part of processing a client request
+- Only uses server-to-client requests within tool handlers
+- Only uses server-to-client requests within resource/prompt handlers  
+- Uses server-to-client requests synchronously as part of processing a client request
 
 **Changes required** if your server:
-- Attempts to initiate sampling/elicitation on standalone HTTP GET streams
-- Attempts to send sampling/elicitation requests independent of client operations
-- Has background tasks that try to invoke sampling/elicitation
+- Attempts to initiate server-to-client requests on standalone HTTP GET streams
+- Attempts to send server-to-client requests requests independent of client operations
+- Has background tasks that try to invoke server-to-client requests
 
 Alternative designs will need to be implemented for the "Changes Required" case.
 
