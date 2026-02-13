@@ -137,7 +137,7 @@ Standalone server-initiated elicitation on independent communication streams (un
 - The server **MAY** send JSON-RPC _requests_ and _notifications_ on the stream.
 - These messages **SHOULD** be unrelated to any concurrently-running JSON-RPC
 - _request_ from the client.
-+ The server **MAY** send JSON-RPC _requests_ and _notifications_ on the stream.
++ The server **MAY** send JSON-RPC _notifications_ and _pings_ on the stream.
 + These messages **SHOULD** be unrelated to any concurrently-running JSON-RPC
 + _request_ from the client, **except** that `sampling/createMessage` and 
 + `elicitation/create` requests **MUST NOT** be sent on standalone streams.
