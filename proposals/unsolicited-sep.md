@@ -6,7 +6,9 @@
 
 ## Summary
 
-This SEP clarifies that `sampling/createMessage` and `elicitation/create` requests **MUST** be sent only in association with an originating client request (e.g., during `tools/call`, `resources/read`, or `prompts/get` processing). Standalone server-initiated sampling or elicitation on independent communication streams are not supported and **SHOULD NOT** be implemented.
+This SEP clarifies that server-to-client requests (e.g. `sampling/createMessage, `elicitation/create`) requests **MUST** be associated with an originating client-to-server request (e.g., during `tools/call`, `resources/read`, or `prompts/get` processing). Standalone server-initiated requests outside notifications **MUST NOT** be implemented.
+
+Logically any server-to-client request **MUST** be associated with a valid client-to-server JSON-RPC Request Id. 
 
 ## Motivation
 
@@ -14,7 +16,17 @@ This SEP clarifies that `sampling/createMessage` and `elicitation/create` reques
 
 The current specification uses **SHOULD** language in the transport layer:
 
-> "The server **MAY** send JSON-RPC _requests_ and _notifications_ before sending the JSON-RPC _response_. These messages **SHOULD** relate to the originating client _request_."
+In context of responding to a POST Request in the Streamable HTTP transport [(2025-11-25/basic/transports.mdx:121-L123)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/d02d768ec849ccee4ab38b4cc17f85db079da592/docs/specification/2025-11-25/basic/transports.mdx?plain=1#L121-L123):
+
+> - "The server **MAY** send JSON-RPC _requests_ and _notifications_ before sending the JSON-RPC _response_. These messages **SHOULD** relate to the originating client _request_." 
+
+For the optional GET SSE Stream [(2025-11-25/basic/transports.mdx:146-L148)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/d02d768ec849ccee4ab38b4cc17f85db079da592/docs/specification/2025-11-25/basic/transports.mdx?plain=1#L146C1-L148C32):
+
+> - "The server **MAY** send JSON-RPC _requests_ and _notifications_ on the stream."
+>
+> - "These messages **SHOULD** be unrelated to any concurrently-running JSON-RPC _request_ from the client."
+
+
 
 This creates ambiguity about whether servers can initiate sampling/elicitation requests:
 - On standalone SSE streams (HTTP GET without prior client request)
