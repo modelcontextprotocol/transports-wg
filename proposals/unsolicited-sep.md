@@ -196,6 +196,17 @@ async def analyze_data(data: str, ctx: Context) -> str:
 
 Alternative designs will need to be implemented for the "Changes Required" case.
 
+Implementors performing unsolicited server-to-client requests (typically URL Elicitation) immediately following initialization are encouraged to lazily perform these requests within the scope of a client-to-server request that requires that information from the client.
+
+### Timeout Considerations
+
+When an MCP Server initiates a "nested" request inside a client request, the duration of the parent request extends to include the user's response time.
+
+Implementers **MUST** ensure that:
+
+1. Transport timeouts (e.g. HTTP Request Timeout) are sufficient to accommodate "Human-in-the-loop" delays, which may be unbounded.
+2. Short timeouts enforced by infrastructure (e.g. Load Balancers) may result in connection termination before the user responds. Ping Requests **SHOULD** be used to keep the connection alive and reset timers. 
+
 ### For Client Implementers
 
 **No changes required** - Clients should already handle sampling/elicitation requests in the context of their own outbound requests. Potential to simplify implementations if out-of-band supported.
