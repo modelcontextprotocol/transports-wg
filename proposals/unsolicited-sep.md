@@ -1,10 +1,14 @@
+# SEP-0000: Restrict Sampling & Elicitation to Client Request Scope
 
-# SEP-XXXX: Restrict Sampling & Elicitation to Client Request Scope
 
-## Status
-**Proposed**
+- **Status**: Draft
+- **Type**: Standards Track
+- **Created**: 2026-02-16
+- **Author(s)**: MCP Transports Working Group
+- **Sponsor**: @CaitieM20 - Caitie McCaffrey 
+- **PR**: https://github.com/modelcontextprotocol/specification/pull/xxxx
 
-## Summary
+## Abstract
 
 This SEP clarifies that server-to-client requests (e.g. `sampling/createMessage, `elicitation/create`) requests **MUST** be associated with an originating client-to-server request (e.g., during `tools/call`, `resources/read`, or `prompts/get` processing). Standalone server-initiated requests outside notifications **MUST NOT** be implemented.
 
@@ -114,8 +118,6 @@ Standalone server-initiated elicitation on independent communication streams (un
 </Warning>
 
 ```
-
-
 
 ### 2. Clarify Transport Layer Constraints
 
