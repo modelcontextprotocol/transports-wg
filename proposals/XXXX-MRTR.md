@@ -464,6 +464,8 @@ The workflow for `Tasks` is as follows:
 
 Since `Tasks` are likely longer running, have state associated with them, and are likely more costly to compute, the request for more information does not end the originally requested operation (e.g., the tool call). Instead, the server can resume processing once the necessary information is provided.
 
+To align with MRTR semantics, the server will respond to the `task/result` request with a `InputRequests` object. Both of these will have the same JsonRPC `id`. When the client responds with a `InputResponses` object this is a new client request wit a new JSONRPC `id` and therefore needs a new method name. We propose `tasks/input_response`.
+
 The above workflow and below example do not leverage any of the optional Task Status Notifications although this SEP does not preclude their use.
 
 #### Example Flow for Persistent Tools
@@ -576,6 +578,7 @@ The below example walks through the entire Task Message flow for a Echo Tool whi
 {
     "jsonrpc": "2.0",
     "id": 4,
+    "method": "tasks/input_response",
     "input_responses":{
       "echo_input":{
         "result":{
