@@ -254,11 +254,16 @@ tools and another for persistent tools.
 For ephemeral tools, we will adopt the following workflow:
 
 1. Client sends tool call request.
-2. Server sends back a single response (**not** an SSE stream)
-   indicating that the request is incomplete.  The response may include
-   input requests that the client must complete.  It may also include
-   some request state that the client must return back to the server.
-   This terminates the original request.
+2. Server sends back a single response indicating that the request is
+   incomplete.  The response may include input requests that the client
+   must complete.  It may also include some request state that the client
+   must return back to the server.  This response terminates the original
+   request.  It will normally be sent as a single response, not on an
+   SSE stream, although for now (this may change in a future SEP) it is
+   also legal to send this response on an SSE stream following (e.g.)
+   progress notifications.  If this incomplete response is sent on an
+   SSE stream, it must be the last message on the SSE stream, just as if
+   it were a normal response.
 3. Client sends a new tool call request, completely independent of the
    original one.  This new tool call includes responses to the input
    requests from step 2.  It also includes the request state specified by
@@ -656,7 +661,11 @@ server instance left off.
 
 1. **Server Behavior:**
    - Servers MAY respond to any client-initiated request with a
-     `JSONRPCIncompleteResultResponse`.
+     `JSONRPCIncompleteResultResponse`.  This message MAY be sent either
+     as a standalone response or as the final message on an SSE stream,
+     although implementations are encouraged to prefer the former.
+     If using an SSE stream, servers MUST NOT send any message on the
+     stream after the incomplete response message.
    - The `JSONRPCIncompleteResultResponse` message MAY include an
      `input_requests` field.
    - The `JSONRPCIncompleteResultResponse` message MAY include a
