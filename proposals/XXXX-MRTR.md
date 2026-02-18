@@ -70,24 +70,39 @@ on one server instance with the original ongoing tool call on a
 different server instance.  
 
 There are two main approaches that can be used to solve this problem today:
-- **Shared Storage Layer Across Server Instances**: This allows multiple
-  server instances to match up the elicitation response on one server
-  instance with the original ongoing tool call on a different server
-  instance.  This approach has a number of drawbacks:
-  - It is extremely expensive, especially for ephemeral tools that may not
-    already have a common storage layer (e.g., a weather tool).
-  - It requires special code to figure out when the shared state can be
-    cleaned up (e.g., did the client go away permanently, or is there
-    just a temporary network problem?).
-  - It requires special behavior in the tool implementation to integrate
-    with the shared storage layer.  The MCP SDKs today do not have any
-    special hooks for this sort of storage layer integration, which
-    means that it's very hard to write in-line code via the SDKs.
+- **Persistent Storage Layer Shared Across Server Instances**: Servers can
+  deploy and manage a persistent storage layer (e.g., PostgreSQL, Redis,
+  DynamoDB), which allow multiple server instances to match up the
+  elicitation response on one server instance with the original ongoing
+  tool call on a different server instance.  This approach has a number
+  of drawbacks:
+  - The persistent storage layer is **extremely expensive**, especially for
+    ephemeral tools that may not already have such a layer (e.g., a weather
+    tool).
+  - The persistent storage layer imposes significant reliability concerns:
+    it becomes a critical dependency and therefore a potential single
+    point of failure.  To avoid that, it must provide high availability,
+    replication, and backup mechanisms.
+  - The persistent storage layer becomes a bottleneck, limiting horizontal
+    scalability.  Geographic distribution requires either expensive
+    global replication or sticky routing.
+  - The persistent storage layer also imposes significant operational
+    complexity.  In horizontally scaled deployments, it requires
+    distributed locking or consensus protocols.  It also requires special
+    garbage collection logic to determine when shared can be cleaned up,
+    which requires careful trade-offs: cleaning up state too aggressively
+    can reduce storage costs but limit how long users have to respond,
+    whereas cleaning up less aggressively accommodates slow users but
+    increases storage costs.
+  - This approach requires special behavior in the tool implementation to
+    integrate with the persistent storage layer.  The MCP SDKs today do
+    not have any special hooks for this sort of storage layer integration,
+    which means that it's very hard to write in-line code via the SDKs.
 - **Statefulness in Load Balancing**: With the use of cookies, it is
   possible for the load balancing layer to ensure that the elicitation
   request in step 3 is delivered to the same server instance that the
   original request was delivered to in step 1.  This approach, while
-  often cheaper than a shared storage layer, has the following
+  often cheaper than a persistent storage layer, has the following
   drawbacks:
   - It requires special configuration and behavior in the load
     balancers, which is often difficult to manage.
@@ -113,7 +128,7 @@ of server-initiated requests within the context of a client-initiated
 request.  Specifically, we need to make it cheaper to support this pattern
 in the common case of an ephemeral tool in a horizontally scaled, load
 balanced deployment.  This means that we need a solution that does not
-depend on an SSE stream and does not require either a shared storage
+depend on an SSE stream and does not require either a persistent storage
 layer or stateful load balancing, which in turn means that we need to
 avoid dependencies between requests: servers must be able to process
 each individual request using no information other than what is present
@@ -121,7 +136,7 @@ in that individual request.
 
 Note that while the goal here is to optimize the common case of ephemeral
 tools, we do want to continue to support persistent tools, which generally
-already require a shared storage layer.
+already require a persistent storage layer.
 
 ## Specification
 
@@ -389,6 +404,191 @@ Note: This is a contrived example, just to illustrate the flow.
 }
 ```
 
+#### Real-World Example for Ephemeral Workflow
+
+This example demonstrates how `request_state` enables a multi-round-trip
+elicitation flow driven by [Azure DevOps custom
+rules](https://learn.microsoft.com/en-us/azure/devops/organizations/settings/work/custom-rules?view=azure-devops).
+The scenario involves an `update_work_item` tool that transitions a Bug
+work item to "Resolved."  ADO custom rules require specific fields when
+certain state transitions occur, and the server uses iterative
+elicitation to gather them — accumulating context in `request_state`
+across rounds so that the final update can be executed without any
+server-side storage.
+
+**Background — ADO Custom Rules in effect:**
+- *Rule 1:* When State changes to "Resolved" → require the "Resolution"
+  field (e.g., Fixed, Won't Fix, Duplicate, By Design).
+- *Rule 2:* When Resolution is "Duplicate" → require the "Duplicate Of"
+  field (a link to the original work item).
+
+##### Round 1 — Tool call triggers state change, server elicits Resolution
+
+1. The client invokes the `update_work_item` tool to resolve Bug #4522:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "update_work_item",
+    "arguments": {
+      "workItemId": 4522,
+      "fields": { "System.State": "Resolved" }
+    }
+  }
+}
+```
+
+2. The server recognizes that setting State to "Resolved" triggers
+   Rule 1, which requires a Resolution value.  Rather than failing the
+   call, the server returns an incomplete response with an elicitation
+   request.  No `request_state` is needed yet, since the original tool
+   call arguments will be re-sent on retry:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "input_requests": {
+    "resolution": {
+      "method": "elicitation/create",
+      "params": {
+        "message": "Resolving Bug #4522 requires a resolution. How was this bug resolved?",
+        "requestedSchema": {
+          "type": "object",
+          "properties": {
+            "resolution": {
+              "type": "string",
+              "enum": ["Fixed", "Won't Fix", "Duplicate", "By Design"],
+              "description": "Resolution type for this bug"
+            }
+          },
+          "required": ["resolution"]
+        }
+      }
+    }
+  }
+}
+```
+
+3. The user selects "Duplicate".  The client retries the original tool
+   call with the elicitation response:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "update_work_item",
+    "arguments": {
+      "workItemId": 4522,
+      "fields": { "System.State": "Resolved" }
+    }
+  },
+  "input_responses": {
+    "resolution": {
+      "result": {
+        "action": "accept",
+        "content": { "resolution": "Duplicate" }
+      }
+    }
+  }
+}
+```
+
+##### Round 2 — Resolution triggers another rule, server elicits Duplicate Of
+
+4. The server merges the user's response and sees that Resolution =
+   "Duplicate" triggers Rule 2, requiring a "Duplicate Of" link.  It
+   returns another incomplete response, this time encoding the
+   already-gathered resolution in `request_state` so it is available
+   regardless of which server instance handles the next retry:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "input_requests": {
+    "duplicate_of": {
+      "method": "elicitation/create",
+      "params": {
+        "message": "Since this is a duplicate, which work item is the original?",
+        "requestedSchema": {
+          "type": "object",
+          "properties": {
+            "duplicateOfId": {
+              "type": "number",
+              "description": "Work item ID of the original bug"
+            }
+          },
+          "required": ["duplicateOfId"]
+        }
+      }
+    }
+  },
+  "request_state": "eyJyZXNvbHV0aW9uIjoiRHVwbGljYXRlIn0..."
+}
+```
+
+5. The user provides the original work item ID.  The client retries the
+   tool call, echoing back the `request_state` and including the new
+   elicitation response:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "update_work_item",
+    "arguments": {
+      "workItemId": 4522,
+      "fields": { "System.State": "Resolved" }
+    }
+  },
+  "input_responses": {
+    "duplicate_of": {
+      "result": {
+        "action": "accept",
+        "content": { "duplicateOfId": 4301 }
+      }
+    }
+  },
+  "request_state": "eyJyZXNvbHV0aW9uIjoiRHVwbGljYXRlIn0..."
+}
+```
+
+##### Final — Server completes the update
+
+6. The server decodes the `request_state` (which contains the
+   resolution), reads the `input_responses` (which contains the
+   duplicate ID), and now has all required fields.  It completes the
+   tool call:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Bug #4522 resolved as Duplicate of Bug #4301. State set to Resolved and duplicate link created."
+      }
+    ],
+    "isError": false
+  }
+}
+```
+
+**Key takeaway:** Across both elicitation rounds, the server held no
+in-memory or persisted state.  The `request_state` field carried the
+accumulated context through the client, and any server instance could
+have handled any individual round.
+
 #### Use Cases for Request State
 
 The "request_state" mechanism provides a mechanism for doing multiple
@@ -448,6 +648,41 @@ have any input requests).  The client will then retry the original
 request with that request state attached, which will allow a different
 server instance to pick up the computation from where the original
 server instance left off.
+
+#### Protocol Requirements for Ephemeral Workflow
+
+1. **Server Behavior:**
+   - Servers MAY respond to any client-initiated request with a
+     `JSONRPCIncompleteResultResponse`.
+   - The `JSONRPCIncompleteResultResponse` message MAY include an
+     `input_requests` field.
+   - The `JSONRPCIncompleteResultResponse` message MAY include a
+     `request_state` field.  If specified, this field is an opaque
+     string that is meaningful only to the server.  Servers are free to
+     encode the state in any format (e.g., plain JSON, base64-encoded
+     JSON, encrypted JWT, serialized binary, etc.).
+   - If a request contains a `request_state` field, servers MUST always
+     validate that state, as the client is an untrusted intermediary.
+     If tampering is a concern, servers SHOULD encrypt the `request_state`
+     field (e.g., using AES-GCM or a signed JWT) to ensure both
+     confidentiality and integrity.  Servers using plaintext state MUST
+     treat the decoded values as untrusted input and validate them the
+     same way they would validate any client-supplied data.
+
+2. **Client Behavior:**
+   - If a client receives a `JSONRPCIncompleteResultResponse` message,
+     if the message contains the `input_requests` field, then the client
+     MUST construct the requested input before retrying the original
+     request.  In contrast, if the message does *not* contain the
+     `input_requests` field, then the client MAY retry the original
+     request immediately.
+   - If a client receives a `JSONRPCIncompleteResultResponse` message
+     that contains the `request_state` field, it MUST echo back the
+     exact value of that field when retrying the original request.
+     Clients MUST NOT inspect, parse, modify, or make any assumptions
+     about the `request_state` contents.  If the incomplete response does
+     not contain a `request_state` field, the client MUST NOT include one
+     in the retry.
 
 ### Persistent Tool Workflow
 
@@ -659,6 +894,19 @@ Client Message
 }
 ```
 
+#### Protocol Requirements for Persistent Workflow
+
+1. **Server Behavior:**
+   - Servers MAY respond to `tasks/get` by indicating that the task
+     is in state `input_required`.
+   - Servers MAY include an `input_requests` field in the
+     `tasks/result` response.
+
+2. **Client Behavior:**
+   - When `tasks/status` shows state `input_required`, clients MUST call
+     `tasks/result` to get the input requests, construct the results of
+     those requests, and then call `tasks/input_response` with the input
+     responses, unless the client is going to cancel the task.
 
 ### Interactions Between Ephemeral and Persistent Workflows
 
@@ -732,7 +980,10 @@ backward compatibility layer.
 
 ## Security Implications
 
-This proposal is not expected to introduce any security implications.
+Because `request_state` passes through the client, malicious or
+compromised clients could attempt to modify it to alter server behavior,
+bypass authorization checks, or corrupt server logic.  To mitigate this,
+we require servers to validate this state somehow.
 
 ## Reference Implementation
 
