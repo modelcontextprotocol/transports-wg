@@ -966,6 +966,17 @@ We decided that the map makes sense, since it structurally guarantees
 the uniqueness of keys, which will avoid the need for explicit checks in
 SDKs and applications to avoid conflicts.
 
+In the persistent workflow, we considered including the input requests
+directly in the `tasks/get` response, rather than requiring the client
+to see the `input_required` status and then call `tasks/result` to get
+the input requests.  We decided to keep those two things separate in
+deference to implementations that use separate infrastructure for task
+state and for the actual tool implementation; the idea is that the
+`tasks/get` call should have a consistent latency profile, regardless of
+what the task state actually is.  We recognize that this requires an
+extra round-trip to the server, but we can optimize this in the future
+if becomes a problem.
+
 ## Backward Compatibility
 
 Today there may be ephemeral tools written in an in-line but async
