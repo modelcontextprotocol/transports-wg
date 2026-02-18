@@ -710,7 +710,7 @@ The workflow for `Tasks` is as follows:
 1. Server sets Task Status to `input_required` 
 2. Client retrieves the Task Status by calling `tasks/get` and sees that more information is needed.
 3. Client calls `task/result` 
-4. Server returns the `InputRequets` object. The Server can pause processing the request at this point.
+4. Server returns the `InputRequests` object. The Server can pause processing the request at this point.
 5. Client sends `InputResponses` object to server along with `Task` metadata field.
 6. Server resumes processing sets TaskStatus back to `Working`.
 
