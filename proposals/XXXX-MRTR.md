@@ -707,11 +707,12 @@ The persistent tool workflow will leverage Tasks. [`Tasks`](https://modelcontext
 
 The workflow for `Tasks` is as follows:
 
-1. Server sets Task Status to `input_required` 
+1. Server sets Task Status to `input_required`. The server can pause
+   processing the request at this point.
 2. Client retrieves the Task Status by calling `tasks/get` and sees that more information is needed.
 3. Client calls `task/result` 
-4. Server returns the `InputRequests` object. The Server can pause processing the request at this point.
-5. Client sends `InputResponses` object to server along with `Task` metadata field.
+4. Server returns the `InputRequests` object.
+5. Client calls `tasks/input_response` request that includes an `InputResponses` object along with `Task` metadata field.
 6. Server resumes processing sets TaskStatus back to `Working`.
 
 Since `Tasks` are likely longer running, have state associated with them, and are likely more costly to compute, the request for more information does not end the originally requested operation (e.g., the tool call). Instead, the server can resume processing once the necessary information is provided.
