@@ -680,10 +680,11 @@ server instance left off.
    - If a request contains a `requestState` field, servers MUST always
      validate that state, as the client is an untrusted intermediary.
      If tampering is a concern, servers SHOULD encrypt the `requestState`
-     field (e.g., using AES-GCM or a signed JWT) to ensure both
-     confidentiality and integrity.  Servers using plaintext state MUST
-     treat the decoded values as untrusted input and validate them the
-     same way they would validate any client-supplied data.
+     field using an encryption algorithm of their choice (e.g., they can
+     use AES-GCM or a signed JWT) to ensure both confidentiality and
+     integrity.  Servers using plaintext state MUST treat the decoded
+     values as untrusted input and validate them the same way they would
+     validate any client-supplied data.
 
 2. **Client Behavior:**
    - If a client receives a `JSONRPCIncompleteResultResponse` message,
