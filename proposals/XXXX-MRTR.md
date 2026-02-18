@@ -23,8 +23,12 @@ environments that cannot support long-lived connections.
 
 Note: This SEP is intended to provide a generic mechanism for handling
 any server-initiated request in the context of any client-initiated
-request.  However, for clarity, throughout this document, we will use
-the example of an elicitation request in the context of a tool call.
+request.  For clarity, throughout this document, we will specifically
+discuss tool calls as a proxy for any client-initiated request, but it
+should be read as applying equally to (e.g.) resource or prompt
+requests; similarly, we will discuss elicitation requests as a proxy for
+any server-initiated request, but it should be read as applying equally
+to (e.g.) sampling requests.
 
 We start with the observation that there are two types of MCP tools:
 1. **Ephemeral**: No state is accumulated on the server side.
