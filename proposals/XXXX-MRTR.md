@@ -267,7 +267,7 @@ For ephemeral tools, we will adopt the following workflow:
 
 Note that the requests in steps 1 and 3 are completely independent: the
 server that processes the request in step 3 does not need any
-information that is not directly present in the request.
+information that is not directly present in the request. To support this decoupling the JsonRPC Id MUST be different between the requests sent in step 1 and step 3. 
 
 The schema would look something like this:
 
