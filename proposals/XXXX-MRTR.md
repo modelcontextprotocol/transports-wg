@@ -149,8 +149,11 @@ data structures.
 First, we introduce the notion of "input requests", which represents
 a set of one or more server-initiated request to be sent to the client,
 and "input responses", which represents the client's responses to
-those requests.  The individual requests and responses are stored in a
-map with string keys:
+those requests.  Both requests and responses are stored in a map with
+string keys.  For input requests, the map values are server-initiated
+requests (e.g., elicitation or sampling requests), whereas for input
+responses, the map values are the responses to those requests.  Here's
+how that would look in the typescript MCP schema:
 
 ```typescript
 export interface InputRequests { [key: string]: ServerRequest; }
