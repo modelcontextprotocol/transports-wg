@@ -175,7 +175,7 @@ will send the response for each request using the corresponding key.
 For example, a server might send the following input requests:
 
 ```json5
-"input_requests": {
+"inputRequests": {
   // Elicitation request.
   "github_login": {
     "method": "elicitation/create",
@@ -225,7 +225,7 @@ For example, a server might send the following input requests:
 The client would then send the responses in the following form:
 
 ```json5
-"input_responses": {
+"inputResponses": {
   // Elicitation response.
   "github_login": {
     "result": {
@@ -289,12 +289,12 @@ export interface JSONRPCIncompleteResultResponse {
   id: RequestId;
   // Requests issued by the server that must be complete before the
   // client can retry the original request.
-  input_requests?: InputRequests;
+  inputRequests?: InputRequests;
   // Request state to be passed back to the server when the client
   // retries the original request.
   // Note: The client must treat this as an opaque blob; it must not
   // interpret it in any way.
-  request_state?: string;
+  requestState?: string;
 }
 
 // Existing type, modified to include JSONRPCIncompleteResultResponse.
@@ -307,15 +307,15 @@ export interface JSONRPCRequest extends Request {
   id: RequestId;
   // New field to carry the responses for the server's requests from the
   // JSONRPCIncompleteResultResponse message.  For each key in the
-  // response's input_requests field, the same key must appear here
+  // response's inputRequests field, the same key must appear here
   // with the associated response.
-  input_responses?: InputResponses;
+  inputResponses?: InputResponses;
   // Request state passed back to the server from the client.
-  request_state?: string;
+  requestState?: string;
 }
 ```
 
-Note that both the "input_requests" and "request_state" fields affect
+Note that both the "inputRequests" and "requestState" fields affect
 only the client's next retry of the original request.  They will not
 be used for any other request that the client may be sending in parallel
 (e.g., a tool list or even another tool call).
@@ -350,7 +350,7 @@ Note: This is a contrived example, just to illustrate the flow.
 {
   "jsonrpc": "2.0",
   "id": 2,
-  "input_requests": {
+  "inputRequests": {
     "github_login": {
       "method": "elicitation/create",
       "params": {
@@ -368,7 +368,7 @@ Note: This is a contrived example, just to illustrate the flow.
       }
     }
   },
-  "request_state": "foo"
+  "requestState": "foo"
 }
 ```
 
@@ -385,7 +385,7 @@ Note: This is a contrived example, just to illustrate the flow.
       "location": "New York"
     }
   }
-  "input_responses": {
+  "inputResponses": {
     "github_login": {
       "result": {
         "action": "accept",
@@ -395,7 +395,7 @@ Note: This is a contrived example, just to illustrate the flow.
       }
     }
   },
-  "request_state": "foo"
+  "requestState": "foo"
 }
 ```
 
@@ -418,13 +418,13 @@ Note: This is a contrived example, just to illustrate the flow.
 
 #### Real-World Example for Ephemeral Workflow
 
-This example demonstrates how `request_state` enables a multi-round-trip
+This example demonstrates how `requestState` enables a multi-round-trip
 elicitation flow driven by [Azure DevOps custom
 rules](https://learn.microsoft.com/en-us/azure/devops/organizations/settings/work/custom-rules?view=azure-devops).
 The scenario involves an `update_work_item` tool that transitions a Bug
 work item to "Resolved."  ADO custom rules require specific fields when
 certain state transitions occur, and the server uses iterative
-elicitation to gather them — accumulating context in `request_state`
+elicitation to gather them — accumulating context in `requestState`
 across rounds so that the final update can be executed without any
 server-side storage.
 
@@ -456,14 +456,14 @@ server-side storage.
 2. The server recognizes that setting State to "Resolved" triggers
    Rule 1, which requires a Resolution value.  Rather than failing the
    call, the server returns an incomplete response with an elicitation
-   request.  No `request_state` is needed yet, since the original tool
+   request.  No `requestState` is needed yet, since the original tool
    call arguments will be re-sent on retry:
 
 ```json
 {
   "jsonrpc": "2.0",
   "id": 1,
-  "input_requests": {
+  "inputRequests": {
     "resolution": {
       "method": "elicitation/create",
       "params": {
@@ -500,7 +500,7 @@ server-side storage.
       "fields": { "System.State": "Resolved" }
     }
   },
-  "input_responses": {
+  "inputResponses": {
     "resolution": {
       "result": {
         "action": "accept",
@@ -516,14 +516,14 @@ server-side storage.
 4. The server merges the user's response and sees that Resolution =
    "Duplicate" triggers Rule 2, requiring a "Duplicate Of" link.  It
    returns another incomplete response, this time encoding the
-   already-gathered resolution in `request_state` so it is available
+   already-gathered resolution in `requestState` so it is available
    regardless of which server instance handles the next retry:
 
 ```json
 {
   "jsonrpc": "2.0",
   "id": 2,
-  "input_requests": {
+  "inputRequests": {
     "duplicate_of": {
       "method": "elicitation/create",
       "params": {
@@ -541,12 +541,12 @@ server-side storage.
       }
     }
   },
-  "request_state": "eyJyZXNvbHV0aW9uIjoiRHVwbGljYXRlIn0..."
+  "requestState": "eyJyZXNvbHV0aW9uIjoiRHVwbGljYXRlIn0..."
 }
 ```
 
 5. The user provides the original work item ID.  The client retries the
-   tool call, echoing back the `request_state` and including the new
+   tool call, echoing back the `requestState` and including the new
    elicitation response:
 
 ```json
@@ -561,7 +561,7 @@ server-side storage.
       "fields": { "System.State": "Resolved" }
     }
   },
-  "input_responses": {
+  "inputResponses": {
     "duplicate_of": {
       "result": {
         "action": "accept",
@@ -569,14 +569,14 @@ server-side storage.
       }
     }
   },
-  "request_state": "eyJyZXNvbHV0aW9uIjoiRHVwbGljYXRlIn0..."
+  "requestState": "eyJyZXNvbHV0aW9uIjoiRHVwbGljYXRlIn0..."
 }
 ```
 
 ##### Final — Server completes the update
 
-6. The server decodes the `request_state` (which contains the
-   resolution), reads the `input_responses` (which contains the
+6. The server decodes the `requestState` (which contains the
+   resolution), reads the `inputResponses` (which contains the
    duplicate ID), and now has all required fields.  It completes the
    tool call:
 
@@ -597,13 +597,13 @@ server-side storage.
 ```
 
 **Key takeaway:** Across both elicitation rounds, the server held no
-in-memory or persisted state.  The `request_state` field carried the
+in-memory or persisted state.  The `requestState` field carried the
 accumulated context through the client, and any server instance could
 have handled any individual round.
 
 #### Use Cases for Request State
 
-The "request_state" mechanism provides a mechanism for doing multiple
+The "requestState" mechanism provides a mechanism for doing multiple
 round trips on the same logical request.
 
 For example, let's say that you are doing a rolling upgrade of your
@@ -655,7 +655,7 @@ the server may want to reuse when the request is retried.  This can be
 used even without any input requests as a mechanism for shedding load.
 If a server instance is mid-computation but becomes overloaded, it may
 return an incomplete response with the current state of its computation
-in "request_state" (note: this incomplete response would not necessarily
+in "requestState" (note: this incomplete response would not necessarily
 have any input requests).  The client will then retry the original
 request with that request state attached, which will allow a different
 server instance to pick up the computation from where the original
@@ -671,15 +671,15 @@ server instance left off.
      If using an SSE stream, servers MUST NOT send any message on the
      stream after the incomplete response message.
    - The `JSONRPCIncompleteResultResponse` message MAY include an
-     `input_requests` field.
+     `inputRequests` field.
    - The `JSONRPCIncompleteResultResponse` message MAY include a
-     `request_state` field.  If specified, this field is an opaque
+     `requestState` field.  If specified, this field is an opaque
      string that is meaningful only to the server.  Servers are free to
      encode the state in any format (e.g., plain JSON, base64-encoded
      JSON, encrypted JWT, serialized binary, etc.).
-   - If a request contains a `request_state` field, servers MUST always
+   - If a request contains a `requestState` field, servers MUST always
      validate that state, as the client is an untrusted intermediary.
-     If tampering is a concern, servers SHOULD encrypt the `request_state`
+     If tampering is a concern, servers SHOULD encrypt the `requestState`
      field (e.g., using AES-GCM or a signed JWT) to ensure both
      confidentiality and integrity.  Servers using plaintext state MUST
      treat the decoded values as untrusted input and validate them the
@@ -687,17 +687,17 @@ server instance left off.
 
 2. **Client Behavior:**
    - If a client receives a `JSONRPCIncompleteResultResponse` message,
-     if the message contains the `input_requests` field, then the client
+     if the message contains the `inputRequests` field, then the client
      MUST construct the requested input before retrying the original
      request.  In contrast, if the message does *not* contain the
-     `input_requests` field, then the client MAY retry the original
+     `inputRequests` field, then the client MAY retry the original
      request immediately.
    - If a client receives a `JSONRPCIncompleteResultResponse` message
-     that contains the `request_state` field, it MUST echo back the
+     that contains the `requestState` field, it MUST echo back the
      exact value of that field when retrying the original request.
      Clients MUST NOT inspect, parse, modify, or make any assumptions
-     about the `request_state` contents.  If the incomplete response does
-     not contain a `request_state` field, the client MUST NOT include one
+     about the `requestState` contents.  If the incomplete response does
+     not contain a `requestState` field, the client MUST NOT include one
      in the retry.
 
 ### Persistent Tool Workflow
@@ -795,12 +795,12 @@ The below example walks through the entire Task Message flow for a Echo Tool whi
 }
 ```
 
-6. <b>Server Response</b> returns `input_requests` to request additional input
+6. <b>Server Response</b> returns `inputRequests` to request additional input
 ```json
 {
     "id": 3,
     "jsonrpc": "2.0",
-    "input_requests":{
+    "inputRequests":{
       "echo_input":{
         "method": "elicitation/create",
         "params":{
@@ -830,7 +830,7 @@ The below example walks through the entire Task Message flow for a Echo Tool whi
     "jsonrpc": "2.0",
     "id": 4,
     "method": "tasks/input_response",
-    "input_responses":{
+    "inputResponses":{
       "echo_input":{
         "result":{
           "action": "accept",
@@ -915,7 +915,7 @@ Client Message
 1. **Server Behavior:**
    - Servers MAY respond to `tasks/get` by indicating that the task
      is in state `input_required`.
-   - Servers MAY include an `input_requests` field in the
+   - Servers MAY include an `inputRequests` field in the
      `tasks/result` response.
 
 2. **Client Behavior:**
@@ -935,9 +935,9 @@ it actually has the information needed to start processing the request.
 This workflow would look like this:
 
 1. Client sends tool call request with task metadata.
-2. Server sends back `input_requests` response indicating that more information is needed to process the request. This terminates the original request.
+2. Server sends back `inputRequests` response indicating that more information is needed to process the request. This terminates the original request.
 3. Client sends a new tool call request, completely independent of the
-   original one, which includes the `input_responses` object along with the task metadata.
+   original one, which includes the `inputResponses` object along with the task metadata.
 4. Server sends back a task ID, indicating that it will be processing the
    request in the background.  All subsequent interaction will be done
    via the Tasks API.
@@ -982,7 +982,7 @@ this:
 
 ```python
 def my_tool(request):
-  github_login = request.input_responses().get('github_login', None)
+  github_login = request.inputResponses().get('github_login', None)
   if github_login is None:
     return IncompleteResponse({'github_login': elicitation_request})
   result = GetResult(github_login)
@@ -996,7 +996,7 @@ backward compatibility layer.
 
 ## Security Implications
 
-Because `request_state` passes through the client, malicious or
+Because `requestState` passes through the client, malicious or
 compromised clients could attempt to modify it to alter server behavior,
 bypass authorization checks, or corrupt server logic.  To mitigate this,
 we require servers to validate this state somehow.
