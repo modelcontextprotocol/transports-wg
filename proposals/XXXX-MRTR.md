@@ -700,7 +700,14 @@ The workflow here would look like this:
      If tampering is a concern, servers SHOULD encrypt the `requestState`
      field using an encryption algorithm of their choice (e.g., they can
      use AES-GCM or a signed JWT) to ensure both confidentiality and
-     integrity.  Servers using plaintext state MUST treat the decoded
+     integrity.  Note that there is also a risk of replaying/hijacking
+     attacks, where an authenticated attacker resends state that was
+     originally sent to a different user.  Therefore, if the request
+     state contains any data that is specific to the original user, the
+     server MUST use some mechanism to cryptographically bind the data
+     to the original user and MUST verify that the `requestState` data
+     sent by the client is associated with the currently authenticated
+     user.  Servers using plaintext state MUST treat the decoded
      values as untrusted input and validate them the same way they would
      validate any client-supplied data.
 
