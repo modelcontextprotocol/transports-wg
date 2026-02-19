@@ -71,7 +71,7 @@ statefulness on the server side.  The main way to solve this problem
 today is to have a storage layer shared across all server instances, so
 that multiple server instances can match up the elicitation response
 on one server instance with the original ongoing tool call on a
-different server instance.  
+different server instance.
 
 There are two main approaches that can be used to solve this problem today:
 - **Persistent Storage Layer Shared Across Server Instances**: Servers can
@@ -276,17 +276,17 @@ For ephemeral tools, we will adopt the following workflow:
 
 Note that the requests in steps 1 and 3 are completely independent: the
 server that processes the request in step 3 does not need any
-information that is not directly present in the request. To support this decoupling the JsonRPC Id MUST be different between the requests sent in step 1 and step 3. 
+information that is not directly present in the request. To support this decoupling the JsonRPC Id MUST be different between the requests sent in step 1 and step 3.
 
 The schema would look something like this:
 
 ```typescript
-// Similar to existing JSONRPCResultResponse.
-// Used in cases where the server needs the results of one or more requests
-// of its own before it can complete the client's request.
-export interface JSONRPCIncompleteResultResponse {
-  jsonrpc: typeof JSONRPC_VERSION;
-  id: RequestId;
+// Incomplete response.  May be sent in response to any client-initiated
+// request.
+// At least one of the the inputRequests and requestState fields must be
+// present, since the presence of these fields allow the client to
+// determine that the result is incomplete.
+export interface IncompleteResult extends Result {
   // Requests issued by the server that must be complete before the
   // client can retry the original request.
   inputRequests?: InputRequests;
@@ -297,14 +297,9 @@ export interface JSONRPCIncompleteResultResponse {
   requestState?: string;
 }
 
-// Existing type, modified to include JSONRPCIncompleteResultResponse.
-export type JSONRPCResponse = JSONRPCResultResponse | JSONRPCErrorResponse |
-                              JSONRPCIncompleteResultResponse;
-
-// Existing type, modified to encode responses to input requests.
-export interface JSONRPCRequest extends Request {
-  jsonrpc: typeof JSONRPC_VERSION;
-  id: RequestId;
+// New request parameter type that includes fields in a retried request.
+// These parameters may be included in any client-initiated request.
+export interface RetryAugmentedRequestParams extends RequestParams {
   // New field to carry the responses for the server's requests from the
   // JSONRPCIncompleteResultResponse message.  For each key in the
   // response's inputRequests field, the same key must appear here
@@ -350,25 +345,27 @@ Note: This is a contrived example, just to illustrate the flow.
 {
   "jsonrpc": "2.0",
   "id": 2,
-  "inputRequests": {
-    "github_login": {
-      "method": "elicitation/create",
-      "params": {
-        "mode": "form",
-        "message": "Please provide your GitHub username",
-        "requestedSchema": {
-          "type": "object",
-          "properties": {
-            "name": {
-              "type": "string"
-            }
-          },
-          "required": ["name"]
+  "result": {
+    "inputRequests": {
+      "github_login": {
+        "method": "elicitation/create",
+        "params": {
+          "mode": "form",
+          "message": "Please provide your GitHub username",
+          "requestedSchema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": ["name"]
+          }
         }
       }
-    }
-  },
-  "requestState": "foo"
+    },
+    "requestState": "foo"
+  }
 }
 ```
 
@@ -384,18 +381,18 @@ Note: This is a contrived example, just to illustrate the flow.
     "arguments": {
       "location": "New York"
     }
-  }
-  "inputResponses": {
-    "github_login": {
-      "result": {
-        "action": "accept",
-        "content": {
-          "name": "octocat"
+    "inputResponses": {
+      "github_login": {
+        "result": {
+          "action": "accept",
+          "content": {
+            "name": "octocat"
+          }
         }
       }
-    }
-  },
-  "requestState": "foo"
+    },
+    "requestState": "foo"
+  }
 }
 ```
 
@@ -463,21 +460,23 @@ server-side storage.
 {
   "jsonrpc": "2.0",
   "id": 1,
-  "inputRequests": {
-    "resolution": {
-      "method": "elicitation/create",
-      "params": {
-        "message": "Resolving Bug #4522 requires a resolution. How was this bug resolved?",
-        "requestedSchema": {
-          "type": "object",
-          "properties": {
-            "resolution": {
-              "type": "string",
-              "enum": ["Fixed", "Won't Fix", "Duplicate", "By Design"],
-              "description": "Resolution type for this bug"
-            }
-          },
-          "required": ["resolution"]
+  "result": {
+    "inputRequests": {
+      "resolution": {
+        "method": "elicitation/create",
+        "params": {
+          "message": "Resolving Bug #4522 requires a resolution. How was this bug resolved?",
+          "requestedSchema": {
+            "type": "object",
+            "properties": {
+              "resolution": {
+                "type": "string",
+                "enum": ["Fixed", "Won't Fix", "Duplicate", "By Design"],
+                "description": "Resolution type for this bug"
+              }
+            },
+            "required": ["resolution"]
+          }
         }
       }
     }
@@ -498,13 +497,13 @@ server-side storage.
     "arguments": {
       "workItemId": 4522,
       "fields": { "System.State": "Resolved" }
-    }
-  },
-  "inputResponses": {
-    "resolution": {
-      "result": {
-        "action": "accept",
-        "content": { "resolution": "Duplicate" }
+    },
+    "inputResponses": {
+      "resolution": {
+        "result": {
+          "action": "accept",
+          "content": { "resolution": "Duplicate" }
+        }
       }
     }
   }
@@ -523,25 +522,27 @@ server-side storage.
 {
   "jsonrpc": "2.0",
   "id": 2,
-  "inputRequests": {
-    "duplicate_of": {
-      "method": "elicitation/create",
-      "params": {
-        "message": "Since this is a duplicate, which work item is the original?",
-        "requestedSchema": {
-          "type": "object",
-          "properties": {
-            "duplicateOfId": {
-              "type": "number",
-              "description": "Work item ID of the original bug"
-            }
-          },
-          "required": ["duplicateOfId"]
+  "result": {
+    "inputRequests": {
+      "duplicate_of": {
+        "method": "elicitation/create",
+        "params": {
+          "message": "Since this is a duplicate, which work item is the original?",
+          "requestedSchema": {
+            "type": "object",
+            "properties": {
+              "duplicateOfId": {
+                "type": "number",
+                "description": "Work item ID of the original bug"
+              }
+            },
+            "required": ["duplicateOfId"]
+          }
         }
       }
-    }
-  },
-  "requestState": "eyJyZXNvbHV0aW9uIjoiRHVwbGljYXRlIn0..."
+    },
+    "requestState": "eyJyZXNvbHV0aW9uIjoiRHVwbGljYXRlIn0..."
+  }
 }
 ```
 
@@ -559,17 +560,17 @@ server-side storage.
     "arguments": {
       "workItemId": 4522,
       "fields": { "System.State": "Resolved" }
-    }
-  },
-  "inputResponses": {
-    "duplicate_of": {
-      "result": {
-        "action": "accept",
-        "content": { "duplicateOfId": 4301 }
+    },
+    "inputResponses": {
+      "duplicate_of": {
+        "result": {
+          "action": "accept",
+          "content": { "duplicateOfId": 4301 }
+        }
       }
-    }
-  },
-  "requestState": "eyJyZXNvbHV0aW9uIjoiRHVwbGljYXRlIn0..."
+    },
+    "requestState": "eyJyZXNvbHV0aW9uIjoiRHVwbGljYXRlIn0..."
+  }
 }
 ```
 
@@ -720,14 +721,14 @@ The workflow here would look like this:
 
 ### Persistent Tool Workflow
 
-The persistent tool workflow will leverage Tasks. [`Tasks`](https://modelcontextprotocol.io/specification/draft/basic/utilities/tasks) already provide a mechanism to indicate that more information is needed to complete the request. The `input_required` Task Status allows the server to indicate that additional information is needed to complete processing the task. 
+The persistent tool workflow will leverage Tasks. [`Tasks`](https://modelcontextprotocol.io/specification/draft/basic/utilities/tasks) already provide a mechanism to indicate that more information is needed to complete the request. The `input_required` Task Status allows the server to indicate that additional information is needed to complete processing the task.
 
 The workflow for `Tasks` is as follows:
 
 1. Server sets Task Status to `input_required`. The server can pause
    processing the request at this point.
 2. Client retrieves the Task Status by calling `tasks/get` and sees that more information is needed.
-3. Client calls `task/result` 
+3. Client calls `task/result`
 4. Server returns the `InputRequests` object.
 5. Client calls `tasks/input_response` request that includes an `InputResponses` object along with `Task` metadata field.
 6. Server resumes processing sets TaskStatus back to `Working`.
@@ -784,7 +785,7 @@ The below example walks through the entire Task Message flow for a Echo Tool whi
         "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
     }
 }
-``` 
+```
 
 4. <b>Server Response</b> with Task status `input_required`
 ```json
@@ -819,27 +820,29 @@ The below example walks through the entire Task Message flow for a Echo Tool whi
 {
     "id": 3,
     "jsonrpc": "2.0",
-    "inputRequests":{
-      "echo_input":{
-        "method": "elicitation/create",
-        "params":{
-          "mode": "form",
-          "message": "Please provide the input string to echo back",
-          "requestedSchema":{
-            "type": "object",
-            "properties":{
-              "input": { "type": "string"}
-            },
-            "required": ["input"]
+    "result": {
+      "inputRequests":{
+        "echo_input":{
+          "method": "elicitation/create",
+          "params":{
+            "mode": "form",
+            "message": "Please provide the input string to echo back",
+            "requestedSchema":{
+              "type": "object",
+              "properties":{
+                "input": { "type": "string"}
+              },
+              "required": ["input"]
+            }
           }
         }
+      },
+      "_meta":{
+        "io.modelcontextprotocol/related-task":{
+          "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+        }
       }
-    },
-    "_meta":{
-      "io.modelcontextprotocol/related-task":{
-        "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
-      }
-    } 
+    }
 }
 ```
 
@@ -849,19 +852,21 @@ The below example walks through the entire Task Message flow for a Echo Tool whi
     "jsonrpc": "2.0",
     "id": 4,
     "method": "tasks/input_response",
-    "inputResponses":{
-      "echo_input":{
-        "result":{
-          "action": "accept",
-          "content":{
-            "input": "Hello World!"
+    "params": {
+      "inputResponses":{
+        "echo_input":{
+          "result":{
+            "action": "accept",
+            "content":{
+              "input": "Hello World!"
+            }
           }
         }
-      }
-    }, 
-    "_meta":{
-      "io.modelcontextprotocol/related-task":{
-        "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+      },
+      "_meta":{
+        "io.modelcontextprotocol/related-task":{
+          "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+        }
       }
     }
 }
