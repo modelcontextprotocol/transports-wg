@@ -879,7 +879,20 @@ The below example walks through the entire Task Message flow for a Echo Tool whi
 }
 ```
 
-8. <b>Server Response</b> Currently there is no required response to this message, but the server can now proceed to complete the `Task` using the provided input, and the `Task` status changes to `Working`
+8. <b>Server Response</b> Server should acknowledge the receipt of the 'tasks/input_response' message by sending a 'JSONRPCResponse'. If the message was successfully received a `JSONRPCResultResponse` is sent including the `taskId`. If an error occurs, a `JSONRPCErrorResponse` is sent. The server can now proceed to complete the `Task` using the provided input, and the `Task` status changes to `Working`. 
+```json
+{
+    "id": 4,
+    "jsonrpc": "2.0",
+    "result": {
+      "_meta":{
+        "io.modelcontextprotocol/related-task":{
+          "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+        }
+      } 
+    }
+}
+```
 
 9. <b>Client Request</b> continues to poll the input status using `tasks/get` until server responds with Task Status of `Completed`
 Client Request
@@ -978,6 +991,114 @@ task, it has committed to storing state on the server side for the
 duration of the task, and there is no way to transition back to the
 ephemeral model.  All subsequent interactions must be performed via the
 Tasks API.
+
+## Error Handling Note
+In both the ephemeral & persistent workflows, the client may send back malformed or invalid responses to the server's requests for more information as part of the `inputResponses` object. 
+
+The server should validate the data provided by the client is a valid `inputResponses` object and that the information inside can be correctly parsed. Protocol errors, like malformed JSON, invalid schema, or internal server errors which prevent the processing of the request should return a `JSONRPCErrorResponse` with an appropriate error code and message.
+
+If the client provides a well-formed `inputResponses` object but the data provided is unexpected or missing required information, the server MUST treat these as optional parameters. The server should ignore any unexpected information and proceed with processing the request using the information that is present. If required information is missing, the server should not proceed with processing the request and instead should respond with a new incomplete response. 
+
+We discussed having a specific application level error code returned, however the client may not have enough information to recover in all scenarios. For example, if a Server upgrade happens and the new version requires additional information, the client has no knowledge of this and must request the necessary information again. Therefore, we decided to rely on the existing mechanics of epheremal workflows and the existing state machine of `Tasks` to ensure a client can always recover and request the necessary information again. 
+
+In the ephemeral workflow, this would look like the following:
+1. The client retries the original tool call, this time including the `inputResponses` object, but the response is missing required information that the server needs to process the request.
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "get_weather",
+    "arguments": {
+      "location": "New York"
+    }
+    "inputResponses": {
+      "not_requested_info": {
+        "result": {
+          "action": "accept",
+          "content": {
+            "not_requested_param_name": "Information the server did not request"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+2. The server responds with an incomplete response, indicating that the client needs to respond to an elicitation request in order for the tool call to complete, and including request state to be passed back:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "inputRequests": {
+      "github_login": {
+        "method": "elicitation/create",
+        "params": {
+          "mode": "form",
+          "message": "Please provide your GitHub username",
+          "requestedSchema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": ["name"]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+2. The Server responds wit an incomplete response, indicating that the client needs to provide missing information for the request to succeed. 
+
+
+In the persistent workflow, this would look like the following:
+Step 7 from above: <b>Client Request</b> The client mistakenly or maliciously sends unexpected, but well-formed data to the server in response to the input request. 
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "tasks/input_response",
+    "params": {
+      "inputResponses":{
+        "echo_input":{
+          "result":{
+            "action": "accept",
+            "content":{
+              "not_requested_parameter": "Information the server did not request."
+            }
+          }
+        }
+      },
+      "_meta":{
+        "io.modelcontextprotocol/related-task":{
+          "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+        }
+      }
+    }
+}
+```
+
+Step 8 from above. <b>Server Response</b> Server acknowledges the receipt of the response by sending a `JSONRPCResultResponse`. However, since the response is missing required information, the server does not proceed with processing the taks and leaves the Task status as `input_required`. The next time the client calls `task/result`, the server responds with a new `inputRequest` requesting the necessary information again.
+```json
+{
+    "id": 4,
+    "jsonrpc": "2.0",
+    "result": {
+      "_meta":{
+        "io.modelcontextprotocol/related-task":{
+          "taskId": "echo_dc792e24-01b5-4c0a-abcb-0559848ca3c5"
+        }
+      } 
+    }
+}
+```
 
 ## Rationale
 
