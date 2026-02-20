@@ -1041,7 +1041,8 @@ backward compatibility layer.
 Because `requestState` passes through the client, malicious or
 compromised clients could attempt to modify it to alter server behavior,
 bypass authorization checks, or corrupt server logic.  To mitigate this,
-we require servers to validate this state somehow.
+we require servers to validate this state as described in the protocol
+requirements above.
 
 ## Reference Implementation
 
