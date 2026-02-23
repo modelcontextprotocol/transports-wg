@@ -1,0 +1,144 @@
+// Data-Layer Sessions — API Shape Quick Reference
+// Companion to: proposals/data-layer-sessions.md
+// Status: Strawman / Discussion Starter
+
+// ============================================================
+// 1. Capability Advertisement (in InitializeResult)
+// ============================================================
+
+{
+  "capabilities": {
+    "experimental": {
+      "session": {
+        "version": 1,
+        "features": ["create", "list", "delete"]
+      }
+    }
+  }
+}
+
+// ============================================================
+// 2. session/create
+// ============================================================
+
+// Request
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "session/create",
+  "params": {
+    "hints": {
+      "label": "my-agent-workspace",       // human-readable label
+      "data": { "title": "Code Review" }   // arbitrary key-value hints
+    }
+  }
+}
+
+// Response — cookie returned in _meta
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "_meta": {
+      "mcp/session": {
+        "id": "sess-a1b2c3d4e5f6",
+        "expiry": "2026-02-23T14:30:00Z",
+        "data": { "title": "Code Review" }
+      }
+    }
+  }
+}
+
+// ============================================================
+// 3. session/list
+// ============================================================
+
+// Request
+{ "jsonrpc": "2.0", "id": 2, "method": "session/list" }
+
+// Response
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "sessions": [
+      {
+        "id": "sess-a1b2c3d4e5f6",
+        "expiry": "2026-02-23T14:30:00Z",
+        "data": { "title": "Code Review" }
+      }
+    ]
+  }
+}
+
+// ============================================================
+// 4. session/delete
+// ============================================================
+
+// Request — id in params, or inferred from current cookie
+{ "jsonrpc": "2.0", "id": 3, "method": "session/delete", "params": { "id": "sess-a1b2c3d4e5f6" } }
+
+// Response — null cookie = revoked
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "deleted": true,
+    "_meta": { "mcp/session": null }
+  }
+}
+
+// ============================================================
+// 5. Cookie Echo (on any request/response)
+// ============================================================
+
+// Client sends cookie in _meta on every request
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "notebook_append",
+    "arguments": { "text": "remember this" },
+    "_meta": {
+      "mcp/session": { "id": "sess-a1b2c3d4e5f6" }
+    }
+  }
+}
+
+// Server echoes (possibly updated) cookie in response _meta
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "result": {
+    "content": [{ "type": "text", "text": "appended" }],
+    "_meta": {
+      "mcp/session": {
+        "id": "sess-a1b2c3d4e5f6",
+        "expiry": "2026-02-23T15:00:00Z"
+      }
+    }
+  }
+}
+
+// ============================================================
+// 6. Revocation (server-initiated)
+// ============================================================
+
+// Server returns null to revoke
+{
+  "_meta": { "mcp/session": null }
+}
+
+// ============================================================
+// 7. Session-required error
+// ============================================================
+
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "error": {
+    "code": -32002,
+    "message": "Session required. Call session/create first."
+  }
+}
