@@ -34,29 +34,45 @@
   }
 }
 
-// Response — cookie returned in _meta
+// Response — session object in result body, cookie in _meta
 {
   "jsonrpc": "2.0",
   "id": 1,
   "result": {
+    "id": "sess-a1b2c3d4e5f6",
+    "expiry": "2026-02-23T14:30:00Z",
+    "data": { "title": "Code Review Session" },
     "_meta": {
       "mcp/session": {
         "id": "sess-a1b2c3d4e5f6",
-        "expiry": "2026-02-23T14:30:00Z",
-        "data": { "title": "Code Review Session" }
+        "expiry": "2026-02-23T14:30:00Z"
       }
     }
   }
 }
 
+// NOTE: result body has full session object (for client inspection).
+// _meta cookie is the opaque token the client echoes — server controls
+// what goes in the cookie (may be a subset of the result body).
+
 // ============================================================
-// 3. session/list
+// 3. session/list (paginated — matches tools/list pattern)
 // ============================================================
 
-// Request
+// Request (first page — params optional)
 { "jsonrpc": "2.0", "id": 2, "method": "session/list" }
 
-// Response
+// Request (subsequent page)
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "session/list",
+  "params": {
+    "cursor": "eyJvZmZzZXQiOjEwfQ=="
+  }
+}
+
+// Response (with pagination)
 {
   "jsonrpc": "2.0",
   "id": 2,
@@ -67,18 +83,27 @@
         "expiry": "2026-02-23T14:30:00Z",
         "data": { "title": "Code Review Session" }
       }
-    ]
+    ],
+    "nextCursor": "eyJvZmZzZXQiOjEwfQ=="
   }
 }
+
+// When nextCursor is absent, there are no more results.
+// Follows PaginatedRequestParams / PaginatedResult convention.
 
 // ============================================================
 // 4. session/delete
 // ============================================================
 
-// Request — id in params, or inferred from current cookie
-{ "jsonrpc": "2.0", "id": 3, "method": "session/delete", "params": { "id": "sess-a1b2c3d4e5f6" } }
+// Request
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "session/delete",
+  "params": { "id": "sess-a1b2c3d4e5f6" }
+}
 
-// Response — null cookie = revoked
+// Response — null cookie = revoked (see design note in .md)
 {
   "jsonrpc": "2.0",
   "id": 3,
@@ -125,10 +150,15 @@
 // 6. Revocation (server-initiated)
 // ============================================================
 
-// Server returns null to revoke
+// Server returns null to revoke (design note: novel use of null in _meta)
 {
   "_meta": { "mcp/session": null }
 }
+
+// Alternatives discussed in the proposal:
+//   Option A: null (current) — simple, expressive
+//   Option B: omit key entirely — ambiguous (absence vs. "no change")
+//   Option C: dedicated session/revoke notification — explicit but adds a method
 
 // ============================================================
 // 7. Session-required error
@@ -142,3 +172,25 @@
     "message": "Session required. Call session/create first."
   }
 }
+
+// -32002 is in the JSON-RPC server-defined range (-32000 to -32099).
+// MCP uses -32042 for URL_ELICITATION_REQUIRED.
+// If adopted, would need a named constant (e.g. SESSION_REQUIRED).
+
+// ============================================================
+// 8. Cookie placement design question
+// ============================================================
+
+// OPTION A: Named property on RequestMetaObject (like progressToken)
+// Would require schema changes — adds "session" as a typed field:
+//
+//   RequestMetaObject.properties.session → SessionCookie schema
+//   MetaObject.properties.session → SessionCookie schema
+//
+// OPTION B: Convention key in _meta bag (current proposal)
+// No schema changes — uses the open _meta extensibility point:
+//
+//   "_meta": { "mcp/session": { ... } }
+//
+// The "mcp/" prefix is reserved for MCP spec use per MetaObject naming
+// rules, so "mcp/session" is valid as a spec-defined key.

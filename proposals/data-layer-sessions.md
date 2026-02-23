@@ -18,6 +18,9 @@ When a connection drops, application state is lost. Servers that need
 multi-turn state — scratch-pads, sandboxes, conversation context — have no
 standard way to offer it.
 
+> **See also:** [`data-layer-sessions-api-shapes.jsonc`](data-layer-sessions-api-shapes.jsonc)
+> — flat quick-reference of all wire shapes.
+
 ## Design Principles
 
 1. **Transport-agnostic.** Works identically over stdio and HTTP.
@@ -57,6 +60,11 @@ use the spec's existing versioning approach?
 
 ### `session/create`
 
+The `session/create` result returns the session object in the result body
+(like any other method result) **and** sets the cookie in `_meta` for the
+echo cycle. See [Session Cookie: Placement](#session-cookie-placement) for
+the design discussion on where the cookie lives.
+
 ```jsonc
 // Client → Server
 {
@@ -76,25 +84,45 @@ use the spec's existing versioning approach?
   "jsonrpc": "2.0",
   "id": 1,
   "result": {
+    "id": "sess-a1b2c3d4e5f6",
+    "expiry": "2026-02-23T14:30:00Z",
+    "data": { "title": "Code Review Session" },
     "_meta": {
       "mcp/session": {
         "id": "sess-a1b2c3d4e5f6",
-        "expiry": "2026-02-23T14:30:00Z",
-        "data": { "title": "Code Review Session" }
+        "expiry": "2026-02-23T14:30:00Z"
       }
     }
   }
 }
 ```
 
+The result body contains the full session object (for the client to inspect).
+The `_meta` cookie contains the opaque token the client echoes on subsequent
+requests — the server controls what goes in the cookie and may include less
+data than the result body.
+
 ### `session/list`
 
+Follows the standard MCP pagination pattern (`cursor` / `nextCursor`),
+consistent with `tools/list`, `resources/list`, `prompts/list`, etc.
+
 ```jsonc
-// Client → Server
+// Client → Server (first page)
 {
   "jsonrpc": "2.0",
   "id": 2,
   "method": "session/list"
+}
+
+// Client → Server (subsequent page)
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "session/list",
+  "params": {
+    "cursor": "eyJvZmZzZXQiOjEwfQ=="
+  }
 }
 
 // Server → Client
@@ -108,10 +136,15 @@ use the spec's existing versioning approach?
         "expiry": "2026-02-23T14:30:00Z",
         "data": { "title": "Code Review Session" }
       }
-    ]
+    ],
+    "nextCursor": "eyJvZmZzZXQiOjEwfQ=="
   }
 }
 ```
+
+When no `nextCursor` is present, there are no more results. The `params`
+object is optional on the first request (following `PaginatedRequestParams`).
+
 ### `session/delete`
 
 ```jsonc
@@ -133,6 +166,9 @@ use the spec's existing versioning approach?
   }
 }
 ```
+
+See [Revocation via `null`](#revocation-via-null) for the design discussion
+on using `null` as a signal.
 
 ## Session Cookie Echo
 
@@ -173,7 +209,34 @@ response.
 }
 ```
 
-### Revocation
+### Session Cookie: Placement
+
+The cookie echo mechanism uses `_meta` to carry session state across all
+request/response pairs. This raises a design question about how the cookie
+key is defined.
+
+The MCP schema today has **one** protocol-defined key in `_meta`:
+`progressToken`, defined as a **named property** on `RequestMetaObject`.
+This proposal uses a **convention key** (`"mcp/session"`) in the open
+`_meta` bag instead.
+
+Both approaches are schema-legal. The trade-offs:
+
+| Approach | Pro | Con |
+|---|---|---|
+| **A: Named property** — add `session` to `RequestMetaObject` and `MetaObject` schema definitions, like `progressToken` | Schema-validatable; typed in SDKs; consistent with `progressToken` precedent | Requires schema changes; tighter coupling to spec release cycle |
+| **B: Convention key** — use `"mcp/session"` as an opaque key in the `_meta` bag (current proposal) | No schema changes needed; works immediately as `experimental`; extensible | No schema validation; novel use of the extensibility bag for a protocol-level concept |
+
+The `mcp/` prefix is **reserved for MCP spec use** per the `MetaObject`
+naming rules — so `"mcp/session"` is valid as a spec-defined key. Third
+parties MUST NOT define keys under the `mcp/` prefix.
+
+**Open question:** If this moves from `experimental` to a first-class spec
+feature, should the cookie become a named property (Path A)? Or is the
+convention-key approach (Path B) sufficient given that `_meta` is explicitly
+designed as an extensibility point?
+
+### Revocation via `null`
 
 A server revokes a session by returning `"mcp/session": null`:
 
@@ -184,6 +247,17 @@ A server revokes a session by returning `"mcp/session": null`:
 ```
 
 The client SHOULD clear its stored cookie and MAY re-establish a session.
+
+**Design note:** The `MetaObject` schema is `"type": "object"` with no
+constraints on property value types, so `null` is technically valid. However,
+no existing MCP usage puts `null` in `_meta` — this would be a novel
+pattern. Alternatives:
+
+- **Option A (current):** `null` signals revocation. Simple, expressive.
+- **Option B:** Omit `"mcp/session"` entirely to signal revocation. Ambiguous
+  — absence could mean "no change" rather than "revoked."
+- **Option C:** Use a dedicated `session/revoke` notification. Explicit, but
+  adds a method.
 
 ## Error Handling
 
@@ -201,8 +275,13 @@ JSON-RPC error:
 }
 ```
 
-**Open question:** Is `-32002` the right code? Should we define a
-named error code in the spec?
+The code `-32002` is in the JSON-RPC server-defined range (`-32000` to
+`-32099`). MCP already uses `-32042` for `URL_ELICITATION_REQUIRED`. If
+adopted, this would need a named constant (e.g. `SESSION_REQUIRED`).
+
+**Open question:** Is `-32002` the right code? Should the error carry
+structured `data` (like `URLElicitationRequiredError` does with its
+`elicitations` array)?
 
 ## Selective Enforcement
 
@@ -234,10 +313,30 @@ while the application maintains state via `mcp/session`.
 **Open question:** Should `mcp/session` be mirrored into an HTTP header
 for routing affinity? If so, what are the size constraints?
 
+## Schema Compatibility Notes
+
+This proposal was reviewed against the MCP draft schema
+(`schema/draft/schema.json`, DRAFT-2026-v1). Key compatibility points:
+
+- **Method naming** follows `{namespace}/{verb}` (`session/create`,
+  `session/list`, `session/delete`), consistent with `tools/call`,
+  `resources/read`, `tasks/cancel`.
+- **`experimental` capability** is `Record<string, object>` with
+  `additionalProperties: true` — the proposed shape is valid.
+- **`_meta` on requests** (`RequestMetaObject`) and **results**
+  (`MetaObject`) are both open objects — arbitrary keys are allowed.
+- **`Result`** has `"additionalProperties": {}` — custom fields like
+  `deleted`, `sessions`, `id`, `expiry` are valid.
+- **`session/list`** uses `PaginatedRequestParams` / `nextCursor`, matching
+  all other list methods.
+- **If formalized**, each method would need the standard 4-definition tuple
+  (`*Request`, `*RequestParams`, `*Result`, `*ResultResponse`) and
+  registration in the `ClientRequest` / `ServerResult` union types.
+
 ## Open Questions Summary
 
 1. **Versioning** — integer in capability vs. spec-level versioning?
-2. **Error code** — `-32002` or a named constant?
+2. **Error code** — `-32002` or a named constant? Structured `data` payload?
 3. **Selective enforcement** — how should servers declare per-tool requirements?
 4. **HTTP header mirroring** — should `mcp/session` also appear as a header?
 5. **Cookie size** — what constraints on the `data` field?
@@ -246,6 +345,10 @@ for routing affinity? If so, what are the size constraints?
 7. **Fork/branch** — should `session/fork` be in scope, or deferred?
 8. **Relationship to MRTR** — how does this interact with the multi-round-trip
    requests track's need for state passthrough?
+9. **Cookie placement** — named `_meta` property (like `progressToken`) or
+   convention key (`"mcp/session"`)? See [Placement](#session-cookie-placement).
+10. **Revocation signal** — `null` value, key absence, or dedicated method?
+    See [Revocation](#revocation-via-null).
 
 ## Prior Art
 
