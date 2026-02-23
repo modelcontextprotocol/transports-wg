@@ -87,42 +87,20 @@ use the spec's existing versioning approach?
 }
 ```
 
-### `session/delete`
-
-```jsonc
-// Client → Server
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "session/delete",
-  "params": { "id": "sess-a1b2c3d4e5f6" }
-}
-
-// Server → Client
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "result": {
-    "deleted": true,
-    "_meta": { "mcp/session": null }
-  }
-}
-```
-
 ### `session/list`
 
 ```jsonc
 // Client → Server
 {
   "jsonrpc": "2.0",
-  "id": 3,
+  "id": 2,
   "method": "session/list"
 }
 
 // Server → Client
 {
   "jsonrpc": "2.0",
-  "id": 3,
+  "id": 2,
   "result": {
     "sessions": [
       {
@@ -131,6 +109,27 @@ use the spec's existing versioning approach?
         "data": { "title": "Code Review Session" }
       }
     ]
+  }
+}
+```
+### `session/delete`
+
+```jsonc
+// Client → Server
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "session/delete",
+  "params": { "id": "sess-a1b2c3d4e5f6" }
+}
+
+// Server → Client
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "deleted": true,
+    "_meta": { "mcp/session": null }
   }
 }
 ```

@@ -29,7 +29,7 @@
   "params": {
     "hints": {
       "label": "my-agent-workspace",       // human-readable label
-      "data": { "title": "Code Review" }   // arbitrary key-value hints
+      "data": { "title": "Code Review Session" }   // arbitrary key-value hints
     }
   }
 }
@@ -43,7 +43,7 @@
       "mcp/session": {
         "id": "sess-a1b2c3d4e5f6",
         "expiry": "2026-02-23T14:30:00Z",
-        "data": { "title": "Code Review" }
+        "data": { "title": "Code Review Session" }
       }
     }
   }
@@ -65,7 +65,7 @@
       {
         "id": "sess-a1b2c3d4e5f6",
         "expiry": "2026-02-23T14:30:00Z",
-        "data": { "title": "Code Review" }
+        "data": { "title": "Code Review Session" }
       }
     ]
   }
