@@ -1,6 +1,7 @@
 // Data-Layer Sessions — API Shape Quick Reference
 // Companion to: proposals/data-layer-sessions.md
 // Status: Strawman / Discussion Starter
+// Scope: Phase 1 only (create, resume, delete). Phase 2 (list, recover) deferred.
 
 // ============================================================
 // 1. Capability Advertisement (in InitializeResult)
@@ -11,7 +12,7 @@
     "experimental": {
       "session": {
         "version": 1,
-        "features": ["create", "list", "delete"]
+        "features": ["create", "resume", "delete"]
       }
     }
   }
@@ -28,8 +29,8 @@
   "method": "session/create",
   "params": {
     "hints": {
-      "label": "my-agent-workspace",       // human-readable label
-      "data": { "title": "Code Review Session" }   // arbitrary key-value hints
+      "label": "my-agent-workspace",
+      "data": { "title": "Code Review Session" }
     }
   }
 }
@@ -51,45 +52,36 @@
   }
 }
 
-// NOTE: result body has full session object (for client inspection).
-// _meta cookie is the opaque token the client echoes — server controls
-// what goes in the cookie (may be a subset of the result body).
-
 // ============================================================
-// 3. session/list (paginated — matches tools/list pattern)
+// 3. session/resume
 // ============================================================
 
-// Request (first page — params optional)
-{ "jsonrpc": "2.0", "id": 2, "method": "session/list" }
-
-// Request (subsequent page)
+// Request
 {
   "jsonrpc": "2.0",
   "id": 2,
-  "method": "session/list",
-  "params": {
-    "cursor": "eyJvZmZzZXQiOjEwfQ=="
-  }
+  "method": "session/resume",
+  "params": { "id": "sess-a1b2c3d4e5f6" }
 }
 
-// Response (with pagination)
+// Response
 {
   "jsonrpc": "2.0",
   "id": 2,
   "result": {
-    "sessions": [
-      {
+    "id": "sess-a1b2c3d4e5f6",
+    "expiry": "2026-02-23T14:30:00Z",
+    "data": { "title": "Code Review Session" },
+    "_meta": {
+      "mcp/session": {
         "id": "sess-a1b2c3d4e5f6",
-        "expiry": "2026-02-23T14:30:00Z",
-        "data": { "title": "Code Review Session" }
+        "expiry": "2026-02-23T14:30:00Z"
       }
-    ],
-    "nextCursor": "eyJvZmZzZXQiOjEwfQ=="
+    }
   }
 }
 
-// When nextCursor is absent, there are no more results.
-// Follows PaginatedRequestParams / PaginatedResult convention.
+// If the session cannot be resumed, server returns an error.
 
 // ============================================================
 // 4. session/delete
@@ -103,7 +95,7 @@
   "params": { "id": "sess-a1b2c3d4e5f6" }
 }
 
-// Response — null cookie = revoked (see design note in .md)
+// Response — null cookie = revoked
 {
   "jsonrpc": "2.0",
   "id": 3,
@@ -117,7 +109,6 @@
 // 5. Cookie Echo (on any request/response)
 // ============================================================
 
-// Client sends cookie in _meta on every request
 {
   "jsonrpc": "2.0",
   "id": 4,
@@ -131,7 +122,6 @@
   }
 }
 
-// Server echoes (possibly updated) cookie in response _meta
 {
   "jsonrpc": "2.0",
   "id": 4,
@@ -150,15 +140,7 @@
 // 6. Revocation (server-initiated)
 // ============================================================
 
-// Server returns null to revoke (design note: novel use of null in _meta)
-{
-  "_meta": { "mcp/session": null }
-}
-
-// Alternatives discussed in the proposal:
-//   Option A: null (current) — simple, expressive
-//   Option B: omit key entirely — ambiguous (absence vs. "no change")
-//   Option C: dedicated session/revoke notification — explicit but adds a method
+{ "_meta": { "mcp/session": null } }
 
 // ============================================================
 // 7. Session-required error
@@ -169,28 +151,6 @@
   "id": 5,
   "error": {
     "code": -32002,
-    "message": "Session required. Call session/create first."
+    "message": "Session required. Call session/create or session/resume first."
   }
 }
-
-// -32002 is in the JSON-RPC server-defined range (-32000 to -32099).
-// MCP uses -32042 for URL_ELICITATION_REQUIRED.
-// If adopted, would need a named constant (e.g. SESSION_REQUIRED).
-
-// ============================================================
-// 8. Cookie placement design question
-// ============================================================
-
-// OPTION A: Named property on RequestMetaObject (like progressToken)
-// Would require schema changes — adds "session" as a typed field:
-//
-//   RequestMetaObject.properties.session → SessionCookie schema
-//   MetaObject.properties.session → SessionCookie schema
-//
-// OPTION B: Convention key in _meta bag (current proposal)
-// No schema changes — uses the open _meta extensibility point:
-//
-//   "_meta": { "mcp/session": { ... } }
-//
-// The "mcp/" prefix is reserved for MCP spec use per MetaObject naming
-// rules, so "mcp/session" is valid as a spec-defined key.
