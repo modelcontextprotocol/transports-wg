@@ -1,8 +1,8 @@
 # Data-Layer Sessions for MCP
 
-> **Status:** Strawman  
+> **Status:** Early Draft  
 > **Date:** 2026-02-23  
-> **Track:** Sessions  
+> **Track:** transport-wg/sessions  
 > **Author(s):** Shaun Smith  
 
 ## Purpose
@@ -14,23 +14,53 @@ something concrete to react to.
 
 The core problem: MCP currently ties session identity to the transport
 connection (`Mcp-Session-Id` header for Streamable HTTP, implicit for stdio).
-When a connection drops, application state is lost. Servers that need
-multi-turn state — scratch-pads, sandboxes, conversation context — have no
-standard way to offer it.
+
+The proposal is to introduce a session concept within the MCP Data Layer, 
+using a lightweight _cookie_ style mechanism. 
 
 > **See also:** [`data-layer-sessions-api-shapes.jsonc`](data-layer-sessions-api-shapes.jsonc)
 > — flat quick-reference of all wire shapes.
 
+## Reference Packages (for review)
+
+To make discussion concrete, this proposal folder includes two small
+Python reference packages that implement the data-layer session model:
+
+- [`data-layer-sessions-client-python/`](data-layer-sessions-client-python/) —
+  client-side cookie jar + request/response `_meta` handling.
+- [`data-layer-sessions-server-python/`](data-layer-sessions-server-python/) —
+  server-side session issuer + `session/create`, `session/resume`,
+  `session/delete` handler registration.
+
+These are intentionally compact and self-contained so reviewers can inspect
+implementation behavior alongside wire shapes.
+
+A simple Client/Server reference implementation is available.
+
 ## Design Principles
 
 1. **Transport-agnostic.** Works identically over stdio and HTTP.
-2. **Server-authoritative.** The server issues, updates, and revokes session
-   tokens. The client echoes them. (Adapted cookie semantics per RFC 6265.)
-3. **Opt-in.** Sessions are discovered via capability negotiation during
+2. **Server-authoritative lifecycle, flexible payload ownership.** The server
+   issues, updates, accepts/rejects, and revokes session tokens. The client
+   echoes them. Session `data` may be server-defined, client-carried, or a
+   hybrid, depending on application policy. (Adapted cookie semantics per
+   RFC 6265.)
+2. **Opt-in.** Sessions are discovered via capability negotiation during
    `initialize`. Servers that don't need sessions don't advertise them.
-4. **Incremental.** A server can require sessions globally, per-tool, or not
+2. **Incremental.** A server can require sessions globally, per-tool, or not
    at all.
 
+## Phase Scope
+
+To keep this proposal straightforward for initial review, this draft splits
+session functionality into two phases:
+
+- **Phase 1 (in scope for this draft):** `session/create`, `session/resume`,
+  `session/delete`, and cookie echo/revocation semantics.
+- **Phase 2 (deferred):** `session/list` and `session/recover` semantics.
+
+We can evaluate the core lifecycle first, then expand into
+recovery/discovery workflows if we think necessary.
 
 ## Use Cases
 
@@ -49,25 +79,34 @@ sessions are immediately useful:
    - Example: `public_echo` remains open; `session_counter_inc` requires a
      valid session cookie.
 
-3. **Session-scoped stateful tools**
-   - Tools maintain per-session notebooks/KV data across multiple calls.
+2. **Session-scoped stateful tools**
+   - Tools maintain per-session state across multiple calls, either in
+     server-side storage or in cookie-carried `data` payloads.
    - Example: notebook append/read/clear and hash KV verify workflows.
 
-4. **Reconnect + resume semantics (same cookie, new transport)**
+2. **Client-carried user preferences (lightweight state transfer)**
+   - Clients can carry non-sensitive, low-volume preferences in session
+     `data`, and servers can apply them without additional lookup calls.
+   - Typical examples: `language`, `timezone`, display format preferences.
+
+2. **Reconnect + resume semantics (same cookie, new transport)**
    - Client disconnects/reconnects and resumes server state by reusing
      `mcp/session` cookie.
    - This is the core value beyond transport-local `Mcp-Session-Id`.
 
-5. **Session revocation + re-establishment**
+2. **Session revocation + re-establishment**
    - Server revokes cookie (`mcp/session = null`); client clears local cookie
      and can create/select a new session.
 
-6. **Operator-driven session control**
+2. **Operator-driven session control**
    - Runtime operators can create/resume/select/clear sessions explicitly
      (e.g., for debugging, incident response, or workflow recovery).
 
 These use cases suggest sessions are not only a transport concern; they are a
 practical application-layer primitive needed for real tool orchestration.
+
+When using client-carried state in `data`, implementations should treat it as
+advisory input unless explicitly trusted by policy.
 
 ## Capability Advertisement
 
@@ -80,7 +119,6 @@ During `initialize`, a server that supports sessions includes an
   "capabilities": {
     "experimental": {
       "session": {
-        "version": 1,
         "features": ["create", "resume", "delete"]
       }
     }
@@ -91,20 +129,10 @@ During `initialize`, a server that supports sessions includes an
 `features` lists the `session/*` methods the server supports. A minimal
 server might only support `["create"]`.
 
-**Open question:** Should `version` be a single integer, or should this
-use the spec's existing versioning approach?
-
-## Phase Scope
-
-To keep this proposal straightforward for initial review, this draft splits
-session functionality into two phases:
-
-- **Phase 1 (in scope for this draft):** `session/create`, `session/resume`,
-  `session/delete`, and cookie echo/revocation semantics.
-- **Phase 2 (deferred):** `session/list` and `session/recover` semantics.
-
-This lets the group evaluate the core lifecycle first, then expand into
-recovery/discovery workflows once the base contract is agreed.
+No per-capability `version` field is included — no existing MCP capability
+uses one. Versioning is handled at the protocol level via `protocolVersion`
+during `initialize`. If the session capability shape needs breaking changes
+in the future, those would be gated on a new protocol version.
 
 ## Session Lifecycle Methods
 
@@ -255,6 +283,19 @@ response.
 
 ### Session Cookie: Placement
 
+> **Implementation note:** The reference packages included with this
+> proposal (`data-layer-sessions-client-python/`,
+> `data-layer-sessions-server-python/`) are **overlay libraries** that
+> layer on top of an unmodified MCP Python SDK. They inject and extract
+> `_meta["mcp/session"]` by hand, without requiring any SDK changes.
+> This is deliberate — it allows reviewers to evaluate the wire-level
+> behaviour immediately, without gating on SDK or schema modifications.
+>
+> If this proposal progresses to a first-class spec feature, the
+> expectation is that the session cookie would migrate from a convention
+> key to a **named property** on `RequestMetaObject` and `MetaObject`,
+> with typed support in the SDKs (see Path A below).
+
 The cookie echo mechanism uses `_meta` to carry session state across all
 request/response pairs. This raises a design question about how the cookie
 key is defined.
@@ -269,16 +310,18 @@ Both approaches are schema-legal. The trade-offs:
 | Approach | Pro | Con |
 |---|---|---|
 | **A: Named property** — add `session` to `RequestMetaObject` and `MetaObject` schema definitions, like `progressToken` | Schema-validatable; typed in SDKs; consistent with `progressToken` precedent | Requires schema changes; tighter coupling to spec release cycle |
-| **B: Convention key** — use `"mcp/session"` as an opaque key in the `_meta` bag (current proposal) | No schema changes needed; works immediately as `experimental`; extensible | No schema validation; novel use of the extensibility bag for a protocol-level concept |
+| **B: Convention key** — use `"mcp/session"` as an opaque key in the `_meta` bag (current proposal + demos) | No schema changes needed; works immediately as `experimental`; extensible; demos can run on stock SDK | No schema validation; novel use of the extensibility bag for a protocol-level concept |
 
 The `mcp/` prefix is **reserved for MCP spec use** per the `MetaObject`
 naming rules — so `"mcp/session"` is valid as a spec-defined key. Third
 parties MUST NOT define keys under the `mcp/` prefix.
 
-**Open question:** If this moves from `experimental` to a first-class spec
-feature, should the cookie become a named property (Path A)? Or is the
-convention-key approach (Path B) sufficient given that `_meta` is explicitly
-designed as an extensibility point?
+**Recommended path:** Start with **Path B** (convention key under
+`experimental`) for prototyping and interoperability testing, then promote
+to **Path A** (named schema property) when the feature moves from
+experimental to first-class. The reference packages are structured to make
+this migration straightforward — the `_meta` injection/extraction is
+isolated in `model.py` in both client and server packages.
 
 ### Revocation via `null`
 
@@ -313,27 +356,47 @@ JSON-RPC error:
   "jsonrpc": "2.0",
   "id": 5,
   "error": {
-    "code": -32002,
+    "code": -32043,
     "message": "Session required. Call session/create or session/resume first."
   }
 }
 ```
 
-The code `-32002` is in the JSON-RPC server-defined range (`-32000` to
-`-32099`). MCP already uses `-32042` for `URL_ELICITATION_REQUIRED`. If
-adopted, this would need a named constant (e.g. `SESSION_REQUIRED`).
+### Error Code Selection
 
-**Open question:** Is `-32002` the right code? Should the error carry
-structured `data` (like `URLElicitationRequiredError` does with its
-`elicitations` array)?
+The code `-32043` is in the JSON-RPC implementation-defined server error
+range (`-32000` to `-32099`). The following codes in this range are already
+allocated or claimed in the MCP ecosystem:
+
+| Code | Name | Where | Crosses wire? |
+|---|---|---|---|
+| `-32000` | `CONNECTION_CLOSED` | Python SDK | No (SDK-internal) |
+| `-32001` | `REQUEST_TIMEOUT` | Python SDK, TS SDK | No (SDK-internal) |
+| `-32002` | Resource not found | Spec docs (`server/resources.mdx`) | Yes |
+| `-32042` | `URL_ELICITATION_REQUIRED` | Schema (`schema.ts`), both SDKs | Yes (formal) |
+
+The `-3204x` neighbourhood is used for **protocol-level conditions
+requiring structured client action** (URL elicitation, session
+establishment). This contrasts with `-3200x` which the SDKs have
+informally claimed for internal transport/connection conditions, and
+`-32002` which the spec docs already use for resource-not-found errors.
+
+If adopted, `-32043` would be defined as a named constant
+(e.g. `SESSION_REQUIRED`) in `schema.ts` alongside
+`URL_ELICITATION_REQUIRED`, and propagated to both SDKs.
+
+**Open question:** Should the error carry structured `data` (like
+`URLElicitationRequiredError` does with its `elicitations` array)?
+For example, the error `data` could include available session features
+or a hint about which method(s) to call.
 
 ## Selective Enforcement
 
 Servers MAY require sessions for all tools, some tools, or no tools. The
 mechanism for advertising which tools require sessions is left open:
 
-- Option A: A `sessionRequired` field in tool metadata.
-- Option B: Servers just return `-32002` and clients react.
+- Option A: Servers just return `-32043` and clients react.
+- Option B: A `sessionRequired` field in tool metadata.
 - Option C: A server-level policy declaration in capabilities.
 
 **Open question:** Which approach (or combination) best serves both
@@ -341,7 +404,7 @@ human developers and LLM-driven tool selection?
 
 ## Interaction with Transport-Level Sessions
 
-Streamable HTTP already has `Mcp-Session-Id` for transport routing. This
+Streamable HTTP currently has `Mcp-Session-Id` for transport routing. This
 proposal operates at a different layer:
 
 | Concern | Transport (`Mcp-Session-Id`) | Data-layer (`mcp/session`) |
@@ -351,39 +414,43 @@ proposal operates at a different layer:
 | Survives reconnect | No | Yes |
 | Works over stdio | N/A | Yes |
 
-The two are complementary. A load balancer can route on `Mcp-Session-Id`
-while the application maintains state via `mcp/session`.
+### Trajectory: Data-Layer Sessions Supersede Transport Sessions
 
-**Open question:** Should `mcp/session` be mirrored into an HTTP header
-for routing affinity? If so, what are the size constraints?
+As MCP moves toward stateless transports, the transport-level
+`Mcp-Session-Id` increasingly functions as a **routing hint** rather than
+a session identity. This proposal's data-layer session ID is the natural
+replacement for application-level session semantics.
 
-## Schema Compatibility Notes
+The intended evolution:
 
-This proposal was reviewed against the MCP draft schema
-(`schema/draft/schema.json`, DRAFT-2026-v1). Key compatibility points:
+1. **Today:** `Mcp-Session-Id` is both a routing key and a (fragile)
+   session identity. Losing the transport connection loses the session.
+2. **With this proposal:** `mcp/session` carries durable session identity
+   in the JSON-RPC payload. `Mcp-Session-Id` is demoted to a
+   transport-routing concern only.
+2. **Future:** The data-layer session ID is mirrored into an HTTP header
+   (e.g. `Mcp-Session-Id` itself, or a new `Mcp-Session` header) so that
+   load balancers and proxies can route on it without body parsing —
+   following the pattern established by
+   **[SEP-2243: HTTP Header Standardization](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2243)**.
 
-- **Method naming** follows `{namespace}/{verb}` (`session/create`,
-  `session/resume`, `session/delete`), consistent with `tools/call`,
-  `resources/read`, `tasks/cancel`.
-- **`experimental` capability** is `Record<string, object>` with
-  `additionalProperties: true` — the proposed shape is valid.
-- **`_meta` on requests** (`RequestMetaObject`) and **results**
-  (`MetaObject`) are both open objects — arbitrary keys are allowed.
-- **`Result`** has `"additionalProperties": {}` — custom fields like
-  `deleted`, `id`, `expiry` are valid.
-- **Phase 2 methods** (`session/list`, `session/recover`) are intentionally
-  deferred in this draft for scope control.
-- **If formalized**, each method would need the standard 4-definition tuple
-  (`*Request`, `*RequestParams`, `*Result`, `*ResultResponse`) and
-  registration in the `ClientRequest` / `ServerResult` union types.
+SEP-2243 defines the mechanism for surfacing JSON-RPC payload fields as
+HTTP headers (`Mcp-Method`, `Mcp-Tool-Name`, etc.) and includes validation
+rules for header/body consistency. The data-layer session ID is a natural
+candidate for the same treatment: the client would include the session ID
+both in `_meta["mcp/session"]` and in an HTTP header, enabling
+infrastructure routing without deep packet inspection.
 
+**Open question:** Should the header reuse `Mcp-Session-Id` (replacing
+the transport meaning) or introduce a new header name (e.g.
+`Mcp-Data-Session`) to avoid ambiguity during the transition?
 
 ## Implementation-Informed Considerations
 
 Early implementation work suggests the following considerations (non-normative):
 
-- **Capability/version gating works in practice.** Clients can ignore unknown
-  session versions and continue normal MCP operation.
+- **Capability gating works in practice.** Clients can ignore unknown
+  experimental capabilities and continue normal MCP operation.
 - **Auto-create + explicit controls both matter.** Automatic `session/create`
   supports low-friction startup, while explicit controls (`create/resume/delete/clear`)
   support operator workflows and debugging.
@@ -401,10 +468,12 @@ practical guidance for SEP scope and interoperability testing.
 
 ## Open Questions Summary
 
-1. **Versioning** — integer in capability vs. spec-level versioning?
-2. **Error code** — `-32002` or a named constant? Structured `data` payload?
-3. **Selective enforcement** — how should servers declare per-tool requirements?
-4. **HTTP header mirroring** — should `mcp/session` also appear as a header?
+1. **Error code** — `-32043` (proposed) or a different code? Formal error code registry needed? Structured `data` payload?
+2. **Selective enforcement** — how should servers declare per-tool requirements?
+3. **HTTP header mirroring** — should `mcp/session` also appear as a header?
+4. **SEP-2243 alignment** — should the data-layer session ID be mirrored
+   into an HTTP header following the SEP-2243 pattern? If so, reuse
+   `Mcp-Session-Id` or new header name?
 5. **Cookie size** — what constraints on the `data` field?
 6. **Security** — signing/encryption of session tokens? Server-side only
    vs. client-verifiable?
@@ -413,7 +482,7 @@ practical guidance for SEP scope and interoperability testing.
 8. **Relationship to MRTR** — how does this interact with the multi-round-trip
    requests track's need for state passthrough?
 9. **Cookie placement** — named `_meta` property (like `progressToken`) or
-   convention key (`"mcp/session"`)? See [Placement](#session-cookie-placement).
+    convention key (`"mcp/session"`)? See [Placement](#session-cookie-placement).
 10. **Revocation signal** — `null` value, key absence, or dedicated method?
     See [Revocation](#revocation-via-null).
 11. **Client persistence semantics** — should local cookie jars / resume behavior
@@ -424,6 +493,10 @@ practical guidance for SEP scope and interoperability testing.
 - **RFC 6265** (HTTP Cookies) — foundation for cookie semantics
 - **Sessions Track Brief** (this repo) — working group discussion context
 - **MRTR Track Brief** (this repo) — overlapping state-passthrough needs
+- **[SEP-2243: HTTP Header Standardization](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2243)** —
+  defines the pattern for mirroring JSON-RPC fields into HTTP headers for
+  infrastructure routing; directly relevant for surfacing session IDs to
+  load balancers
 - **`fast-agent` experimental sessions** — working prototype of this design
   over both stdio and Streamable HTTP transports, including jar-based resume and
   operator session controls

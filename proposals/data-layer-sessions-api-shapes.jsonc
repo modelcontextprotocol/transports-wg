@@ -11,7 +11,6 @@
   "capabilities": {
     "experimental": {
       "session": {
-        "version": 1,
         "features": ["create", "resume", "delete"]
       }
     }
@@ -150,7 +149,7 @@
   "jsonrpc": "2.0",
   "id": 5,
   "error": {
-    "code": -32002,
+    "code": -32043,
     "message": "Session required. Call session/create or session/resume first."
   }
 }
