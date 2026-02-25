@@ -162,22 +162,21 @@ for the design discussion on where the cookie lives.
   "jsonrpc": "2.0",
   "id": 1,
   "result": {
-    "data": { "title": "Code Review Session" },
     "_meta": {
       "mcp/session": {
         "id": "sess-a1b2c3d4e5f6",
-        "expiry": "2026-02-23T14:30:00Z"
+        "expiry": "2026-02-23T14:30:00Z",
+        "data": { "title": "Code Review Session" }
       }
     }
   }
 }
 ```
 
-The result body contains the application data payload (`data`). The session
-`id` and `expiry` are carried exclusively in `_meta.mcp/session` — the SDK
-(or overlay library in the experiment phase) surfaces these to callers. There
-is no duplication: `id`/`expiry` are not repeated in the top-level result
-body.
+The session cookie (`_meta.mcp/session`) carries `id`, `expiry`, and `data`
+together. The SDK (or overlay library in the experiment phase) surfaces all
+three to callers. The result body is minimal — it contains only `_meta`. No
+session fields appear in the top-level result body outside `_meta`.
 
 ### `session/resume`
 
@@ -200,22 +199,21 @@ canonical cookie payload for subsequent echo.
   "jsonrpc": "2.0",
   "id": 2,
   "result": {
-    "data": { "title": "Code Review Session" },
     "_meta": {
       "mcp/session": {
         "id": "sess-a1b2c3d4e5f6",
-        "expiry": "2026-02-23T14:30:00Z"
+        "expiry": "2026-02-23T14:30:00Z",
+        "data": { "title": "Code Review Session" }
       }
     }
   }
 }
 ```
 
-The result body contains the application data payload (`data`). The session
-`id` and `expiry` are carried exclusively in `_meta.mcp/session` — the SDK
-(or overlay library in the experiment phase) surfaces these to callers. There
-is no duplication: `id`/`expiry` are not repeated in the top-level result
-body.
+The session cookie (`_meta.mcp/session`) carries `id`, `expiry`, and `data`
+together. The SDK (or overlay library in the experiment phase) surfaces all
+three to callers. The result body is minimal — it contains only `_meta`. No
+session fields appear in the top-level result body outside `_meta`.
 
 If the requested session cannot be resumed, the server SHOULD return an
 error (e.g., session not found / invalid / expired).
@@ -249,7 +247,14 @@ on using `null` as a signal.
 
 Once a session is established, the client includes the session cookie in
 `_meta` on every request. The server echoes (or updates) it in every
-response.
+response. The exact fields echoed depend on the **storage model** in use —
+see [Session Storage Models](#session-storage-models) below.
+
+### 5a. Server-Authoritative Echo
+
+The client echoes only `id`. The server looks up state from its own store
+and refreshes `expiry` in the response. `data` is absent from client echoes
+— state lives server-side only.
 
 ```jsonc
 // Client → Server (tools/call with session)
@@ -261,9 +266,7 @@ response.
     "name": "notebook_append",
     "arguments": { "text": "remember this" },
     "_meta": {
-      "mcp/session": {
-        "id": "sess-a1b2c3d4e5f6"
-      }
+      "mcp/session": { "id": "sess-a1b2c3d4e5f6" }
     }
   }
 }
@@ -283,6 +286,91 @@ response.
   }
 }
 ```
+
+### 5b. Client-Carried Echo
+
+The client echoes the full cookie including `data`. The server reconstructs
+state from inbound `data`, mutates it, and returns the updated cookie in the
+response. The server never looks up a store — the cookie IS the state.
+
+```jsonc
+// Client → Server — client echoes full cookie including data from previous response
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "hashcheck_store",
+    "arguments": { "key": "password", "text": "hunter2" },
+    "_meta": {
+      "mcp/session": {
+        "id": "sess-a1b2c3d4e5f6",
+        "expiry": "2026-02-23T15:00:00Z",
+        "data": { "hashes": "{"password":"abc123..."}" }
+      }
+    }
+  }
+}
+
+// Server → Client — server updated data["hashes"] in-place; returns updated cookie
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "result": {
+    "content": [{ "type": "text", "text": "Stored sha256('password') = def456..." }],
+    "_meta": {
+      "mcp/session": {
+        "id": "sess-a1b2c3d4e5f6",
+        "expiry": "2026-02-23T15:00:00Z",
+        "data": { "hashes": "{"password":"def456..."}" }
+      }
+    }
+  }
+}
+```
+
+## Session Storage Models
+
+Two storage models are supported. They differ in where session state lives
+and what the server does with the inbound `_meta.mcp/session.data` field.
+
+### Server-Authoritative
+
+The server stores state in its own store, keyed by session `id`. Inbound
+client cookies carry only `id` (used as a lookup key). The server writes
+`data` into the outbound cookie for informational purposes, but ignores any
+`data` present in inbound cookies.
+
+- **State lives:** server-side store
+- **Client echoes:** `{ id }`
+- **Server reads:** store lookup by `id`; ignores inbound `data`
+- **Server writes:** `{ id, expiry }` (and optionally `data` for
+  informational mirroring)
+- **Statefulness requirement:** server must be stateful (or share a store
+  across replicas)
+- **Trust:** `data` is server-controlled; client cannot forge meaningful state
+
+### Client-Carried
+
+The server has no store for this session's data. It reads state from the
+inbound `_meta.mcp/session.data`, operates on it, and writes the updated
+state back into `_meta.mcp/session.data` in the response. The cookie IS the
+state — the server is effectively stateless with respect to this data.
+
+- **State lives:** inside the cookie, carried by the client
+- **Client echoes:** `{ id, expiry, data }` (full cookie from last response)
+- **Server reads:** inbound `data` directly — no store lookup
+- **Server writes:** `{ id, expiry, data }` with mutated `data`
+- **Statefulness requirement:** none — works with a fully stateless HTTP
+  server or serverless function
+- **Trust implication:** the client can forge `data`. This is appropriate
+  when the client only affects themselves (e.g. a local hash KV store for
+  verification), not for sensitive or shared state. Implementations SHOULD
+  sign or encrypt `data` if tamper-resistance is required.
+
+> **Quick reference:** See the `.jsonc` companion
+> ([`data-layer-sessions-api-shapes.jsonc`](data-layer-sessions-api-shapes.jsonc))
+> sections 5a and 5b for abbreviated wire shapes of each model.
 
 ### Session Cookie: Placement
 
