@@ -138,10 +138,10 @@ in the future, those would be gated on a new protocol version.
 
 ### `session/create`
 
-The `session/create` result returns the session object in the result body
-(like any other method result) **and** sets the cookie in `_meta` for the
-echo cycle. See [Session Cookie: Placement](#session-cookie-placement) for
-the design discussion on where the cookie lives.
+The `session/create` result sets the session cookie in `_meta.mcp/session`.
+The SDK (or overlay library in the experiment phase) surfaces `id` and
+`expiry` to callers from there. See [Session Cookie: Placement](#session-cookie-placement)
+for the design discussion on where the cookie lives.
 
 ```jsonc
 // Client → Server
@@ -162,8 +162,6 @@ the design discussion on where the cookie lives.
   "jsonrpc": "2.0",
   "id": 1,
   "result": {
-    "id": "sess-a1b2c3d4e5f6",
-    "expiry": "2026-02-23T14:30:00Z",
     "data": { "title": "Code Review Session" },
     "_meta": {
       "mcp/session": {
@@ -175,10 +173,11 @@ the design discussion on where the cookie lives.
 }
 ```
 
-The result body contains the full session object (for the client to inspect).
-The `_meta` cookie contains the opaque token the client echoes on subsequent
-requests — the server controls what goes in the cookie and may include less
-data than the result body.
+The result body contains the application data payload (`data`). The session
+`id` and `expiry` are carried exclusively in `_meta.mcp/session` — the SDK
+(or overlay library in the experiment phase) surfaces these to callers. There
+is no duplication: `id`/`expiry` are not repeated in the top-level result
+body.
 
 ### `session/resume`
 
@@ -201,8 +200,6 @@ canonical cookie payload for subsequent echo.
   "jsonrpc": "2.0",
   "id": 2,
   "result": {
-    "id": "sess-a1b2c3d4e5f6",
-    "expiry": "2026-02-23T14:30:00Z",
     "data": { "title": "Code Review Session" },
     "_meta": {
       "mcp/session": {
@@ -213,6 +210,12 @@ canonical cookie payload for subsequent echo.
   }
 }
 ```
+
+The result body contains the application data payload (`data`). The session
+`id` and `expiry` are carried exclusively in `_meta.mcp/session` — the SDK
+(or overlay library in the experiment phase) surfaces these to callers. There
+is no duplication: `id`/`expiry` are not repeated in the top-level result
+body.
 
 If the requested session cannot be resumed, the server SHOULD return an
 error (e.g., session not found / invalid / expired).
@@ -322,6 +325,11 @@ to **Path A** (named schema property) when the feature moves from
 experimental to first-class. The reference packages are structured to make
 this migration straightforward — the `_meta` injection/extraction is
 isolated in `model.py` in both client and server packages.
+
+In both Path A and Path B, the result body shape is identical: `id`/`expiry`
+live exclusively in `_meta.mcp/session`, and `data` carries the app payload.
+The paths differ only in how the SDK exposes these fields to callers — via
+typed accessors (Path A) or via direct dict access (Path B).
 
 ### Revocation via `null`
 
@@ -462,6 +470,13 @@ Early implementation work suggests the following considerations (non-normative):
   avoids repeatedly selecting known-bad session IDs during resume.
 - **Expiry is advisory unless enforced.** Demo servers stamp `expiry` metadata,
   but enforcement policy remains server-defined.
+- **`_meta.mcp/session` is the sole source of truth for `id`/`expiry`.**
+  Earlier prototype code included a fallback that read `id` directly from the
+  `result` body if `_meta.mcp/session` was absent. This fallback is
+  **removed from the target design**. Servers MUST populate `_meta.mcp/session`
+  on `session/create` and `session/resume` responses. The SDK (or overlay
+  library) reads `id` and `expiry` exclusively from `_meta.mcp/session`; the
+  result body carries only `data`.
 
 These considerations do **not** lock in protocol choices; they provide
 practical guidance for SEP scope and interoperability testing.
