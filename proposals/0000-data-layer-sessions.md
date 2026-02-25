@@ -5,8 +5,6 @@
 > **Track:** transport-wg/sessions  
 > **Author(s):** Shaun Smith  
 
-
-
 ## Abstract
 
 ## Motivation
@@ -45,6 +43,7 @@ The expiry date is a hint. Can be refreshed `servers/discovery`.
 
 ### session/delete
 
+The Client SHOULD delete sessions where resources aren't required.
 
 ### request/*
 
@@ -54,13 +53,20 @@ _meta may contain
 
 If the Session is not resumable
 
+
+### Tool Annotation
+
+
+
 ## Rationale
 
 ### HTTP Cookies vs. Custom Implementation
 
 To support non HTTP transports, an MCP Data Layer proposal has been selected.
 
-### Use 
+### Use of in-band Tool Call ID
+
+A 
 
 ## Backward Compatibility
 

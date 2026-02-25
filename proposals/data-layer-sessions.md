@@ -119,7 +119,7 @@ During `initialize`, a server that supports sessions includes an
   "capabilities": {
     "experimental": {
       "session": {
-        "features": ["create", "resume", "delete"]
+        "features": ["create",  "delete"]
       }
     }
   }
@@ -178,37 +178,6 @@ together. The SDK (or overlay library in the experiment phase) surfaces all
 three to callers. The result body is minimal — it contains only `_meta`. No
 session fields appear in the top-level result body outside `_meta`.
 
-### `session/resume`
-
-`session/resume` re-activates an existing session by ID and returns the
-canonical cookie payload for subsequent echo.
-
-```jsonc
-// Client → Server
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "session/resume",
-  "params": {
-    "id": "sess-a1b2c3d4e5f6"
-  }
-}
-
-// Server → Client
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "result": {
-    "_meta": {
-      "mcp/session": {
-        "id": "sess-a1b2c3d4e5f6",
-        "expiry": "2026-02-23T14:30:00Z",
-        "data": { "title": "Code Review Session" }
-      }
-    }
-  }
-}
-```
 
 The session cookie (`_meta.mcp/session`) carries `id`, `expiry`, and `data`
 together. The SDK (or overlay library in the experiment phase) surfaces all
