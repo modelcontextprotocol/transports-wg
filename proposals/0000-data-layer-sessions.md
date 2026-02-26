@@ -55,7 +55,6 @@ The expiry date is a hint. Can be refreshed `servers/discovery`.
 - The session ID MUST only contain visible ASCII characters (ranging from 0x21 to 0x7E).
 - The client MUST handle the session ID in a secure manner, see Session Hijacking mitigations for more details. (TODO -- update this as data layer/stdio mitigations are different)
 
-The Session ID 
 
 {label}
 
@@ -65,11 +64,21 @@ The Client SHOULD delete sessions where resources aren't required.
 
 ### request/*
 
+Any request can have a cookie contained within the _meta block. 
+
+Clients SHOULD NOT send cookies to Servers that do not support the `session` capability.
+
+Clients MUST only send cookies to the Server that issued them.
+
+Servers SHOULD send an Error -34043 `Session not found` if the session is not recognized or valid. Clients SHOULD invalidate the Session.
+
+
 _meta may contain 
 
 ### response/*
 
-If the Session is not resumable
+A response to a request containing a cookie MUST respond with a cookie that contains the same SessionID.
+
 
 
 ### Tool Annotation
