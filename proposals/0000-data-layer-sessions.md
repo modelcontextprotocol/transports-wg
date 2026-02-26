@@ -9,6 +9,7 @@
 
 ## Motivation
 
+To allow state to be managed, typically at a 
 
 ## Specification
 
@@ -34,9 +35,11 @@ response
 {opaque value}
 ```
 
-The Client SHOULD retain  
 
-The expiry date is a hint. Can be refreshed `servers/discovery`.
+The `expiry date` is a hint that allows the Client to indicate that a conversation is stale. Can be refreshed `servers/discovery`.
+
+KV Store.
+ - Expensive resource allocations
 
 
 {label}
@@ -56,8 +59,6 @@ If the Session is not resumable
 
 ### Tool Annotation
 
-
-
 ## Rationale
 
 ### HTTP Cookies vs. Custom Implementation
@@ -66,7 +67,7 @@ To support non HTTP transports, an MCP Data Layer proposal has been selected.
 
 ### Use of in-band Tool Call ID
 
-A 
+It is possible for MCP Servers to simulate sessions by supplying a tool that generates an Id, and includes signatures 
 
 ## Backward Compatibility
 
