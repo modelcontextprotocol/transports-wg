@@ -992,14 +992,16 @@ duration of the task, and there is no way to transition back to the
 ephemeral model.  All subsequent interactions must be performed via the
 Tasks API.
 
-## Error Handling Note
-In both the ephemeral & persistent workflows, the client may send back malformed or invalid responses to the server's requests for more information as part of the `inputResponses` object. 
+### Error Handling Note
+This section provides implementation guidance for error handling in scenarios where the client provides unexpected or malformed data in the `inputResponses` object.
 
-The server should validate the data provided by the client is a valid `inputResponses` object and that the information inside can be correctly parsed. Protocol errors, like malformed JSON, invalid schema, or internal server errors which prevent the processing of the request should return a `JSONRPCErrorResponse` with an appropriate error code and message.
+The server SHOULD validate the data provided by the client is a valid `inputResponses` object and that the information inside can be correctly parsed. Protocol errors, like malformed JSON, invalid schema, or internal server errors which prevent the processing of the request should return a `JSONRPCErrorResponse` with an appropriate error code and message.
 
-If the client provides a well-formed `inputResponses` object but the data provided is unexpected or missing required information, the server MUST treat these as optional parameters. The server should ignore any unexpected information and proceed with processing the request using the information that is present. If required information is missing, the server should not proceed with processing the request and instead should respond with a new incomplete response. 
+The server SHOULD treat the `inputResponses` object as a set of optional parameters. Therefore it SHOULD ignore any unexpected information in the `inputResponses` object that it does not recognize or need. 
 
-We discussed having a specific application level error code returned, however the client may not have enough information to recover in all scenarios. For example, if a Server upgrade happens and the new version requires additional information, the client has no knowledge of this and must request the necessary information again. Therefore, we decided to rely on the existing mechanics of epheremal workflows and the existing state machine of `Tasks` to ensure a client can always recover and request the necessary information again. 
+The client may also fail to send all the information requested in previous `inputRequests`. If the missing information requested is necessary for the server to process the request, then it SHOULD respond with a new `JSONRPCIncompleteResultResponse`. 
+
+We discussed having a specific application level error code returned, however the client may not have enough information to recover in all scenarios. Therefore, we decided to rely on the existing mechanics of epheremal workflows and the existing state machine of `Tasks` to ensure a client can always recover by having the server request the necessary information again. 
 
 In the ephemeral workflow, this would look like the following:
 1. The client retries the original tool call, this time including the `inputResponses` object, but the response is missing required information that the server needs to process the request.
