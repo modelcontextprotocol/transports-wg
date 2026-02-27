@@ -9,6 +9,8 @@
 
 This proposal introduces application level sessions within the MCP Data Layer. Sessions are created by the Client, and allow the Server to store an opaque state token.
 
+This proposal should be reviewed alongside SEP-1442, and assumes that the `initialize` operation is deprecated.
+
 [Further context to be added]
 
 ## Motivation
@@ -203,11 +205,9 @@ _The following notes on sessionId are taken from the existing Streamable HTTP Tr
 
 **state:**
 
-_The following notes on state are paraphrased from SEP (MRTR)
+_The following notes on state are paraphrased from SEP (MRTR)_
 
 
-
- 
 ### Schema
 
 Session association metadata uses `_meta["io.modelcontextprotocol/session"]` with value type SessionMetadata.
@@ -328,13 +328,15 @@ When _meta["io.modelcontextprotocol/session"] is present and using the Streamabl
 
 ### HTTP Cookies vs. Custom Implementation
 
-To support non HTTP transports, an MCP Data Layer proposal has been selected.
+HTTP cookies (RFC 6265) provide an existing stateless session mechanism with automatic client-side storage and per-request transmission. The header pattern is well-understood and battle-tested. 
+ 
+This proposal adopts a similar pattern (server-issued opaque tokens that clients return unmodified) but implements it in the JSON-RPC message layer rather than HTTP Headers, enabling consistent session semantics across non-HTTP transports.
 
 ### Session Update Sequencing
 
-There are no ordering guarantees for requests/responses, meaning a Last-Write-Wins strategy by default. 
+There are no ordering guarantees for requests/responses, meaning a Last-Write-Wins strategy by default. Servers should be aware of this potential race condition and include appropriate mitigations if needed.
 
-It is possible for the Server to send a monotonic state sequence to allow the client to identify the ordering of state content.
+A future design may introduce a monotonic state sequence to allow the client to identify the ordering of state content. 
 
 ### Use of in-band Tool Call ID
 
@@ -342,14 +344,60 @@ A common workaround pattern is to use a session identifier within CallToolReques
 
 In practice, MCP Sessions may be used for other state control - for example availability of Tools, Prompts or Resources - therefore including the sessionId as part of the request/response cycle managed by the Host is the right choice.
 
-### Use of single `state` value
+### Use of a single `state` value rather than KV store.
 
-A single opaque "state" value mirrors the MRTR design, and reduces the chance of KV merge errors, and keeps client behaviour simple (echo bytes back).
+A single opaque "state" value mirrors the MRTR design, reduces the chance of KV merge errors, and keeps client behaviour simple (simply echo bytes back). 
+
+
+### Scope of Sessions
+
+For 2025-11-25 specification STDIO servers, Sessions are inherent to the process lifecycle and all Requests and Responses are within the same "session scope".
+
+For 2025-11-25 specification Streamable HTTP servers, Sessions are typically managed on a "per connection" basis, with the MCP Server choosing session usage at Initialization time and enforcing with HTTP status codes. Although technically feasible to gate different operations to require sessions or not, in practice usage is "all" or "nothing".  
+
+
 
 ## Backward Compatibility
 
 ### Existing MCP Servers
 
 
-### Session Guidance
+
+## Test Vectors
+
+### Session Creation
+
+**Request:**
+```json
+{"jsonrpc":"2.0","id":1,"method":"sessions/create"}
+```
+
+**Valid Response:**
+```json
+{"jsonrpc":"2.0","id":1,"result":{"session":{"sessionId":"sess-abc123","expiresAt":"2026-03-01T00:00:00Z","state":"eyJrIjoidiJ9"}}}
+```
+
+### Session Usage
+
+**Request with session:**
+```json
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"msg":"hi"},"_meta":{"io.modelcontextprotocol/session":{"sessionId":"sess-abc123","state":"eyJrIjoidiJ9"}}}}
+```
+
+**Response with updated state:**
+```json
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"hi"}],"_meta":{"io.modelcontextprotocol/session":{"sessionId":"sess-abc123","state":"eyJrIjoidjIifQ==","expiresAt":"2026-03-01T00:00:00Z"}}}}
+```
+
+### Session Not Found
+
+**Request with invalid session:**
+```json
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{},"_meta":{"io.modelcontextprotocol/session":{"sessionId":"sess-invalid"}}}}
+```
+
+**Error Response:**
+```json
+{"jsonrpc":"2.0","id":3,"error":{"code":-32043,"message":"Session not found","data":{"sessionId":"sess-invalid"}}}
+```
 
