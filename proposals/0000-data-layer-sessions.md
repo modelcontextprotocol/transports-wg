@@ -207,6 +207,12 @@ _The following notes on sessionId are taken from the existing Streamable HTTP Tr
 
 _The following notes on state are paraphrased from SEP (MRTR)_
 
+state:
+
+1. state is an opaque, server-issued token that enables stateless server processing.
+1. Clients MUST treat state as opaque and MUST echo the exact value on subsequent requests in that session.
+1. Servers SHOULD protect state according to their security requirements, ranging from plaintext (development only) to signed or encrypted tokens (production).
+1.  See **SEP-XXXX Multi Round-Trip Requests** requestState guidance for canonical encoding, validation, size and security requirements.
 
 ### Schema
 
@@ -348,19 +354,19 @@ In practice, MCP Sessions may be used for other state control - for example avai
 
 A single opaque "state" value mirrors the MRTR design, reduces the chance of KV merge errors, and keeps client behaviour simple (simply echo bytes back). 
 
-
 ### Scope of Sessions
 
 For 2025-11-25 specification STDIO servers, Sessions are inherent to the process lifecycle and all Requests and Responses are within the same "session scope".
 
 For 2025-11-25 specification Streamable HTTP servers, Sessions are typically managed on a "per connection" basis, with the MCP Server choosing session usage at Initialization time and enforcing with HTTP status codes. Although technically feasible to gate different operations to require sessions or not, in practice usage is "all" or "nothing".  
 
+With this design, it is possible for an MCP Server to support granualar session gating.
 
+TODO -- enhance discussion here.
 
 ## Backward Compatibility
 
-### Existing MCP Servers
-
+TODO -- incorporate support matrix.
 
 
 ## Test Vectors
