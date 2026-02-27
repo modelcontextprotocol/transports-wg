@@ -9,23 +9,25 @@
 
 This proposal introduces application level sessions within the MCP Data Layer. Sessions are created by the Client, and allow the Server to store an opaque state token.
 
-This proposal should be reviewed alongside SEP-1442, and assumes that the `initialize` operation is deprecated.
+This proposal should be reviewed alongside SEP-1442, and assumes that the `initialize` operation and associated StreamableHTTP session creation is deprecated.
 
 [Further context to be added]
 
 ## Motivation
 
-MCP Sessions are currently either implicit (STDIO), or constructed as a side effect of the transport connection (Streamable HTTP).
+MCP Sessions are currently either implicit (STDIO), or constructed as a side effect of the transport connection (Streamable HTTP). 
 
-It is assumed (but not required) that Host applications rather than the LLM are responsible for Session management.
+Migrating sessions to the MCP data layer allows MCP applications to handle sessions as part of their domain logic, decoupled from the transport layer. This enables predictable session semantics, especially for Hosts that handle multiple "threads" of context within the application. The ability for MCP Servers to allocate resources on a per-session basis, or be able to provide rich functionality without server-side storage makes MCP suitable for increasingly sophisticated and scaled deployments. 
 
 ## Specification
 
 ### User Interaction Model
 
-Sessions are designed to be **application-driven**, with host applications determining how to establish sessions based on their need.
+Sessions are designed to be **application-driven**, with host applications determining how and when to establish sessions based on their need.
 
-It is normally expected that applications will establish one session per conversation thread or task, but this is not required.
+It is normally expected that applications will establish one session per conversation thread or task, but this is not required. 
+
+MCP Servers may wish to offer capabilities in a mixture of authentication and session modalities. 
 
 ### Capabilities
 
@@ -75,7 +77,7 @@ Clients begin a session with an MCP Server by calling `sessions/create`.
 
 The Client **MUST NOT** send `io.modelcontextprotocol/session` with the sessions/create request.
 
-The Client **MUST** associate retained sessionIds with the issuing Server. 
+The Client **MUST** securely associate retained sessions with the issuing Server. The Client will typically establish identity through a mixture of _connection target_ and _user identity_. 
 
 `expiresAt` is a hint, and may be updated by the Server in future responses. The Host **MAY** use the `expiresAt` to indicate potentially stale sessions to the User. 
 
@@ -137,6 +139,7 @@ To use a Session the Client request includes SessionMetadata in `_meta["io.model
 ```
 
 1. The Client **MUST** update the `state` value if updated by the Server. See note on [Ordering](#session-update-sequencing))
+1. The Client **MAY** update the `expiresAt` value if updated by the Server.
 
 #### Deleting Sessions
 
@@ -363,6 +366,10 @@ For 2025-11-25 specification Streamable HTTP servers, Sessions are typically man
 With this design, it is possible for an MCP Server to support granualar session gating.
 
 TODO -- enhance discussion here.
+
+### resourceAllocation Tool Hint
+
+**For discussion** - it may make sense to include a tool hint to indicate whether or not a Session is associated with expensive resources, hinting that deletion is preferred at the end of the immediate User interaction session.
 
 ## Backward Compatibility
 
