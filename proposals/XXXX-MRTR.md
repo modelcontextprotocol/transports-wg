@@ -122,6 +122,9 @@ There are two main approaches that can be used to solve this problem today:
     state is lost, and the tool call would need to start over from
     scratch.  (This doesn't necessarily matter for ephemeral tools,
     but it is an issue for persistent tools.)
+  - It would require an instance of the tool to stay in memory
+    indefinitely for an elicitation result that may not come for a long
+    time, if ever.
 
 Also, both of these approaches rely on the use of an SSE stream, which
 causes problems in environments that cannot support long-lived
