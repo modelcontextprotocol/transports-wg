@@ -71,7 +71,7 @@ Clients begin a session with an MCP Server by calling `sessions/create`.
 }
 ```
 
-The Client **MUST NOT** send `io.modelcontextprotocol/session` data with the sessions/create request.
+The Client **MUST NOT** send `io.modelcontextprotocol/session` with the sessions/create request.
 
 The Client **MUST** associate retained sessionIds with the issuing Server. 
 
@@ -134,12 +134,11 @@ To use a Session the Client request includes SessionMetadata in `_meta["io.model
 }
 ```
 
-1. The Client **MUST** update the `state` value if sent by the Server.
-1. 
-
-The Error message **SHOULD** be descriptive of the reason for failure.
+1. The Client **MUST** update the `state` value if updated by the Server. See note on [Ordering](#session-update-sequencing))
 
 #### Deleting Sessions
+
+Clients **SHOULD** delete sessions that are no longer required to allow the Server to reclaim unneeded resources.
 
 **Request:**
 
@@ -168,14 +167,47 @@ The Error message **SHOULD** be descriptive of the reason for failure.
 }
 ```
 
-Clients **SHOULD** delete sessions that are no longer required to allow the Server to reclaim unneeded resources.
+#### Errors
+
+```json
+ {
+   "jsonrpc": "2.0",
+   "id": 42,
+   "error": {
+     "code": -32043,
+     "message": "Session not found",
+     "data": {
+       "sessionId": "sess-a1b2c3d4e5f6"
+     }
+   }
+ }
+```
+
+1. Unknown sessions **MUST** result in a  `-32043 SESSION_NOT_FOUND` Error. The Client **SHOULD** treat the Session as permanently invalidated.
+1. The Server **MAY** revoke a Session at any time by returning an  `-32043 SESSION_NOT_FOUND` Error.
 
 ### Data Types
 
-- The `sessionId` **SHOULD** be globally unique and cryptographically secure (e.g., a securely generated UUID, a JWT, or a cryptographic hash).
-- The `sessionId` MUST only contain visible ASCII characters (ranging from 0x21 to 0x7E).
-- The client MUST handle the `sessionId` in a secure manner, see Session Hijacking mitigations for more details. (
-    
+#### SessionMetadata
+
+_The following notes on sessionId are taken from the existing Streamable HTTP Transport guidance._
+
+**sessionId:**
+1. The `sessionId` **SHOULD** be globally unique and cryptographically secure (e.g., a securely generated UUID, a JWT, or a cryptographic hash).
+1. The `sessionId` MUST only contain visible ASCII characters (ranging from 0x21 to 0x7E).
+1. The client MUST handle the `sessionId` in a secure manner, see Session Hijacking mitigations for more details. (
+
+**expiresAt:**
+1. `expiresAt` is a hint that Clients **MAY** use to inform Users of potentially stale sessions.
+1. Servers may update the `expiresAt` hint on any response.
+
+**state:**
+
+_The following notes on state are paraphrased from SEP (MRTR)
+
+
+
+ 
 ### Schema
 
 Session association metadata uses `_meta["io.modelcontextprotocol/session"]` with value type SessionMetadata.
@@ -201,9 +233,9 @@ export interface SessionMetadata {
    * Clients MUST treat this value as opaque and MUST NOT inspect or modify it.
    */
   state?: string;
+
 }
 ```
-
 
 Sessions are created and deleted via `sessions/create` and `sessions/delete` requests:
 
@@ -256,9 +288,6 @@ Sessions are created and deleted via `sessions/create` and `sessions/delete` req
  }
 ```
 
-Clients use Sessions by including the SessionMetadata in `io.modelcontextprotocol/session` in \_meta of the Request.
-
-When a requested Session is unknown by the Server it returns a `-32043 SESSION_NOT_FOUND` Error. The Client **SHOULD** treat the Session as permanently invalidated.
 
 ```ts
 /** @internal */
@@ -300,6 +329,12 @@ When _meta["io.modelcontextprotocol/session"] is present and using the Streamabl
 ### HTTP Cookies vs. Custom Implementation
 
 To support non HTTP transports, an MCP Data Layer proposal has been selected.
+
+### Session Update Sequencing
+
+There are no ordering guarantees for requests/responses, meaning a Last-Write-Wins strategy by default. 
+
+It is possible for the Server to send a monotonic state sequence to allow the client to identify the ordering of state content.
 
 ### Use of in-band Tool Call ID
 
