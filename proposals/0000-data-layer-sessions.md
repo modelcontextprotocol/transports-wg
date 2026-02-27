@@ -64,29 +64,31 @@ Clients begin a session with an MCP Server by calling `sessions/create`.
   "result": {
     "session": {
       "sessionId": "sess-a1b2c3d4e5f6",
-      "expiresAt": "2026-02-27T15:30:00Z"
+      "expiresAt": "2026-02-27T15:30:00Z",
+      "state": "bGFuZ3VhZ2U9ZW4="
     },
-    "_meta": {
-      "io.modelcontextprotocol/session": {
-        "sessionId": "sess-a1b2c3d4e5f6",
-        "expiresAt": "2026-02-27T15:30:00Z"
-      }
-    }
   }
 }
 ```
 
-The Client **MUST NOT** send `io.modelcontextprotocol/session` data with the sessions/create request. 
+The Client **MUST NOT** send `io.modelcontextprotocol/session` data with the sessions/create request.
 
+The Client **MUST** associate retained sessionIds with the issuing Server. 
+
+`expiresAt` is a hint, and may be updated by the Server in future responses. The Host **MAY** use the `expiresAt` to indicate potentially stale sessions to the User. 
+
+`state` **MUST** be retained by the Client and sent with future requests for that session.
 
 #### Using Sessions
 
-To use a Session the Client request includes `_meta["io.modelcontextprotocol/session"]`:
+To use a Session the Client request includes SessionMetadata in `_meta["io.modelcontextprotocol/session"]`:
 
-1. The receiver MUST treat that sessionId as the session context for processing the request.
+1. The Server MUST treat that sessionId as the session context for processing the request.
 1. Succesful responses MUST include \_meta["io.modelcontextprotocol/session"].
 1. The `sessionId` in the response MUST exactly match the sessionId from the request.
 1. The receiver MUST NOT substitute, rotate, or rewrite `sessionId` in the response.
+
+**Request:**
 
 ```json
 {
@@ -96,28 +98,19 @@ To use a Session the Client request includes `_meta["io.modelcontextprotocol/ses
   "params": {
     "name": "search_code",
     "arguments": {
-      "query": "SessionMetadata"
+      "query": "def fizz_buzz()"
     },
     "_meta": {
       "io.modelcontextprotocol/session": {
-        "sessionId": "sess-a1b2c3d4e5f6"
+        "sessionId": "sess-a1b2c3d4e5f6",
+        "state": "bGFuZ3VhZ2U9ZW4="
       }
     }
   }
 }
 ```
 
-
-
-The Client SHOULD associate retained cookies with the issuing Server .
-
-The expiry date is a hint. Can be refreshed `servers/discovery`.
-
-- The session ID SHOULD be globally unique and cryptographically secure (e.g., a securely generated UUID, a JWT, or a cryptographic hash).
-- The session ID MUST only contain visible ASCII characters (ranging from 0x21 to 0x7E).
-- The client MUST handle the session ID in a secure manner, see Session Hijacking mitigations for more details. (TODO -- update this as data layer/stdio mitigations are different)
-
-The Error message **SHOULD** be descriptive of the reason for failure.
+**Response:**
 
 ```json
 {
@@ -133,13 +126,18 @@ The Error message **SHOULD** be descriptive of the reason for failure.
     "_meta": {
       "io.modelcontextprotocol/session": {
         "sessionId": "sess-a1b2c3d4e5f6",
-        "expiresAt": "2026-02-27T15:30:00Z"
+        "state": "bGFuZ3VhZ2U9cHl0aG9u",
+        "expiresAt": "2026-03-31T23:59:00Z"
       }
     }
   }
 }
 ```
 
+1. The Client **MUST** update the `state` value if sent by the Server.
+1. 
+
+The Error message **SHOULD** be descriptive of the reason for failure.
 
 #### Deleting Sessions
 
@@ -172,6 +170,12 @@ The Error message **SHOULD** be descriptive of the reason for failure.
 
 Clients **SHOULD** delete sessions that are no longer required to allow the Server to reclaim unneeded resources.
 
+### Data Types
+
+- The `sessionId` **SHOULD** be globally unique and cryptographically secure (e.g., a securely generated UUID, a JWT, or a cryptographic hash).
+- The `sessionId` MUST only contain visible ASCII characters (ranging from 0x21 to 0x7E).
+- The client MUST handle the `sessionId` in a secure manner, see Session Hijacking mitigations for more details. (
+    
 ### Schema
 
 Session association metadata uses `_meta["io.modelcontextprotocol/session"]` with value type SessionMetadata.
@@ -199,6 +203,7 @@ export interface SessionMetadata {
   state?: string;
 }
 ```
+
 
 Sessions are created and deleted via `sessions/create` and `sessions/delete` requests:
 
