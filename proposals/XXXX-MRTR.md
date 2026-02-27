@@ -301,9 +301,8 @@ export interface IncompleteResult extends Result {
 // These parameters may be included in any client-initiated request.
 export interface RetryAugmentedRequestParams extends RequestParams {
   // New field to carry the responses for the server's requests from the
-  // JSONRPCIncompleteResultResponse message.  For each key in the
-  // response's inputRequests field, the same key must appear here
-  // with the associated response.
+  // IncompleteResult message.  For each key in the response's inputRequests
+  // field, the same key must appear here with the associated response.
   inputResponses?: InputResponses;
   // Request state passed back to the server from the client.
   requestState?: string;
@@ -683,18 +682,17 @@ The workflow here would look like this:
 
 1. **Server Behavior:**
    - Servers MAY respond to any client-initiated request with a
-     `JSONRPCIncompleteResultResponse`.  This message MAY be sent either
-     as a standalone response or as the final message on an SSE stream,
+     `IncompleteResult`.  This message MAY be sent either as a
+     standalone response or as the final message on an SSE stream,
      although implementations are encouraged to prefer the former.
      If using an SSE stream, servers MUST NOT send any message on the
      stream after the incomplete response message.
-   - The `JSONRPCIncompleteResultResponse` message MAY include an
-     `inputRequests` field.
-   - The `JSONRPCIncompleteResultResponse` message MAY include a
-     `requestState` field.  If specified, this field is an opaque
-     string that is meaningful only to the server.  Servers are free to
-     encode the state in any format (e.g., plain JSON, base64-encoded
-     JSON, encrypted JWT, serialized binary, etc.).
+   - The `IncompleteResult` message MAY include an `inputRequests` field.
+   - The `IncompleteResult` message MAY include a `requestState` field.
+     If specified, this field is an opaque string that is meaningful only
+     to the server.  Servers are free to encode the state in any format
+     (e.g., plain JSON, base64-encoded JSON, encrypted JWT, serialized
+     binary, etc.).
    - If a request contains a `requestState` field, servers MUST always
      validate that state, as the client is an untrusted intermediary.
      If tampering is a concern, servers SHOULD encrypt the `requestState`
@@ -712,19 +710,17 @@ The workflow here would look like this:
      validate any client-supplied data.
 
 2. **Client Behavior:**
-   - If a client receives a `JSONRPCIncompleteResultResponse` message,
-     if the message contains the `inputRequests` field, then the client
-     MUST construct the requested input before retrying the original
-     request.  In contrast, if the message does *not* contain the
-     `inputRequests` field, then the client MAY retry the original
-     request immediately.
-   - If a client receives a `JSONRPCIncompleteResultResponse` message
-     that contains the `requestState` field, it MUST echo back the
-     exact value of that field when retrying the original request.
-     Clients MUST NOT inspect, parse, modify, or make any assumptions
-     about the `requestState` contents.  If the incomplete response does
-     not contain a `requestState` field, the client MUST NOT include one
-     in the retry.
+   - If a client receives a `IncompleteResult` message, if the message
+     contains the `inputRequests` field, then the client MUST construct
+     the requested input before retrying the original request.  In
+     contrast, if the message does *not* contain the `inputRequests`
+     field, then the client MAY retry the original request immediately.
+   - If a client receives a `IncompleteResult` message that contains the
+     `requestState` field, it MUST echo back the exact value of that
+     field when retrying the original request.  Clients MUST NOT inspect,
+     parse, modify, or make any assumptions about the `requestState`
+     contents.  If the incomplete response does not contain a
+     `requestState` field, the client MUST NOT include one in the retry.
 
 ### Persistent Tool Workflow
 
@@ -999,9 +995,9 @@ As with any received request, the server SHOULD validate the data provided by th
 
 If additional parameters are provided in the `inputResponses` object The server SHOULD treat these as optional parameters. Therefore it SHOULD ignore any unexpected information in the `inputResponses` object that it does not recognize or need. 
 
-The client may also fail to send all the information requested in previous `inputRequests`. If the missing information requested is necessary for the server to process the request, then it SHOULD respond with a new `JSONRPCIncompleteResultResponse`. 
+The client may also fail to send all the information requested in previous `inputRequests`. If the missing information requested is necessary for the server to process the request, then it SHOULD respond with a new `IncompleteResult`. 
 
-We discussed having a specific application level error code returned, however the client may not have enough information to recover in all scenarios. Therefore, we decided to rely on the existing mechanics of requesting more input via `JSONRPCIncompleteResultResponse` to ensure a client can always recover by having the server request the necessary information again. 
+We discussed having a specific application level error code returned, however the client may not have enough information to recover in all scenarios. Therefore, we decided to rely on the existing mechanics of requesting more input via `IncompleteResult` to ensure a client can always recover by having the server request the necessary information again. 
 
 Malicious clients could intentionally send incorrect information in the `inputResponses` object, and generate load on the server by causing it to repeatedly request the same information. However, this is not a new concern introduced by this workflow, since malicious clients could already generate load by sending malformed requests. Server implementors can use standard techniques like rate limiting and throttling to protect themselves from such attacks.
 
