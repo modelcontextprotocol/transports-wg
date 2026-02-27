@@ -1,5 +1,4 @@
 .fast-agent/
-fastagent.jsonl
 __pycache__/
 *.pyc
 proposals/session-v2-experimental/
