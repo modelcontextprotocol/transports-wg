@@ -122,13 +122,14 @@ There are two main approaches that can be used to solve this problem today:
     state is lost, and the tool call would need to start over from
     scratch.  (This doesn't necessarily matter for ephemeral tools,
     but it is an issue for persistent tools.)
-  - It would require an instance of the tool to stay in memory
-    indefinitely for an elicitation result that may not come for a long
-    time, if ever.
 
 Also, both of these approaches rely on the use of an SSE stream, which
 causes problems in environments that cannot support long-lived
-connections.
+connections.  They also require an instance of the tool to stay in memory
+in a particular server instance indefinitely.  This is particularly
+problematic for elicitation requests specifically, since the result may
+not come from the user for an unbounded amount of time (e.g., it could
+be days or months, or maybe even never).
 
 The goal of this SEP is to propose a simpler way to handle the pattern
 of server-initiated requests within the context of a client-initiated
