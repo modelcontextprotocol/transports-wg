@@ -259,7 +259,12 @@ tools and another for persistent tools.
 
 ### Ephemeral Tool Workflow
 
-For ephemeral tools, we will adopt the following workflow:
+For the ephemeral use case, in addition to input requests, we introduce
+the concept of request state.  In cases where the server needs more
+information, the request state is sent to the client which echoes back
+the state to the server, allowing the server to remain stateless.
+
+We will adopt the following workflow for ephemeral tools:
 
 1. Client sends tool call request.
 2. Server sends back a single response indicating that the request is
