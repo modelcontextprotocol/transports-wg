@@ -347,6 +347,8 @@ There are no ordering guarantees for requests/responses, meaning a Last-Write-Wi
 
 A future design may introduce a monotonic state sequence to allow the client to identify the ordering of state content. 
 
+Servers that have this as a critical requirement should manage session state at the server. 
+
 ### Use of in-band Tool Call ID
 
 A common workaround pattern is to use a session identifier within CallToolRequests to simulate sessions. This is often model controlled, with the session identifier being reproduced by the LLM. 
@@ -363,9 +365,18 @@ For 2025-11-25 specification STDIO servers, Sessions are inherent to the process
 
 For 2025-11-25 specification Streamable HTTP servers, Sessions are typically managed on a "per connection" basis, with the MCP Server choosing session usage at Initialization time and enforcing with HTTP status codes. Although technically feasible to gate different operations to require sessions or not, in practice usage is "all" or "nothing".  
 
-With this design, it is possible for an MCP Server to support granualar session gating.
+With this design, it is possible for an MCP Server to support granular session gating.
 
-TODO -- enhance discussion here.
+The TypeScript SDK in particular places a significant burden on the MCP Server developer to control "sessions". Client SDKs tend to combine the "connect" and current "initialize" operations leaving session establishment to the transport layer.
+
+For MCP Servers, developer experience could be simplified by using standard patterns in the SDK to suggest that Sessions are either:
+ - Required - the SDK will provide hooks and ensure that requests are completed within the context of a Session.
+ - Not Required - the SDK will not enforce sessions for MCP operations.
+ - Managed - the MCP Server Author will handle the allocation of sessions (similar to existing Typescript SDK)
+
+ Clients can use the following patterns, and discover whether Sessions are required by making a call or probing the proposed `/discover` endpoint:
+ - Single - the Client will provide a single Session for the connection, or no session if not required. This is similar to existing behaviour.
+ - Managed - the Client will provide an explicit `session.create` operation to return a token, an interface for storage and a reusable token for Client management. 
 
 ### resourceAllocation Tool Hint
 
