@@ -1,6 +1,7 @@
 # Investigation: Generalized Payload-to-Header Mapping for MCP
 
-**Contributors:** @kurtisvg **Status:** 🚧 WIP   
+**Contributors:** @kurtisvg 
+**Status:** 🚧 WIP   
 **Last Updated:  Mar 3, 2026**
 
 ## Problem Statement
