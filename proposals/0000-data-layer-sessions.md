@@ -319,7 +319,7 @@ _The following notes on sessionId are taken from the existing Streamable HTTP Tr
 **sessionId:**
 1. The `sessionId` **SHOULD** be globally unique and cryptographically secure (e.g., a securely generated UUID, a JWT, or a cryptographic hash).
 1. The `sessionId` MUST only contain visible ASCII characters (ranging from 0x21 to 0x7E).
-1. The client MUST handle the `sessionId` in a secure manner, see Session Hijacking mitigations for more details. (
+1. The client MUST handle the `sessionId` in a secure manner, see [Session Hijacking](https://modelcontextprotocol.io/docs/tutorials/security/security_best_practices#session-hijacking) mitigations for more details.
 
 **expiresAt:**
 1. `expiresAt` is a hint that Clients **MAY** use to inform Users of potentially stale sessions.
