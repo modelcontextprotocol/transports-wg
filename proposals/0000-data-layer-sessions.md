@@ -9,9 +9,7 @@
 
 This proposal introduces application level sessions within the MCP Data Layer. Sessions are created by the Client, and allow the Server to store an opaque state token.
 
-This proposal should be reviewed alongside SEP-1442, and assumes that the `initialize` operation and associated StreamableHTTP session creation is deprecated.
-
-[Further context to be added]
+This proposal should be reviewed alongside SEP-1442. It assumes that the legacy initialize operation—and its side effect of implicit transport-level session creation (e.g., in Streamable HTTP)—is deprecated in favour of a stateless capability discovery mechanism (e.g., a /discover endpoint).
 
 ## Motivation
 
@@ -88,7 +86,6 @@ The Client **MUST** securely associate retained sessions with the issuing Server
 To use a Session the Client request includes SessionMetadata in `_meta["io.modelcontextprotocol/session"]`:
 
 1. The Server MUST treat that sessionId as the session context for processing the request.
-1. Succesful responses MUST include \_meta["io.modelcontextprotocol/session"].
 1. The `sessionId` in the response MUST exactly match the sessionId from the request.
 1. The receiver MUST NOT substitute, rotate, or rewrite `sessionId` in the response.
 
@@ -119,6 +116,28 @@ To use a Session the Client request includes SessionMetadata in `_meta["io.model
 ```json
 {
   "jsonrpc": "2.0",
+  // JSON-RPC RequestId is used for session association
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Found 3 matches."
+      }
+    ],
+  }
+}
+```
+
+#### Updating Session Metadata
+
+Servers **MAY** update Session Metadata by including _meta["io.modelcontextprotocol/session"] in a response to a Client request:
+
+**Response:**
+
+```json
+{
+  "jsonrpc": "2.0",
   "id": 3,
   "result": {
     "content": [
@@ -138,12 +157,111 @@ To use a Session the Client request includes SessionMetadata in `_meta["io.model
 }
 ```
 
-1. The Client **MUST** update the `state` value if updated by the Server. See note on [Ordering](#session-update-sequencing))
+1. The Client **MUST** attempt to update the `state` value if updated by the Server. See note on [Ordering](#session-update-sequencing))
+1. Servers **MUST NOT** include session metadata updates in notifications.
 1. The Client **MAY** update the `expiresAt` value if updated by the Server.
+
+#### Receiving Notifications
+
+Clients can subscribe to notifications associated with one or more sessions using `messages/listen`. 
+
+Good catch on point 3. The "drop silently" language is in this sentence from my draft:
+
+> If no listen stream is open for the session, the server **MAY** drop notifications silently. The Client **SHOULD** re-fetch any subscribed resources when re-opening a listen stream.
+
+That's application-layer guidance that conflicts with what the transport already provides — Streamable HTTP's SSE supports `Last-Event-ID` for resumption, so the transport handles reconnection and missed-event recovery. We shouldn't be re-specifying that here.
+
+Here's the updated section with all three points addressed:
+
+---
+
+#### Receiving Notifications
+
+Clients subscribe to server-initiated notifications using `messages/listen`. This opens a persistent delivery channel (SSE stream over HTTP/logical subscription over STDIO).
+
+A `messages/listen` request is scoped to one of:
+
+- **Single Session** — receives notifications relevant to that session.
+- **Global** — receives broadcast notifications **not** scoped to any session.
+
+##### Opening a Notification Listener
+
+**Request (Session Scoped):**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "messages/listen",
+  "params": {
+    "_meta": {
+      "io.modelcontextprotocol/session": {
+        "sessionId": "sess-a1b2c3d4e5f6",
+        "state": "bGFuZ3VhZ2U9ZW4="
+      }
+    }
+  }
+}
+```
+
+**Request (Global):**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "method": "messages/listen",
+  "params": {}
+}
+```
+
+The server confirms the stream is open with a `notifications/messages/listen` notification as the **first event**:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/messages/listen",
+}
+```
+
+Subsequent events on this stream are notifications and server-to-client requests scoped to that session. For example, a resource update:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/resources/updated",
+  "params": {
+    "uri": "file:///project/config.yaml"
+  }
+}
+```
+
+
+Global listeners receive **only** broadcast notifications that are not scoped to any session — for example, `notifications/tools/list_changed`. Session-scoped notifications such as resource updates are **never** delivered on a global listener.
+
+##### Interaction with Resource Subscriptions
+
+`messages/listen` is the **delivery channel**; `resources/subscribe` is the **subscription mechanism**.
+
+Resource subscriptions **MAY** be associated with a session.  If the `resources/subscribe` request includes session metadata, the resulting notifications/resources/updated notifications are delivered on that session's listen stream. If no session is specified, notifications are delivered on a global listener.
+
+Servers SHOULD define a lifecycle policy for subscriptions — for example, scoping them to a session if one exists, or applying a TTL for sessionless subscriptions.
+
+The typical flow:
+
+1. The Client creates a session (`sessions/create`).
+2. The Client opens a listener (`messages/listen` scoped to that session).
+3. The Client subscribes to a resource (`resources/subscribe` with the session in `_meta`).
+4. When the resource changes, the Server sends `notifications/resources/updated` on the session's listen stream.
+
+Reconnection and missed-event recovery for the listen stream are handled at the **transport layer** (e.g., SSE `Last-Event-ID` for Streamable HTTP).
+
+##### STDIO Transport Behaviour
+
+For STDIO, `messages/listen` acts as a capabilities check. The Client sends the request; the Server responds with `notifications/messages/listen`. The Server **MAY** then send notifications for the declared scope at any time for the duration of the STDIO connection, as it does today.
 
 #### Deleting Sessions
 
-Clients **SHOULD** delete sessions that are no longer required to allow the Server to reclaim unneeded resources.
+Clients **SHOULD** delete sessions that are no longer required to allow the Server to reclaim unneeded resources. 
 
 **Request:**
 
@@ -190,6 +308,7 @@ Clients **SHOULD** delete sessions that are no longer required to allow the Serv
 
 1. Unknown sessions **MUST** result in a  `-32043 SESSION_NOT_FOUND` Error. The Client **SHOULD** treat the Session as permanently invalidated.
 1. The Server **MAY** revoke a Session at any time by returning an  `-32043 SESSION_NOT_FOUND` Error.
+1. The Server **SHOULD** implement a policy to remove stale Server maintained session state.
 
 ### Data Types
 
@@ -343,11 +462,12 @@ This proposal adopts a similar pattern (server-issued opaque tokens that clients
 
 ### Session Update Sequencing
 
-There are no ordering guarantees for requests/responses, meaning a Last-Write-Wins strategy by default. Servers should be aware of this potential race condition and include appropriate mitigations if needed.
+Because MCP clients may execute multiple requests concurrently (e.g., parallel tool calling), there are no inherent ordering guarantees for request/response cycles. This creates a Last-Write-Wins race condition if the server relies entirely on the client-echoed state token to manage highly mutable data. Additionally Client state saving error conditions are not known to the Server.
 
-A future design may introduce a monotonic state sequence to allow the client to identify the ordering of state content. 
+To resolve this, servers dealing with concurrent mutations SHOULD NOT rely on the state token. Instead, the server SHOULD use the sessionId as a lookup key for a server-side state management mechanism (e.g., a database, cache, or in-memory store).  
 
-Servers that have this as a critical requirement should manage session state at the server. 
+Using server-side state naturally delegates concurrency control to the server environment, keeping the MCP client implementation simple and eliminating the need for sequence tracking within the protocol layer. The state token remains available strictly for simple, stateless server deployments where concurrent mutations are not expected.  
+
 
 ### Use of in-band Tool Call ID
 
@@ -378,14 +498,24 @@ For MCP Servers, developer experience could be simplified by using standard patt
  - Single - the Client will provide a single Session for the connection, or no session if not required. This is similar to existing behaviour.
  - Managed - the Client will provide an explicit `session.create` operation to return a token, an interface for storage and a reusable token for Client management. 
 
-### resourceAllocation Tool Hint
+Because MCP clients may execute multiple requests concurrently (e.g., parallel tool calling), there are no inherent ordering guarantees for request/response cycles. This creates a Last-Write-Wins race condition if the server relies entirely on the client-echoed state token to manage highly mutable data.
 
-**For discussion** - it may make sense to include a tool hint to indicate whether or not a Session is associated with expensive resources, hinting that deletion is preferred at the end of the immediate User interaction session.
+To resolve this, servers dealing with concurrent mutations SHOULD NOT rely on the state token. Instead, the server SHOULD use the sessionId as a lookup key for a server-side state management mechanism (e.g., a database, cache, or in-memory store).
+
+Using server-side state naturally delegates concurrency control to the server environment, keeping the MCP client implementation simple and eliminating the need for sequence tracking within the protocol layer. The state token remains available strictly for simple, stateless server deployments where concurrent mutations are not expected.
+### Notifications for Multiple Sessions
+
+One `messages/listen` stream per session is a deliberate choice:
+
+1. SSE streams are immutable once opened — session lists cannot be modified without reconnection.
+1. HTTP/2 multiplexing makes concurrent streams inexpensive for HTTP transports.
 
 ## Backward Compatibility
 
-TODO -- incorporate support matrix.
+### Session Creation for pre SEP-1442 servers:
 
+If a client attempts to invoke sessions/create or utilize session metadata on a server that does not support this extension, the server MUST reject the request with a standard JSON-RPC -32601 Method not found error.
+ok
 
 ## Test Vectors
 
