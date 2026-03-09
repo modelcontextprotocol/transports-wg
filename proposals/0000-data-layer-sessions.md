@@ -17,13 +17,42 @@ MCP Sessions are currently either implicit (STDIO), or constructed as a side eff
 
 Migrating sessions to the MCP data layer allows MCP applications to handle sessions as part of their domain logic, decoupled from the transport layer. This enables predictable session semantics, especially for Hosts that handle multiple "threads" of context within the application. The ability for MCP Servers to allocate resources on a per-session basis, or be able to provide rich functionality without server-side storage makes MCP suitable for increasingly sophisticated and scaled deployments. 
 
+
+## Use Cases and Scope
+
+### Scope
+
+The current Transport specification defines sessions as follows: 
+
+> An MCP “session” consists of logically related interactions between a client and a server, beginning with the initialization phase. To support servers which want to establish stateful sessions:
+
+Sessions allow Clients and Servers to maintain shared contextual state across sequences of Tool Calls 
+ - Maintain shared contextual state between Tool Calls.
+ - Rehydrate application state on resumption.
+ - Servers may choose to customise MCP Server features based on the presence or absence of a Session.
+ - Servers may scope Notifications to specific sessions. 
+
+Sessions are _not_ intended to provide a guarantee of MCP Protocol State. For example:
+ - Tools Lists
+ - Prompt Lists
+ - Resource Availability.
+
+### Use Cases
+
+Below are some sample use-cases where a session abstraction makes sense:
+
+- Shopping Cart. Maintaining integrity between different Chat Threads/Conversations.
+- Contextual Documentation Retrieval, Conversational Subagent. A Server that adjusts its Tool Call Results based on earlier queries to avoid repetition of content.
+- Playwright Testing Server. Being able to manage multiple parallel sessions without confusion.
+- Managed Runtime Environment (sandbox). Allocating a stateful runtime environment to allow the LLM to coordinate and execute code and instructions.
+
 ## Specification
 
 ### User Interaction Model
 
 Sessions are designed to be **application-driven**, with host applications determining how and when to establish sessions based on their need.
 
-It is normally expected that applications will establish one session per conversation thread or task, but this is not required. 
+It is normally expected that applications will establish one session per context window, but this is not required. 
 
 MCP Servers may wish to offer capabilities in a mixture of authentication and session modalities. 
 
