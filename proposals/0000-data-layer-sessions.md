@@ -335,9 +335,9 @@ Clients **SHOULD** delete sessions that are no longer required to allow the Serv
  }
 ```
 
-1. Unknown sessions **MUST** result in a  `-32043 SESSION_NOT_FOUND` Error. The Client **SHOULD** treat the Session as permanently invalidated.
-1. The Server **MAY** revoke a Session at any time by returning an  `-32043 SESSION_NOT_FOUND` Error.
-1. The Server **SHOULD** implement a policy to remove stale Server maintained session state.
+1. The Server **MAY** respond with a `-32043 SESSION_NOT_FOUND` Error if it it considers the Session identifier invalid.
+1. Clients **SHOULD** consider the receipt of `-32043 SESSION_NOT_FOUND` to indicate that the Session is not recognised by the Server.
+1. Servers and Clients **SHOULD** implement a policy to remove stale Server maintained session state.
 
 ### Data Types
 
