@@ -7,7 +7,7 @@
 
 ## Abstract
 
-This proposal introduces application level sessions within the MCP Data Layer. Sessions are created by the Client, and allow the Server to store an opaque state token.
+This proposal introduces application level sessions within the MCP Data Layer. Sessions are created by the Client, and allow the Server to send to the Client an opaque state token that will be sent back for each relevant request.
 
 This proposal should be reviewed alongside SEP-1442. It assumes that the legacy initialize operation—and its side effect of implicit transport-level session creation (e.g., in Streamable HTTP)—is deprecated in favour of a stateless capability discovery mechanism (e.g., a /discover endpoint).
 
