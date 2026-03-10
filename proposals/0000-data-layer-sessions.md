@@ -206,7 +206,7 @@ Here's the updated section with all three points addressed:
 
 #### Receiving Notifications
 
-Clients subscribe to server-initiated notifications using `messages/listen`. This opens a persistent delivery channel (SSE stream over HTTP/logical subscription over STDIO).
+Clients subscribe to server-initiated notifications using `messages/listen`. 
 
 A `messages/listen` request is scoped to one of:
 
