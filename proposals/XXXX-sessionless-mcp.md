@@ -220,6 +220,14 @@ This is guidance, not a protocol requirement — the protocol doesn't know what 
 
 ## Open Questions
 
+- **Do models actually handle explicit IDs as reliably as implicit session state?** The Rationale section argues that models are already good at carrying opaque identifiers through a conversation, but that's an argument, not data. We should validate empirically — comparative evals of session-scoped vs. handle-threaded workflows, looking specifically at hallucinated IDs, dropped IDs across long conversations, and recovery behavior when an ID is lost — before treating this as a safe assumption.
+
+- **How breaking is this, really?** The Backward Compatibility section asserts that session-scoped application state and session-mutable tool lists are rare in practice, but we don't have a survey. A pass over the known server ecosystem — registries, SDK example code, the servers shipping in major hosts — would tell us whether this is removing something almost nobody uses or something a meaningful minority depends on.
+
+- **What do SDKs do with their session-shaped APIs?** Several SDKs expose session objects, session lifecycle hooks, or per-session state containers as first-class API surface. Even if the wire protocol drops sessions cleanly, those APIs need a migration story — deprecate and remove, shim onto handles, or leave in place as a purely SDK-local convenience with no wire-level meaning.
+
+- **Is there a fourth thing sessions are used for?** This proposal accounts for application state, mutable list endpoints, and resource subscriptions. If there is another use of session scoping in the wild that doesn't fit those three buckets, it needs either a replacement story or an argument for why it shouldn't be supported. Soliciting counterexamples from the WG before the design is locked is cheap; discovering one after is not.
+
 - **Handle durability metadata.** Should the `create_*` result include machine-readable durability info (a `ttl` field, a `destroy_at` timestamp) so the client can surface it to the user, or is a documented server-side policy sufficient?
 
 ## First-Class State Handles
