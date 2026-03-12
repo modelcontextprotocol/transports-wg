@@ -3,7 +3,7 @@
 - **Status**: Draft
 - **Type**: Standards Track
 - **Created**: 2026-03-11
-- **Author(s)**: Peter Alexander (@pja)
+- **Author(s)**: Peter Alexander (@pja-ant)
 - **Sponsor**: None
 - **PR**: https://github.com/modelcontextprotocol/specification/pull/{NUMBER}
 - **Related**: [SEP-1442](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1442) (Stateless-by-default MCP)
