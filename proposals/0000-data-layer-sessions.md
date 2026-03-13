@@ -28,7 +28,7 @@ The current Transport specification defines sessions as follows:
 
 With the removal of the `initalization` phase and associated lifecycle semantics, data-lyer sessions are scoped as follows:
 
-Sessions allow Clients and Servers to bind a sequence of MCP requests into an application-defined context recognized by the Server. A session can scope:
+Sessions allow Clients and Servers to bind a sequence of MCP requests into an application-defined context recognized by the Server. Sessions provide contextual association, not snapshot semantics. A session can scope:
  - processing state across multiple operations;
  - server-managed resources or allocations associated with that context;
  - subscriptions and delivery of server-initiated messages related to that context; and
