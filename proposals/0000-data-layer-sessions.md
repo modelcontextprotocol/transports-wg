@@ -24,18 +24,28 @@ Migrating sessions to the MCP data layer allows MCP applications to handle sessi
 
 The current Transport specification defines sessions as follows: 
 
-> An MCP “session” consists of logically related interactions between a client and a server, beginning with the initialization phase. To support servers which want to establish stateful sessions:
+> An MCP “session” consists of logically related interactions between a client and a server, beginning with the initialization phase.
+
+With the removal of the `initalization` phase and associated lifecycle semantics, data-lyer sessions are scoped as follows:
 
 Sessions allow Clients and Servers to bind a sequence of MCP requests into an application-defined context recognized by the Server. A session can scope:
- - request processing state across multiple operations;
+ - processing state across multiple operations;
  - server-managed resources or allocations associated with that context;
  - subscriptions and delivery of server-initiated messages related to that context; and
- - optional Server behaviour that depends on the presence of a Session (for example the unlocking of administration tools post elicitation).
 
 Sessions may influence how the Server evaluates requests and responses, but it does not provide a guarantee of MCP Protocol State, including:
 - Tool Lists
 - Prompt Lists
 - Resource Availability.
+
+Examples:
+
+- processing state across multiple operations;
+  - Entries in to a journal via an `add` tool
+- server-managed resources or allocations associated with that context;
+  - A tool to create a remote sandbox that adds  a `resource` entry which allows reading log tails from a specific URI.
+- subscriptions and delivery of server-initiated messages related to that context
+  - Tool or Prompt list cache invalidation notifications
 
 Existing `list_changed` notifications scoped to the Session continue to function as cache invalidation hints and not state transitions.
 
