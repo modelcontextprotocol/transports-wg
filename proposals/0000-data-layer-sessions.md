@@ -128,7 +128,7 @@ To use a Session the Client request includes SessionMetadata in `_meta["io.model
 
 1. The Server MUST treat that sessionId as the session context for processing the request.
 1. The `sessionId` in the response MUST exactly match the sessionId from the request.
-1. The receiver MUST NOT substitute, rotate, or rewrite `sessionId` in the response.
+1. For operations that require a Session, if the request does not include `_meta["io.modelcontextprotocol/session"]`, the Server **MUST** reject the request with `SESSION_REQUIRED`. 
 
 **Request:**
 
@@ -201,6 +201,7 @@ Servers **MAY** update Session Metadata by including _meta["io.modelcontextproto
 1. The Client **MUST** attempt to update the `state` value if updated by the Server. See note on [Ordering](#session-update-sequencing))
 1. Servers **MUST NOT** include session metadata updates in notifications.
 1. The Client **MAY** update the `expiresAt` value if updated by the Server.
+1. The receiver **MUST NOT** substitute, rotate, or rewrite `sessionId` in the response.
 
 #### Receiving Notifications
 
@@ -325,6 +326,32 @@ Clients **SHOULD** delete sessions that are no longer required to allow the Serv
 
 #### Errors
 
+##### Required
+
+```json
+/** @internal */
+export const SESSION_REQUIRED = -32044;
+
+/**
+* An error response indicating that the request requires a session.
+*
+* @category Errors
+*/
+export interface SessionRequiredError extends Omit<
+  JSONRPCErrorResponse,
+  "error"
+> {
+  error: Error & {
+    code: typeof SESSION_REQUIRED;
+    data?: {
+      [key: string]: unknown;
+    };
+  };
+}
+```
+
+##### Not Found
+
 ```json
  {
    "jsonrpc": "2.0",
@@ -342,6 +369,8 @@ Clients **SHOULD** delete sessions that are no longer required to allow the Serv
 1. The Server **MAY** respond with a `-32043 SESSION_NOT_FOUND` Error if it considers the Session identifier invalid.
 1. Clients **SHOULD** consider the receipt of `-32043 SESSION_NOT_FOUND` to indicate that the Session is not recognised by the Server.
 1. Servers and Clients **SHOULD** implement a policy to remove stale Server maintained session state.
+
+
 
 
 ### Data Types
@@ -576,6 +605,19 @@ If a client sends session metadata to a server that does not support this extens
 **Response with updated state:**
 ```json
 {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"hi"}],"_meta":{"io.modelcontextprotocol/session":{"sessionId":"sess-abc123","state":"eyJrIjoidjIifQ==","expiresAt":"2026-03-01T00:00:00Z"}}}}
+```
+
+
+### Session Required
+
+**Request without a session:**
+```json 
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"echo","arguments":{}}}
+```
+
+**Error Response:**
+```json
+{"jsonrpc":"2.0","id":4,"error":{"code":-32044,"message":"Session required"}}
 ```
 
 ### Session Not Found
