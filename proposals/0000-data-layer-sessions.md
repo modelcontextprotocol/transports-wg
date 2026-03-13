@@ -9,7 +9,7 @@
 
 This proposal introduces application level sessions within the MCP Data Layer. Sessions are created by the Client, and allow the Server to send to the Client an opaque state token that will be sent back for each relevant request.
 
-This proposal should be reviewed alongside SEP-1442. It assumes that the legacy initialize operation—and its side effect of implicit transport-level session creation (e.g., in Streamable HTTP)—is deprecated in favour of a stateless capability discovery mechanism (e.g., a /discover endpoint).
+This proposal should be reviewed alongside SEP-1442. It is designed to align with stateless capability discovery and move session semantics into the MCP data layer. Deprecation or removal of legacy transport-level session establishment remains dependent on SEP-1442 (including the removal of `initialization` handshake).
 
 ## Motivation
 
@@ -26,16 +26,18 @@ The current Transport specification defines sessions as follows:
 
 > An MCP “session” consists of logically related interactions between a client and a server, beginning with the initialization phase. To support servers which want to establish stateful sessions:
 
-Sessions allow Clients and Servers to maintain shared contextual state across sequences of Tool Calls 
- - Maintain shared contextual state between Tool Calls.
- - Rehydrate application state on resumption.
- - Servers may choose to customise MCP Server features based on the presence or absence of a Session.
- - Servers may scope Notifications to specific sessions. 
+Sessions allow Clients and Servers to bind a sequence of MCP requests into an application-defined context recognized by the Server. A session can scope:
+ - request processing state across multiple operations;
+ - server-managed resources or allocations associated with that context;
+ - subscriptions and delivery of server-initiated messages related to that context; and
+ - optional Server behaviour that depends on the presence of a Session (for example the unlocking of administration tools post elicitation).
 
-Sessions are _not_ intended to provide a guarantee of MCP Protocol State. For example:
- - Tools Lists
- - Prompt Lists
- - Resource Availability.
+Sessions may influence how the Server evaluates requests and responses, but it does not provide a guarantee of MCP Protocol State, including:
+- Tool Lists
+- Prompt Lists
+- Resource Availability.
+
+Existing `list_changed` notifications scoped to the Session continue to function as cache invalidation hints and not state transitions.
 
 ### Use Cases
 
@@ -104,7 +106,7 @@ Clients begin a session with an MCP Server by calling `sessions/create`.
 
 The Client **MUST NOT** send `io.modelcontextprotocol/session` with the sessions/create request.
 
-The Client **MUST** securely associate retained sessions with the issuing Server. The Client will typically establish identity through a mixture of _connection target_ and _user identity_. 
+The Client **MUST** securely associate retained sessions with the issuing Server. The Client will typically establish identity through a mixture of _connection target_ and _user identity_. In practice, that identity will typically be derived from configuration details such as server URL/origin, authentication context, and user/account identity.
 
 `expiresAt` is a hint, and may be updated by the Server in future responses. The Host **MAY** use the `expiresAt` to indicate potentially stale sessions to the User. 
 
@@ -194,16 +196,6 @@ Servers **MAY** update Session Metadata by including _meta["io.modelcontextproto
 
 Clients can subscribe to notifications associated with one or more sessions using `messages/listen`. 
 
-Good catch on point 3. The "drop silently" language is in this sentence from my draft:
-
-> If no listen stream is open for the session, the server **MAY** drop notifications silently. The Client **SHOULD** re-fetch any subscribed resources when re-opening a listen stream.
-
-That's application-layer guidance that conflicts with what the transport already provides — Streamable HTTP's SSE supports `Last-Event-ID` for resumption, so the transport handles reconnection and missed-event recovery. We shouldn't be re-specifying that here.
-
-Here's the updated section with all three points addressed:
-
----
-
 #### Receiving Notifications
 
 Clients subscribe to server-initiated notifications using `messages/listen`. 
@@ -212,6 +204,8 @@ A `messages/listen` request is scoped to one of:
 
 - **Single Session** — receives notifications relevant to that session.
 - **Global** — receives broadcast notifications **not** scoped to any session.
+
+The transport determines how those messages are delivered after registration. This proposal defines the logical scoping rules, not a transport-specific streaming mechanism.
 
 ##### Opening a Notification Listener
 
@@ -286,7 +280,7 @@ Reconnection and missed-event recovery for the listen stream are handled at the 
 
 ##### STDIO Transport Behaviour
 
-For STDIO, `messages/listen` acts as a capabilities check. The Client sends the request; the Server responds with `notifications/messages/listen`. The Server **MAY** then send notifications for the declared scope at any time for the duration of the STDIO connection, as it does today.
+For STDIO, `messages/listen` does not create a separate transport channel; it registers notification scope on the existing connection. The Server acknowledges the registration with `notifications/messages/listen`, after which it **MAY** send server-initiated messages for that registered scope over the same STDIO connection.
 
 #### Deleting Sessions
 
@@ -335,9 +329,10 @@ Clients **SHOULD** delete sessions that are no longer required to allow the Serv
  }
 ```
 
-1. The Server **MAY** respond with a `-32043 SESSION_NOT_FOUND` Error if it it considers the Session identifier invalid.
+1. The Server **MAY** respond with a `-32043 SESSION_NOT_FOUND` Error if it considers the Session identifier invalid.
 1. Clients **SHOULD** consider the receipt of `-32043 SESSION_NOT_FOUND` to indicate that the Session is not recognised by the Server.
 1. Servers and Clients **SHOULD** implement a policy to remove stale Server maintained session state.
+
 
 ### Data Types
 
@@ -541,10 +536,11 @@ One `messages/listen` stream per session is a deliberate choice:
 
 ## Backward Compatibility
 
-### Session Creation for pre SEP-1442 servers:
+### Servers without session support
 
-If a client attempts to invoke sessions/create or utilize session metadata on a server that does not support this extension, the server MUST reject the request with a standard JSON-RPC -32601 Method not found error.
-ok
+If a client attempts to invoke `sessions/create` on a server that does not advertise the `sessions` capability, the server MUST reject the request with a standard JSON-RPC `-32601 Method not found` error.
+
+If a client sends session metadata to a server that does not support this extension, the server SHOULD reject the request using existing JSON-RPC or application-defined error handling.
 
 ## Test Vectors
 
@@ -583,4 +579,3 @@ ok
 ```json
 {"jsonrpc":"2.0","id":3,"error":{"code":-32043,"message":"Session not found","data":{"sessionId":"sess-invalid"}}}
 ```
-
