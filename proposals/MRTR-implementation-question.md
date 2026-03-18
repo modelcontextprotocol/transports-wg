@@ -10,7 +10,7 @@ In the current protocol version `2025-11-25` and inclusive of the draft version 
 
 In MRTR this behavior is changing to have Servers send `IncompleteResult` responses to `ClientRequest`s in order to request more information. One point of discussion is should we restrict the use of the `IncompleteResult` response to a subset of `ClientRequest`s or should we support it as a response for all `ClientRequest`s.
 
-## Arguments for supporting `IncompleteResult` on all `ClientRequest`s
+## Option 1: Arguments for supporting `IncompleteResult` on all `ClientRequest`s
 - Backwards compatibility with the current protocol version is preserved.
 - It is simpler to implement in the Schema, one learning from Tasks is many edge cases were introduced by only supporting specific Requests & Responses.
 - Does not constraing future MCP Server implementors in how they can use `IncompleteResult` responses to request more information from the Client. We may not be able to come up with a good example today of why you would use it for a certain method but does not mean there is not a valid one.
@@ -35,7 +35,7 @@ export interface RequestParams {
 }
 ```
 
-## Arguments for supporting `IncompleteResult` on a subset of `ClientRequest`s
+## Option 2: Arguments for supporting `IncompleteResult` on a subset of `ClientRequest`s
 - `Tasks` is only supported on a subset of Requests & Responses. 
 - There are many `ClientRequest`s that don't have clear use cases where a Server would need to request more information from the Client. Examples include:  
     - `PingRequest`
@@ -75,3 +75,11 @@ export interface GetPromptRequestParams extends RetryAugmentedRequestParams {
   arguments?: { [key: string]: string };
 }
 ```
+
+### Decision
+Based on feedback from DSP & the Core Maintainers we will go with Option 2 and only support `IncompleteResult` responses for a subset of `ClientRequest`s. A table of which Requests we will support it for will be added to the SEP-2322.
+
+The main reasons cited were
+- Easier to add more broadly later.
+- Matches how `Tasks` are currently supported.
+
