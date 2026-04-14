@@ -4,257 +4,262 @@
 - **Type**: Standards Track
 - **Created**: 2026-03-11
 - **Author(s)**: Peter Alexander (@pja-ant)
-- **Sponsor**: None
+- **Sponsor**: Peter Alexander (@pja-ant)
 - **PR**: https://github.com/modelcontextprotocol/specification/pull/{NUMBER}
-- **Related**: [SEP-1442](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1442) (Stateless-by-default MCP)
+- **Related**: [SEP-1442](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1442) (Stateless-by-default MCP), [SEP-2322](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2322) (Multi Round-Trip Requests), [SEP-2549](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2549) (TTL for List Results)
 
 ## Abstract
 
-This proposal removes the protocol-level session concept from MCP entirely, replacing implicit session-scoped state with explicit, server-minted state handles that the model carries and threads through subsequent calls. Where [SEP-1442] makes sessions *optional* by defaulting to stateless operation, this proposal goes one step further and asks whether the opt-in needs to exist at all. The claim is that every legitimate use of session scoping today — application state, mutable tool lists, and resource subscriptions — is better served by explicit identifiers, and that the session abstraction itself introduces rigidity (fixed cardinality, undefined lifetime, uncacheable list endpoints) without corresponding benefit.
+This proposal removes the protocol-level session concept from MCP, replacing implicit session-scoped state with explicit, server-minted state handles that the model carries and threads through subsequent calls. [SEP-1442] makes sessions optional by defaulting to stateless operation; this proposal removes the opt-in as well.
 
-Under this proposal, a server that currently scopes a shopping cart to the session instead exposes `create_basket() -> basket_id` and threads that id through `add_item(basket_id, ...)`. The model decides what is shared and what is isolated; list endpoints become cacheable across what used to be session boundaries; and subagent fan-out no longer pays a per-server setup cost: no initialize, no `session/create`, and re-use cached `tools/list`.
+After more than a year in the spec, sessions have not converged on a consistent meaning across clients: some scope them per tool call, some per application launch, some per page load, and almost none resume them. A server author cannot predict what scope or lifetime a session will have when their server is connected to an arbitrary client, which has made the session unreliable as a container for application state. This proposal holds that the known uses of session scoping — application state, mutable tool lists, and resource subscriptions — can each be served by explicit identifiers, and that the session abstraction adds constraints (fixed cardinality, undefined lifetime, uncacheable list endpoints) without corresponding benefit.
+
+Under this proposal, a server that currently scopes a shopping cart (for example) to the session instead exposes a tool `create_basket()` that returns a `basket_id` and threads that id through subsequent tool calls, e.g. `add_item(basket_id, ...)`. The model decides what is shared and what is isolated; list endpoints become cacheable across what used to be session boundaries; and agent orchestrators can freely share or not share application state as needed. Explicit state handles are not a new protocol construct — there is no schema or wire format for them. They are a tool-design pattern; the protocol change is the removal of sessions, which leaves handles as the way to express cross-call state.
 
 [SEP-1442]: https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1442
+[SEP-2322]: https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2322
+[SEP-2549]: https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2549
 
 ## Motivation
 
 ### What sessions scope today
 
-The current spec is not fully precise about which behaviors are session-bound, but in practice three categories of things are candidates to attach to a session's lifetime:
+The current spec is not fully precise about which behaviors are session-bound, but in practice five categories of things attach to a session's lifetime:
 
-1. **Application state.** The canonical example is a shopping cart: `add_item()`, `add_item()`, `checkout()`, with the cart existing implicitly per-session. This generalizes to any stateful workflow — a Playwright browser instance, a database transaction, an open file descriptor.
+1. **Negotiated capabilities and protocol version.** The result of `initialize` — which protocol version is in use and which optional capabilities each side supports — is established once per session and assumed for its duration. [SEP-1442] resolves this by removing `initialize` and carrying version/capability information per-request, so this proposal treats it as already addressed.
 
-2. **Mutable list endpoints.** `tools/list` (and `resources/list`, `prompts/list`) can legally return different results over a session's lifetime. For example, a server could expose an `enable_admin_tools` tool that mutates what subsequent `tools/list` calls return.
+2. **Elicitation and sampling intermediate state.** When a tool call triggers an `elicitation/create` or `sampling/createMessage` round-trip, the server has to correlate the eventual response with the original in-flight tool call — state that today lives implicitly in the session. [SEP-2322] (Multi Round-Trip Requests) resolves this by carrying the correlation state explicitly through the request/response cycle, so this proposal treats it as already addressed.
 
-3. **Resource subscriptions.** Subscription lifetime is tied to session lifetime. ([SEP-1442] addresses this separately and it is not re-examined here.)
+3. **Application state.** The canonical example is a shopping cart: `add_item()`, `add_item()`, `checkout()`, with the cart existing implicitly per-session. This generalizes to any stateful workflow — a Playwright browser instance, a database transaction, an open file descriptor.
 
-It is not obvious that any of these *need* a session; the session may simply be the only scoping mechanism the protocol offers, so things accrete onto it.
+4. **Mutable list endpoints.** `tools/list` (and `resources/list`, `prompts/list`) can legally return different results over a session's lifetime. For example, a server could expose an `enable_admin_tools` tool that mutates what subsequent `tools/list` calls return.
 
-### Where sessions cause friction
+5. **Resource subscriptions.** Subscription lifetime is tied to session lifetime. ([SEP-1442] addresses this separately and it is not re-examined here.)
 
-The baseline for comparison throughout this section is **not** the current spec as-is, but a hypothetical near-future in which [SEP-1442] has landed in some form: `initialize` is optional, per-request `_meta` carries what used to be session settings, and servers that want statefulness explicitly opt in via `session/create` / `session/destroy` or similar. That is the world this proposal is arguing against — not the pre-1442 status quo, which both proposals agree needs to change. The question is whether 1442's opt-in stateful path should exist, or whether explicit handles make it unnecessary.
+With (1), (2), and (5) handled by other SEPs, this proposal addresses (3) and (4).
+
+### Problems with session scoping
+
+The issues below apply whether sessions are mandatory (the current spec) or opt-in (the direction [SEP-1442] takes).
 
 #### Session lifetime is undefined, and servers can't design around it
 
-The spec does not say when a session begins or ends, because it depends on the host application. One chat interface creates a session per conversation; another per application launch. A subagent might share its parent's session or get its own. A page refresh might end the session or not. Different hosts reasonably do different things, and there is no obviously single correct answer that will suffice for any and all MCP applications.
+The spec does not say when a session begins or ends, because it depends on the host application. In practice, deployed clients vary widely and few scope sessions to a conversation: ChatGPT creates a fresh session for every individual tool call, and Claude.ai did the same until recently;[^per-call] most desktop and IDE clients create one at application launch and keep it for the process lifetime; web clients typically create one per page load. Almost no clients resume a prior session after a disconnect or restart, and on the server side the reference TypeScript SDK provides no public API for reconstructing a session on a different node, so multi-node deployments cannot honor resumption even when a client attempts it.[^ts-sdk-resume] A subagent might share its parent's session or get its own — there is no convention.
 
-This would be fine if sessions were purely a host concern. But *server authors* are the ones deciding what to scope to the session, and they need to know what "session" means to do that correctly. If I am writing a Playwright server and tying a browser instance to the session, I need to know whether "session" means one user turn, one agent process, or one chat that persists for weeks. The spec cannot tell me, and different hosts give different answers. I am designing against an abstraction whose semantics I do not control.
+[^per-call]: [microsoft/playwright-mcp#1045](https://github.com/microsoft/playwright-mcp/issues/1045), Sep 2025 — server author reports both ChatGPT and Claude.ai closing the session after each tool call, dropping browser state; ["Connector tool calls generating fresh MCP session each invocation"](https://community.openai.com/t/connector-tool-calls-generating-fresh-mcp-session-each-invocation/1364975), OpenAI Developer Community, Nov 2025.
+[^ts-sdk-resume]: [modelcontextprotocol/typescript-sdk#1658](https://github.com/modelcontextprotocol/typescript-sdk/issues/1658), Mar 2026 — `StreamableHTTPServerTransport` stores session state in private instance fields with no API to rehydrate from external storage.
+
+This matters because server authors are the ones deciding what to scope to the session, and they need to know what a session corresponds to in order to do that correctly. A Playwright server that ties a browser instance to the session needs to know whether that means one user turn, one agent process, or one long-lived chat. The spec does not specify this and different hosts give different answers, so the server is designing against an abstraction whose semantics it does not control.
+
+The practical consequence is that session-scoped application state often does not survive. Against a per-tool-call client it is destroyed before the next call; against a per-app-launch client it is shared across every conversation in the window and then lost on restart; against any client that does not resume, it is gone when the app restarts. Servers that appear to be using session state successfully are usually stdio servers relying on process lifetime, which is a property of the transport rather than the protocol.
 
 #### List endpoints cannot be cached across sessions
 
-Because `tools/list` *might* be session-dependent, a client cannot assume a result fetched in one session is valid in the next. Every new session is forced to re-fetch — even when, as in the vast majority of deployments, the server's tool set is fixed at build time and never changes.
+Because `tools/list` may be session-dependent, a client cannot assume a result fetched in one session is valid in the next. Every new session must re-fetch, even when the server's tool set is fixed at build time and never changes, which is the common case.
 
-This applies to every list endpoint. Each must be treated as potentially session-scoped, so each must be re-fetched per session to be safe.
+The Python SDK's own design issue for client-side list caching lists "what is the cache key — per-session or per-server-URL?" as an open question,[^py-sdk-cache] and gateway implementers have shipped per-session caching specifically because they could not assume cross-session validity from the spec.[^agentgateway-cache] Every list endpoint must be treated as potentially session-scoped, so each must be re-fetched per session to be safe.
 
-For hosts that regularly spawn subagents, this is not a marginal cost — it is a multiplier on the hot path. The mere *possibility* that a server is session-scoped forces `O(subagents × servers)` calls to `tools/list`: every subagent, for every server, every time, even if the underlying tool set hasn't changed since the orchestrator first connected. The client cannot skip the call because it cannot know in advance which servers are session-scoped and which aren't. Under this proposal the same workload is `O(servers)` — the orchestrator fetches each list once and every subagent reuses the cached result.
+[^py-sdk-cache]: [modelcontextprotocol/python-sdk#2108](https://github.com/modelcontextprotocol/python-sdk/issues/2108), Feb 2026.
+[^agentgateway-cache]: [agentgateway/agentgateway#1510](https://github.com/agentgateway/agentgateway/issues/1510), Apr 2026.
 
-If there were no sessions — if list endpoints were purely a function of the server deployment — clients could cache them freely and invalidate only on an explicit signal (TTL expiry, or a `notifications/tools/list_changed` message). A subagent could inherit its parent's cached lists at zero cost.
+For hosts that regularly spawn subagents, this is a multiplier on the hot path. The possibility that a server is session-scoped forces `O(subagents × servers)` calls to `tools/list`: every subagent, for every server, every time, even if the underlying tool set has not changed since the orchestrator first connected. The client cannot skip the call because it cannot know in advance which servers are session-scoped. For an orchestrator spawning many short-lived subagents, this overhead can exceed the protocol traffic of the actual tool calls. Under this proposal the same workload is `O(servers)`: the orchestrator fetches each list once and every subagent reuses the cached result.
 
-#### Subagent fan-out pays per-session cost
+If list endpoints were a function only of the server deployment and the authenticated principal, clients could cache them and invalidate on an explicit signal. [SEP-2549] specifies such a signal (a server-advertised TTL plus `notifications/*/list_changed`), but its caching model is only sound if the list does not also vary per session. Removing sessions makes that model safe; a subagent can then inherit its parent's cached lists at zero cost.
 
-An orchestrator agent spawning subagents is a common and growing pattern. If subagents get their own sessions — and there are isolation reasons they might — each spawn pays a per-server cost. [SEP-1442] removes the `initialize` handshake from that cost, which helps. But a `session/create` message is being proposed as the explicit replacement, and the forced `tools/list` re-fetch described above still applies regardless.
+#### Cardinality is fixed at one per session
 
-The cost per subagent is roughly `O(connected servers)` session-create messages plus `O(connected servers)` list re-fetches, even when most subagents never touch most servers. For an orchestrator spawning many short-lived subagents, this can amount to more protocol traffic than the actual tool calls.
+Session state has a cardinality of exactly one per session. The model gets one cart, one browser, one of whatever the server scopes to the session; it cannot have two, and it cannot have zero.
 
-#### Cardinality is forced, and no single scope works for everything
+This is a problem when different pieces of state need different scopes. Consider an orchestrator that spawns several subagents to independently research products to buy. The subagents should add to the same shopping cart (they are collaborating on one order) but each needs its own browser state (they are browsing different sites in parallel).
 
-Session state has a cardinality of exactly one per session. The model gets one cart, one browser, one whatever. It cannot have two, and it cannot have zero.
-
-Where this bites is when different pieces of state want different scopes. Consider an orchestrator that spawns several subagents to independently research products to buy. They all want to add to the *same* shopping cart — that's the point, they're collaborating on one order. But each subagent wants its *own* browser state for research — they're browsing different sites in parallel and shouldn't clobber each other.
-
-There is no session boundary that gives you both:
+No session boundary satisfies both:
 
 | Session model               | Cart (want: shared) | Browser (want: isolated) |
 |-----------------------------|:-------------------:|:------------------------:|
 | Subagents share parent's    | ✓ shared           | ✗ shared (clobbers)     |
 | Subagents get their own     | ✗ isolated         | ✓ isolated              |
 
-The session is a single scope, and the state the model is trying to manage wants more than one.
+With explicit IDs the orchestrator calls `create_basket()` once, passes the resulting `basket_id` to each subagent, and each subagent separately calls `create_browser()` for its own `browser_id`. The model decides what is shared and what is isolated per piece of state, rather than having one scope imposed on everything.
 
-With explicit IDs this simply is not a problem. The orchestrator calls `create_basket()` once, passes the resulting `basket_id` to each subagent, and each subagent separately calls `create_browser()` for its own `browser_id`. The model decides what is shared and what is isolated, per piece of state, rather than having one scope imposed on everything.
-
-#### No way to initialize session state
-
-Sessions begin empty. If state needs setup before it is usable, that setup has to happen through follow-up tool calls, which means the model has to know to make them and pay the round-trip for each.
-
-For a shopping cart this is minor — carts naturally start empty. But consider a kubectl-style server that runs commands against a fleet of clusters, where the session state is "which cluster." There is no safe default. If the server manages staging and prod, defaulting to either is a landmine — the first `apply` goes to whichever one the server happened to pick. The session *must* be initialized before any operation is safe, but there is no mechanism to do that at creation time; the model has to know to call a `set_cluster()` tool first, and nothing stops it from forgetting.
-
-With an explicit ID, initialization is a parameter: `create_context(cluster="staging-us-west") -> ctx_id`. Setup goes where parameters go, and the state cannot exist in an uninitialized form. Notably, kubectl itself already works exactly this way — `kubectl config use-context` is a handle-shaped operation, not a session-shaped one.
-
-#### State is locked inside a scope the user cannot name
-
-A cart created in one chat is invisible to another chat. If a user wants to resume work in a new conversation, hand something off to a different agent, or share state with a colleague, the session model gives them no handle to do it with. The state exists, but nothing can refer to it from outside.
+The same lack of an identifier also means session state is not addressable from outside the session that created it. A cart created in one chat is invisible to another chat; if a user wants to resume work in a new conversation, hand something off to a different agent, or share state with a colleague, the session model provides nothing to refer to it by. An explicit `basket_id` can be passed to any of those.
 
 ## Specification
 
 ### Summary of changes
 
-1. **Remove the session concept from the protocol.** There is no `session/create`, no `session/destroy`, and no `Mcp-Session-Id` header. The protocol is sessionless at every layer. (This supersedes the opt-in stateful path that [SEP-1442] retained.)
+1. **Remove the session concept from the protocol.** The `Mcp-Session-Id` header is removed and the spec language describing session lifecycle and session-scoped behavior is deleted. The protocol is sessionless at every layer. (This supersedes the opt-in stateful path that [SEP-1442] retained.)
 
-2. **List endpoints are session-independent.** The result of `tools/list`, `resources/list`, and `prompts/list` MUST NOT depend on per-connection, per-conversation, or prior-tool-call state. Lists can still change over time — a user upgrades their plan, a server ships new tools — but those changes happen at `(deployment, auth)` granularity, where they can be cache-managed and invalidated, rather than at session granularity, where they cannot. Caching mechanics are specified in separate work.
+2. **List endpoints are session-independent.** With no session, the results of `tools/list`, `resources/list`, and `prompts/list` have no per-session or per-connection scope to depend on. Lists can still change for other reasons (server deployment, auth changes); caching and invalidation mechanics for those are specified separately in [SEP-2549].
 
-3. **Stateful workflows use explicit handles.** With sessions gone, servers that need to maintain state across tool calls do so by returning an identifier from a creation tool and accepting it as a parameter on subsequent calls. This is not a protocol-level construct — from the protocol's perspective a handle is just a string in a tool result and a string in a tool argument — but it is the natural replacement pattern, and guidance for doing it well is given below.
+3. **Stateful workflows use explicit handles.** With sessions gone, servers that need to maintain state across tool calls do so by returning an identifier from a creation tool and accepting it as a parameter on subsequent calls.
+
+That third point is **not a protocol change**. There is no `handles/*` method, no handle type in the schema, no wire-level concept of a handle at all. From the protocol's perspective a handle is a string in a tool result and a string in a tool argument, indistinguishable from any other tool data. "Explicit state handles" is a tool-design pattern that the spec documents and recommends — in the same way it might document pagination or error-message conventions — not something it implements. The normative content of this SEP is the removal in (1); (2) follows from it, and (3) is the guidance that fills the gap.
 
 ### Explicit state handles
 
 #### Pattern
 
-Where a server would previously have relied on implicit session-scoped state:
+Where a server would previously have relied on implicit session-scoped state — `add_item` calls operating on a per-session cart — it instead exposes an explicit creation tool that returns a handle:
 
-```
-add_item("shoes")
-add_item("socks")
-checkout()
-```
+```jsonc
+// → tools/call
+{ "name": "create_basket", "arguments": {} }
 
-It instead exposes an explicit creation tool that returns a handle, and threads that handle through subsequent calls:
-
-```
-basket = create_basket()            # returns { "basket_id": "bsk_a1b2c3" }
-add_item(basket, "shoes")
-add_item(basket, "socks")
-checkout(basket)
+// ← result
+{ "content": [{ "type": "text", "text": "Created basket bsk_a1b2c3" }],
+  "structuredContent": { "basket_id": "bsk_a1b2c3" } }
 ```
 
-This is not a new pattern. `create_google_doc()` returns a doc ID; `gh pr create` returns a PR number; `open(2)` returns a file descriptor. None of these need a protocol session. The server owns the state, the client holds a name for it, and authorization is checked on every call.
+The model then threads that handle through subsequent calls as an ordinary argument:
+
+```jsonc
+// → tools/call
+{ "name": "add_item",
+  "arguments": { "basket_id": "bsk_a1b2c3", "sku": "shoes" } }
+
+// ← result
+{ "content": [{ "type": "text", "text": "Added shoes to bsk_a1b2c3 (1 item)" }] }
+
+// → tools/call
+{ "name": "checkout",
+  "arguments": { "basket_id": "bsk_a1b2c3" } }
+```
+
+Nothing here is a protocol extension: `basket_id` is an ordinary string field in `structuredContent` and an ordinary string argument to subsequent tools. This pattern is already the norm in widely-deployed remote MCP servers that manage durable resources:
+
+| Server (official, remote)                                       | Create tool → returned ID         | Operate tools taking that ID                            |
+|-----------------------------------------------------------------|-----------------------------------|---------------------------------------------------------|
+| [Linear](https://linear.app/docs/mcp)                           | `create_issue` → issue id         | `get_issue`, `update_issue`, `create_comment`           |
+| [Notion](https://developers.notion.com/docs/mcp)                | `notion-create-pages` → page id   | `notion-update-page`, `notion-move-pages`               |
+| [GitHub](https://github.com/github/github-mcp-server#tools)     | `create_pull_request` → PR number | `pull_request_read`, `update_pull_request`, `merge_pull_request` |
+| [Stripe](https://docs.stripe.com/mcp)                           | `create_customer` → customer id   | `create_invoice`, `list_subscriptions`                  |
+
+The approach can be adopted for less-persistent objects (a browser context, an in-progress cart) by giving the created object a limited lifetime, and/or limiting its discoverability to the principal that created it. The server owns the state, the client holds a name for it, and authorization is checked on every call.
 
 #### Guidance for servers
 
-None of the following is normative — handles are a tool-design pattern, not a protocol feature, and servers are free to shape them however fits their domain. That said, the pattern works best when a few things hold:
+None of the following is normative. Handles are a tool-design pattern, not a protocol feature, and servers are free to shape them however fits their domain. The pattern works best when:
 
-- **Handles are opaque.** A handle that encodes internal structure (`cart_user42_2026-03-11`) invites clients to parse it or models to guess it. A handle that's just `bsk_a1b2c3` does not.
-- **Possession is not authorization.** Validate `(handle, auth_context)` on every call. Handles will end up in chat logs, in copy-paste buffers, in subagent prompts; treating them as bearer tokens is a footgun. See [Security Implications](#security-implications).
-- **Durability is documented in the tool description.** Handles outlive connections by design, so "the state lasts until the connection closes" is no longer an answer. Put the actual policy in the `create_*` tool's description — "returns a basket_id; baskets expire after 24h idle" — so it's in front of the model at the moment it decides to create state. A policy buried in server docs is a policy the model never sees.
-- **Expired handles return useful errors.** When a tool receives a handle for state that has expired or been destroyed, the error should say so plainly — "basket bsk_a1b2c3 has expired" rather than "invalid argument" or a generic 404. A model that gets a clear expiry error can recover by calling `create_*` again; a model that gets an opaque error will retry the same broken call or give up.
-- **Creation takes parameters.** `create_context(cluster="staging")` is better than `create_context()` followed by `set_cluster(ctx, "staging")`. One round-trip instead of two, and the state can't exist half-configured.
-- **There's a way to clean up.** A `destroy_*(handle)` tool lets well-behaved models release resources. A `list_*()` tool lets a model recover after losing track of what it created. Neither is required, but both help.
+- **Handles are opaque.** A handle that encodes internal structure (`cart_user42_2026-03-11`) invites clients to parse it or models to guess it; an opaque handle such as `bsk_a1b2c3` does not.
+- **Possession is not authorization (where auth exists).** For authenticated servers, validate `(handle, auth_context)` on every call; handles will end up in chat logs, copy-paste buffers, and subagent prompts. For unauthenticated servers, where the handle is necessarily a bearer token, generate it with at least 128 bits of cryptographically secure entropy and bound its lifetime. See [Security Implications](#security-implications).
+- **Durability is documented in the tool description.** Handles outlive connections by design, so "the state lasts until the connection closes" is no longer applicable. Put the policy in the `create_*` tool's description — "returns a basket_id; baskets expire after 24h idle" — so it is visible to the model when it decides to create state. A policy only in server documentation is not visible to the model.
+- **Expired handles return useful errors.** When a tool receives a handle for state that has expired or been destroyed, the error should say so — "basket bsk_a1b2c3 has expired" rather than "invalid argument". A clear expiry error lets the model recover by calling `create_*` again; an opaque error typically leads to retries or failure.
+- **Creation takes parameters.** `create_context(cluster="staging")` is preferable to `create_context()` followed by `set_cluster(ctx, "staging")`: one round-trip instead of two, and the state cannot exist half-configured.
+- **Cleanup is available.** A `destroy_*(handle)` tool lets models release resources. A `list_*()` tool lets a model recover after losing track of what it created. Neither is required.
 
 #### Guidance for clients
 
-From the client's perspective, a handle is an ordinary string that showed up in a tool result. The main thing the client can do to help is make sure that string survives context compaction — if the conversation gets summarized and the handle is in the discarded portion, the state is effectively orphaned. Clients that track tool-call results across compaction boundaries handle this already; clients that don't will want to. [First-class state handles](#first-class-state-handles) sketches a way to make this systematic rather than best-effort.
+From the client's perspective, a handle is an ordinary string in a tool result. The main client responsibility is ensuring that string survives context compaction; if the conversation is summarized and the handle is in the discarded portion, the state is orphaned. Clients that track tool-call results across compaction boundaries handle this already.
 
 ### Session-independent list endpoints
 
-With sessions removed, list endpoints no longer have a session to vary against. The result of `tools/list`, `resources/list`, and `prompts/list` MUST NOT depend on connection state, conversation state, or the history of prior tool calls on the same connection.
+With sessions removed, list endpoints no longer have a session to vary against. This is the only constraint this SEP places on `tools/list`, `resources/list`, and `prompts/list`: there is no longer a per-session or per-connection scope for their results to depend on. Lists can still change for other reasons — a server deploys a new version, a user's plan or granted scopes change — and this SEP does not enumerate or restrict those.
 
-This is not an immutability requirement. Lists are free to change over time — a user upgrades their plan and gains tools, a server deploys a new version, an admin grants a role. What matters is the *granularity* at which they change: a list change is visible to every caller at the same `(deployment, auth)` scope, not to just the one session that happened to call `enable_admin_tools()`. Two concurrent conversations with the same auth context see the same list; a subagent sees what its orchestrator sees; a re-fetch after a page refresh sees what the fetch before the refresh saw (modulo an actual change having happened in the meantime).
+How clients learn that a cached list has gone stale is the subject of [SEP-2549], which defines a server-advertised TTL on list responses and the interaction with `notifications/*/list_changed`. The two SEPs are complementary: this one removes the session as a source of variation, so there is a stable thing to cache; [SEP-2549] specifies how long to cache it and when to invalidate.
 
-That granularity is what makes caching tractable. A cache keyed on `(deployment, auth)` can be invalidated when something at that scope changes; a cache that also has to account for per-session mutation cannot be invalidated short of re-fetching per session, which is to say it cannot be cached. The concrete mechanics of how clients and servers coordinate on freshness — TTLs, validators, change signals — are being specified in separate work and are out of scope here. This SEP establishes the scope; that work establishes the coordination.
+One consequence of the constraint above is that servers can no longer mutate `tools/list` as a side effect of tool calls; the `enable_admin_tools()`-mutates-the-list pattern is no longer permitted. In practice this is rarely used. For the same effect, servers can expose all tools unconditionally at list time and enforce authorization at call time (which is already the common posture for auth-gated tools).
 
-For servers that genuinely want tool-call-driven tool exposure — `enable_admin_tools()` and similar — see [Tools Returning Tools](#tools-returning-tools) for a possible future direction that doesn't route through list mutation.
+### Consequential spec edits
 
-One consequence of the deployment-scoped guarantee is that servers can no longer mutate `tools/list` as a side effect of tool calls — the `enable_admin_tools()`-mutates-the-list pattern is out. In practice this is rarely used, and for the same effect servers can expose all tools unconditionally at the `tools/list` level and enforce authorization at call time (the same posture the auth-scoped MAY above already permits). A more structured replacement — tools that return additional tool definitions in their result — is a plausible future direction but is not proposed here; see [Tools Returning Tools](#tools-returning-tools).
+Two places in the current spec define behavior in terms of session scope and need re-scoping:
+
+- **JSON-RPC request ID uniqueness.** The spec currently requires that a request `id` "MUST NOT have been previously used by the requestor within the same session." The purpose of `id` is for the sender to correlate an incoming response with the request that produced it; the receiver only echoes it. With sessions removed, the constraint is re-scoped accordingly: a sender MUST NOT issue a request whose `id` matches that of another request it has sent and not yet received a response for. This is transport-agnostic, sufficient for correlation under every transport, and is what the TypeScript and Python SDKs already do via a monotonically increasing counter per client object. ([JSON-RPC 2.0 §4](https://www.jsonrpc.org/specification#request_object) itself imposes no uniqueness requirement — it only requires the receiver to echo the `id` — so this remains an MCP-level constraint.)
+- **Pagination cursor validity.** The spec currently advises clients not to "persist cursors across sessions." With sessions removed, this advice disappears. Cursor stability and snapshot consistency are outside the scope of this proposal.
 
 ## Rationale
 
 ### Why remove sessions rather than just default them off?
 
-[SEP-1442] already does the heavy lifting of making MCP work behind load balancers and without sticky routing. The argument for going further is that the existence of the opt-in shapes the ecosystem even when it's rarely taken:
+[SEP-1442] already addresses making MCP work behind load balancers and without sticky routing. The reasons for going further are:
 
-- **The mere existence of the opt-in forces the `O(subagents × servers)` cost on everyone.** A client cannot cache `tools/list` across session boundaries unless it knows the server doesn't opt into session-scoped mutation — and it can't know that in advance. So the client re-fetches, every session, every server, even though approximately zero servers actually opt in. This is the big-O inefficiency from the Motivation section restated: it's not caused by sessions being *used*, it's caused by sessions being *possible*. Defaulting them off doesn't help; only removing them does.
-- **Server authors reach for the session because it's there.** The spec offering session-scoped state as a primitive nudges people toward it for workflows that would be better served by explicit IDs. Removing it forces the better pattern.
-- **Simplicity compounds.** Every concept in the protocol is a concept SDK authors implement, docs explain, and new users learn. A protocol with fewer primitives is easier to implement correctly.
+- **Opt-in sessions still prevent list caching.** A client cannot cache `tools/list` across session boundaries unless it knows the server does not opt into session-scoped mutation, and it cannot know that in advance. The client therefore re-fetches per session per server even though few servers opt in. The `O(subagents × servers)` cost from the Motivation section is caused by sessions being possible, not by sessions being used, so making them optional does not remove it.
+- **The primitive influences server design.** Offering session-scoped state in the spec leads server authors to use it for workflows that would be better served by explicit IDs.
+- **Fewer primitives reduce implementation surface.** Every protocol concept must be implemented by SDK authors, documented, and learned by new users.
 
-### Why explicit IDs are strictly more expressive
+### Expressiveness
 
-The session gives exactly one scope per connection. Explicit IDs give as many scopes as the model chooses to create, and each can be shared or isolated independently. Anything expressible with a session is expressible with a single ID the model creates at the top of the conversation; the converse does not hold.
+A session provides exactly one scope per connection. Explicit IDs provide as many scopes as the model creates, and each can be shared or isolated independently. Anything expressible with a session is expressible with a single ID the model creates at the start of the conversation; the converse does not hold.
 
-### Comparison to alternatives
+### Resumption
 
-| Approach                        | Cacheable lists | Flexible cardinality | Fan-out cost | Nameable state | Complexity |
-|---------------------------------|:---------------:|:--------------------:|:------------:|:--------------:|:----------:|
-| Current spec (sessions)         | ✗              | ✗ (exactly 1)       | High         | ✗             | Medium     |
-| SEP-1442 (opt-in sessions)      | ✗¹             | ✗ (0 or 1)          | Medium       | ✗             | Medium     |
-| This proposal (explicit IDs)    | ✓              | ✓ (any)             | Zero²        | ✓             | Low        |
-
-¹ A client cannot know in advance whether a given server will opt into sessions, so lists must still be treated as potentially session-scoped.
-² Zero *protocol-layer* cost. The model still pays for the `create_*` tool call, but only for state it actually uses, and only once regardless of how many subagents later share the handle.
+Because handles appear in tool results, they are part of the chat transcript. Any client that persists its chats — which is most of them — therefore persists the handles automatically. Reopening a conversation after an app restart, a page reload, or on a different device puts the handle back in front of the model with no additional resumption machinery, and this behavior is consistent across clients. Session-based state, by contrast, requires the client to persist and resend `Mcp-Session-Id` out of band, which (as covered in the Motivation) almost no clients do.
 
 ### Anticipated objections
 
-#### "Garbage collection: when does the server free `basket_abc123`?"
+#### Garbage collection
 
-Sessions at least gave a lifecycle signal — session ends, state is freed. Without that, the model might forget to call `destroy_basket()`, and state leaks.
+Sessions provide a lifecycle signal — when the session ends, state is freed. Without it, the model might forget to call `destroy_basket()`, and state leaks.
 
-The counter is that sessions do not actually deliver this in practice. Chat conversations persist indefinitely; sessions do not cleanly end. Stateless HTTP servers behind load balancers never see a connection-close. Servers are already TTL-ing or leaking today — and notably, the current proposals for explicit session management are *themselves* adding TTLs, which is a concession that session-end alone does not solve the problem.
+However, sessions do not deliver this reliably in practice. As covered in the Motivation, real clients either never end the session (per-app-launch), end it constantly (per-tool-call), or end it at moments uncorrelated with the conversation (page reload, network blip). Stateless HTTP servers behind load balancers never see a connection-close. Servers already rely on TTL-based expiry today; the session boundary is not what performs cleanup.
 
-Explicit IDs with a documented durability policy ("baskets expire after 24h idle") is the same mechanism, just honest about what is doing the work.
+Explicit IDs with a documented durability policy ("baskets expire after 24h idle") is the same mechanism, made explicit.
 
-#### "Models have to carry the IDs forward"
+#### Models have to carry the IDs forward
 
-With implicit session state, the model never tracks an identifier — the server does. With explicit IDs, the model is responsible for threading `basket_abc123` through every relevant call. Two failure modes: hallucinating a slightly-wrong ID, or the ID falling out of context when the conversation is compacted.
+With implicit session state, the server tracks the identifier; with explicit IDs, the model is responsible for threading `basket_abc123` through every relevant call. The failure modes are hallucinating a slightly-wrong ID, or the ID falling out of context when the conversation is compacted.
 
-The concern is real but likely overstated. Models already carry opaque identifiers across conversations constantly — file paths, URLs, commit hashes, PR numbers, UUIDs returned from prior tool calls. It is one of the things they are reliably good at, and each model generation is better at it. Compaction is the harder case, but it is a general problem for any long-horizon state; if the compactor is dropping live tool-call results, session-scoped state doesn't save you either — the model will have forgotten what's *in* the cart just as surely as it forgets the cart's ID. The [first-class state handles](#first-class-state-handles) follow-on sketches a direct mitigation.
+Models already carry opaque identifiers through conversations routinely — file paths, URLs, commit hashes, PR numbers, UUIDs returned from prior tool calls — and current models do this reliably. Compaction is the harder case, but it affects any long-horizon state: if the compactor drops live tool-call results, the model loses track of what is in the session-scoped cart as well, not just the cart's ID.
 
-#### "IDs become bearer tokens in chat history"
+#### IDs in chat history
 
-If `basket_id` can be pasted anywhere, isn't that an unauthenticated capability sitting in the user's chat log?
+A `basket_id` that can be pasted anywhere could become an unauthenticated capability in the user's chat log.
 
-Only if the server treats possession of the ID as authorization. It shouldn't, and this proposal's server requirements say it MUST NOT. The ID is a *name*; the server checks `(id, auth_context)` on every call. Google Doc IDs sit in URLs and browser history; access is controlled by ACL, not ID secrecy. Same principle here.
+For authenticated servers, the ID should be a name, with the server checking `(id, auth_context)` on every call. Google Doc IDs sit in URLs and browser history; access is controlled by ACL, not ID secrecy. The same applies here.
 
-#### "This removes an existing concept — it's a breaking change"
+For servers without authentication, the ID is necessarily a bearer token — possession is the only thing the server can check. In that case the handle should follow standard practice for unguessable capability tokens: generated from a cryptographically secure random source with at least 128 bits of entropy (e.g. UUIDv4, or 22+ characters of URL-safe base64), never derived from predictable inputs, and given a bounded lifetime. This is the same posture as other ephemeral public IDs in common use — "anyone with the link" share URLs, password-reset tokens, Stripe Checkout session IDs — and carries the same tradeoff: convenient, but anyone who obtains the token has access for its lifetime.
+
+#### Breaking change
 
 Sessions are in the spec today; removing them breaks anyone relying on them.
 
-In practice the blast radius appears small. Very few servers use session-scoped state in the way the spec permits. The main population that does is stdio servers, and they are already relying on an *implicit* session — the process lifetime — rather than anything the protocol explicitly provides. For those, migrating to explicit IDs means adding a `create_*` tool and threading the handle: work, but mechanical work. The harder question is whether there is a migration window or a clean break; see [Backward Compatibility](#backward-compatibility).
+An automated survey of a 1000-repo random sample of open source MCP servers (classified by per-repo LLM analysis) found:
+
+| Category                                                     | Share | Migration                                     |
+|--------------------------------------------------------------|------:|-----------------------------------------------|
+| No application-level reference to MCP session ID             | 90.0% | None                                          |
+| `Map<sessionId, Transport>` routing (TS SDK boilerplate)     |  3.5% | Removed by a sessionless SDK transport        |
+| Transport setup only (`sessionIdGenerator`, never read)      |  2.8% | Delete one constructor option                 |
+| **Session-keyed application state**                          |  2.5% | Migrate to explicit handles or auth principal |
+| **Proxy / gateway sticky routing**                           |  0.7% | Needs designed replacement                    |
+| **Auth binding** (JWT claims, PKCE verifier keyed on session)|  0.5% | Replace with server-generated nonce or token subject |
+
+The bolded rows are the repos that use the session ID for application semantics. The hardest-hit category — gateways that spawn one upstream per session — needs a designed replacement rather than a mechanical edit; see [Backward Compatibility](#backward-compatibility).
 
 ## Backward Compatibility
 
 This is a **breaking change** for servers that rely on protocol-level session state. The migration path depends on server category:
 
-**Stdio servers using process-lifetime state.** These are the most common stateful servers today, and they are *not* broken by this proposal in their default deployment: the process lifetime still exists, and a server that keeps a single in-memory browser instance per process continues to work with a stdio client that spawns one process. What changes is that such a server cannot be transparently moved to an HTTP transport without adding explicit handle management — but that was already effectively true.
+**Stdio servers using process-lifetime state.** These are the most common stateful servers today and are not broken by this proposal in their default deployment: the process lifetime still exists, and a server that keeps a single in-memory browser instance per process continues to work with a stdio client that spawns one process. Stdio servers never had `Mcp-Session-Id`.
 
-**HTTP servers using `Mcp-Session-Id`.** These are rare and must migrate to explicit handles. The migration is mechanical: replace the session-scoped state map with a handle-keyed state map, add a `create_*` tool, add the handle as a parameter to stateful tools.
+**HTTP servers using `Mcp-Session-Id`.** These are less common and must migrate to explicit handles. The migration is mechanical: replace the session-scoped state map with a handle-keyed state map, add a `create_*` tool, add the handle as a parameter to stateful tools.
 
-**Clients.** Clients become *simpler*: they no longer need to track session identifiers, negotiate session creation, or worry about whether a given server is stateful. List-endpoint caching moves from "unsafe" to "encouraged."
+**Servers using session ID as a telemetry key.** Some servers tag traces, logs, or rate-limit buckets with the session ID to correlate activity within a session. This already worked inconsistently across clients — against per-tool-call clients every event lands in its own bucket, and against clients that don't resume the correlation breaks at every restart. These use cases need to move to a different scoping mechanism, typically the authenticated principal (bearer token subject, API key) or a request-level correlation ID.
 
-Rollout is a clean break: sessions are removed in the next spec version, with no deprecation window. Servers that currently rely on session-scoped state simply stay on the current protocol version until they have migrated to explicit handles. Protocol version negotiation already handles mixed-version deployments — a client that supports both versions will speak the old protocol to an unmigrated server and the new one to everyone else. This avoids shipping a version where clients have to support both modes simultaneously, which would defeat the caching win (a client cannot cache list endpoints if *any* connected server might be session-scoped).
+**Proxies and gateways using session ID for sticky routing.** Gateways that route by `Mcp-Session-Id` lose their routing key — but they only needed one because their upstreams were stateful. If the upstream is stateless (or migrates to explicit handles, where the state key is in the tool arguments and any replica can serve it from shared storage), the gateway needs no sticky routing at all. The residual case is gateways that bridge HTTP to stdio by spawning one subprocess per session; those need a different correlation key, which is a transport-layer concern (route by authenticated principal, or a cookie / gateway-issued header) rather than something this SEP defines.
+
+**Servers binding auth artifacts to session ID.** A small number of servers store OAuth PKCE verifiers, session→user pinning maps, or JWT claims keyed on the session ID. In the PKCE case the server is already passing a correlation value through the OAuth `state` parameter (the browser callback is not an MCP request and never carried `Mcp-Session-Id`), so the change is to put a server-generated nonce in `state` instead of the session ID. Session→user pinning was a defense against the session-routing/auth decoupling described in [Security Implications](#security-implications) and is not needed once every request is independently authenticated. The migration is mostly mechanical, though worth a review since auth code is involved.
+
+**Clients.** Clients become simpler: they no longer track or resend session identifiers, or need to determine whether a given server is stateful. List-endpoint caching becomes safe.
+
+Rollout is a clean break: sessions are removed in the next spec version, with no deprecation window. Servers that currently rely on session-scoped state stay on the current protocol version until they have migrated to explicit handles. Protocol version negotiation already handles mixed-version deployments — a client that supports both versions speaks the old protocol to an unmigrated server and the new one to everyone else. This avoids shipping a version where clients support both modes simultaneously, which would prevent the caching benefit (a client cannot cache list endpoints if any connected server might be session-scoped).
 
 ## Security Implications
 
-### Handles are names, not capabilities
+### Handle exposure
 
-The main security consideration introduced by this SEP is that handles will end up in places session IDs never did — chat logs, subagent prompts, copy-paste buffers, potentially other users' screens. A server that treats possession of a handle as authorization has turned a name into a bearer token, and every one of those surfaces becomes a leak. The safe posture is the same one Google Doc IDs and GitHub PR numbers take: the ID identifies the resource, and the auth context on the request decides whether you can touch it. Servers that validate `(handle, auth_context)` on every call are fine regardless of where the handle has been.
+The main security consideration introduced by this SEP is that handles will end up in places session IDs did not — chat logs, subagent prompts, copy-paste buffers, potentially other users' screens.
 
-This is guidance, not a protocol requirement — the protocol doesn't know what a handle is and can't enforce anything about how servers treat them. But it's the guidance that matters most.
+This is a change in exposure surface, not a new class of vulnerability. Session IDs are already capability-bearing in practice: the Python SDK's stateful session manager, for example, routes by `Mcp-Session-Id` alone without verifying that the authenticated identity on the request matches the one that created the session, so a leaked session ID allows hijack by any other authenticated principal.[^py-sdk-hijack] The "validate `(id, auth_context)` on every call" guidance below applies equally to today's session IDs and to explicit handles; this SEP makes the requirement more visible because handles are more visible.
 
-## Open Questions
+[^py-sdk-hijack]: [modelcontextprotocol/python-sdk#2100](https://github.com/modelcontextprotocol/python-sdk/issues/2100).
 
-- **Do models actually handle explicit IDs as reliably as implicit session state?** The Rationale section argues that models are already good at carrying opaque identifiers through a conversation, but that's an argument, not data. We should validate empirically — comparative evals of session-scoped vs. handle-threaded workflows, looking specifically at hallucinated IDs, dropped IDs across long conversations, and recovery behavior when an ID is lost — before treating this as a safe assumption.
+For authenticated servers, the recommended posture is the same one Google Doc IDs and GitHub PR numbers take: the ID identifies the resource, and the auth context on the request determines access. Servers that validate `(handle, auth_context)` on every call are unaffected by handle exposure.
 
-- **How breaking is this, really?** The Backward Compatibility section asserts that session-scoped application state and session-mutable tool lists are rare in practice, but we don't have a survey. A pass over the known server ecosystem — registries, SDK example code, the servers shipping in major hosts — would tell us whether this is removing something almost nobody uses or something a meaningful minority depends on.
+For unauthenticated servers there is no auth context to check, so the handle is a capability token. These should be generated with at least 128 bits of cryptographically secure entropy, never derived from predictable inputs, and given a bounded lifetime — the same practice as "anyone with the link" share URLs or password-reset tokens. Exposure of such a handle grants access for its lifetime; servers should size that lifetime accordingly.
 
-- **What do SDKs do with their session-shaped APIs?** Several SDKs expose session objects, session lifecycle hooks, or per-session state containers as first-class API surface. Even if the wire protocol drops sessions cleanly, those APIs need a migration story — deprecate and remove, shim onto handles, or leave in place as a purely SDK-local convenience with no wire-level meaning.
-
-- **Is there a fourth thing sessions are used for?** This proposal accounts for application state, mutable list endpoints, and resource subscriptions. If there is another use of session scoping in the wild that doesn't fit those three buckets, it needs either a replacement story or an argument for why it shouldn't be supported. Soliciting counterexamples from the WG before the design is locked is cheap; discovering one after is not.
-
-- **Handle durability metadata.** Should the `create_*` result include machine-readable durability info (a `ttl` field, a `destroy_at` timestamp) so the client can surface it to the user, or is a documented server-side policy sufficient?
-
-## First-Class State Handles
-
-*(Possible follow-on — not part of this SEP, noted here as where the path leads.)*
-
-Everything above treats a handle as an opaque string. If the protocol instead gave handles a distinct type — with create/read/destroy semantics the client can reason about — hosts could build real UX on top:
-
-- Show created handles in a sidebar; warn before abandoning ephemeral state; offer cleanup on conversation delete. Allow dragging state objects into new chats for re-use.
-- Re-surface live handles to the model after context compaction, directly addressing the "model forgets the ID" objection. If the host knows which strings are state handles, it can preserve them across a compaction boundary the way it cannot preserve arbitrary tool output.
-- Let servers ship a visualization for their state, in the same spirit as MCP Apps shipping UI for tool interactions — a basket handle renders as a live cart preview, a browser handle renders as a page thumbnail.
-
-The sessionless change on its own is mostly simplification. This is where a user-visible win might live.
-
-## Tools Returning Tools
-
-*(Possible follow-on — not part of this SEP.)*
-
-This SEP closes off one avenue for dynamic tool exposure: a server can no longer have `enable_admin_tools()` mutate what `tools/list` returns, because `tools/list` is now deployment-scoped. The workaround within this SEP's bounds is to expose everything at list time and enforce at call time, which works but means the full tool surface is always in the model's context.
-
-A cleaner replacement would be to let a tool call return additional tool definitions as part of its result — `enable_admin_tools()` doesn't mutate a list, it hands back the admin tools directly. The client scopes those however it likes (per-conversation, per-subagent-tree), and the server still validates authorization at call time. This would also compose nicely with the handle pattern: `create_browser()` could return both a `browser_id` *and* the tools that operate on browsers, so a model that never creates a browser never has those tools in context at all.
-
-That's a separate piece of work with its own schema and scoping questions, and is not proposed here.
+This is guidance, not a protocol requirement, since the protocol has no handle concept to enforce against.
 
 ## Reference Implementation
 
-TBD.
-
-An illustrative migration of a session-scoped Playwright server to explicit `create_browser(headless: bool) -> browser_id` / `destroy_browser(browser_id)` handles would be a useful artifact for the WG to evaluate the ergonomic cost.
+All official SDKs except PHP already provide a stateless mode, implemented as not generating a session ID (e.g. `sessionIdGenerator: undefined` in the TypeScript SDK, `stateless_http=True` in the Python SDK). This SEP makes that mode the only option for servers speaking the new protocol version. SDKs that support multiple protocol versions retain the session-ID-generating code path for older versions; the change is that it is no longer reachable when the negotiated protocol version is the one this SEP introduces.
 
