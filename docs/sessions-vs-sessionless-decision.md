@@ -252,4 +252,10 @@ deploy_vm(vm)
 
 * **Breaking Change:** If applications are using sessions today for application
   state, it would require developers to update their tools and clients to use
-  explicit state handles instead. 
+  explicit state handles instead.
+
+## **Decision**
+
+This decision was discussed at the [Core Maintainer's Meeting on
+4/1](https://github.com/modelcontextprotocol/modelcontextprotocol/discussions/2536)
+and the decision was made to move forward with the "no-session" proposal.
