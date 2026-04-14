@@ -4,27 +4,23 @@ We welcome contributions from anyone interested in improving MCP transports!
 
 ## Quick Start
 
-1. **Join the community** — Connect on the `#transports-wg` channel in [MCP Discord](https://discord.com/invite/6CSzBmMkjX)
-2. **Understand the scope** — Review the [CHARTER](./CHARTER.md) and [README](./README.md)
-3. **Start contributing** — Attend meetings, open issues, or submit PRs
+1. **Join the community** — Connect on the `#transports-wg` channel in [MCP
+   Discord](https://discord.com/invite/6CSzBmMkjX)
+2. **Understand the scope** — Review the [CHARTER](./CHARTER.md) and
+   [README](./README.md)
+3. **Start contributing** — Attend meetings (find the next meeting at
+   [https://meet.modelcontextprotocol.io/](https://meet.modelcontextprotocol.io/)),
+   open issues, or submit PRs
 
 ## Ways to Contribute
 
 ### Participate in Discussions
 
-- Join weekly meetings (no approval needed!)
+- Join weekly meetings (no approval needed!). Find the next meeting at
+  [https://meet.modelcontextprotocol.io/](https://meet.modelcontextprotocol.io/)
 - Engage in Discord conversations
 - Comment on GitHub issues and PRs
 - Share your transport implementation experiences
-
-### Submit Proposals
-
-Have an idea for improving MCP transports? We'd love to hear it!
-
-1. **Open an issue** to discuss the idea first
-2. **Draft a proposal** following the template in `proposals/`
-3. **Submit a PR** for community review
-4. **Iterate** based on feedback
 
 ### Improve Documentation
 
@@ -38,14 +34,25 @@ Have an idea for improving MCP transports? We'd love to hear it!
 - Test proposed changes
 - Share implementation feedback
 
-## Proposal Development
+## Proposing Changes
 
-When developing transport proposals:
+Have an idea for improving MCP transports? We'd love to hear it!
 
-1. **Propose first** — Open an issue to discuss before writing a full proposal
-2. **Follow MCP standards** — Align with existing MCP conventions and patterns
-3. **Document thoroughly** — Include rationale, examples, and edge cases
-4. **Consider breadth** — Think about applicability across implementations
+### Process
+
+1. **Open an issue** to discuss the idea first. This helps avoid duplicate work and ensures initial alignment.
+2. **Draft a proposal** following the template in the `proposals/` directory.
+3. **Submit a PR** with your proposal for community review.
+4. **Iterate** based on feedback from the community and maintainers.
+
+### Guidelines
+
+When developing transport proposals, keep these principles in mind:
+
+*   **Propose first** — Always start with an issue before investing time in a full proposal.
+*   **Follow MCP standards** — Align with existing MCP conventions and patterns.
+*   **Document thoroughly** — Include rationale, examples, and edge cases.
+*   **Consider breadth** — Think about applicability across different implementations and languages.
 
 ## Promoting Proposals to Core Spec
 
@@ -75,9 +82,19 @@ And must avoid:
 - Customer lists or strategies
 - Competitive information
 
-## Recognition
+## Recognition and Advancement
 
-Active contributors — those who attend 2+ meetings or make substantive contributions — can request recognition in [GOVERNANCE.md](./GOVERNANCE.md). Self-nomination is welcome!
+The Transports Working Group follows the [MCP Contributor
+Ladder](https://modelcontextprotocol.io/community/contributor-ladder).
+
+Contributors who demonstrate sustained engagement can become **Members** of the
+Working Group. Members have additional privileges and are listed in
+[GOVERNANCE.md](./GOVERNANCE.md).
+
+To learn more about the roles (Contributor, Member, Maintainer) and how to
+advance, please see [GOVERNANCE.md](./GOVERNANCE.md) and the full [MCP
+Contributor
+Ladder](https://modelcontextprotocol.io/community/contributor-ladder).
 
 ## Communication Channels
 
@@ -88,11 +105,6 @@ Active contributors — those who attend 2+ meetings or make substantive contrib
 | GitHub Discussions | Longer-form conversations |
 | Weekly Meetings | Synchronous collaboration and decisions |
 
-## Getting Help
-
-- **Discord:** Ask in `#transports-wg`
-- **GitHub Issues:** Open an issue with your question
-- **Meetings:** Bring questions to the weekly call
-- **Maintainers:** Reach out to maintainers listed in [GOVERNANCE.md](./GOVERNANCE.md)
-
-We're here to help — don't hesitate to ask!
+If you need help, feel free to ask in any of these channels (Discord is usually
+fastest for quick questions). You can also reach out to the maintainers listed
+in [GOVERNANCE.md](./GOVERNANCE.md).
