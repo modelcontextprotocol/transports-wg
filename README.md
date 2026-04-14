@@ -35,16 +35,19 @@ All meetings include:
 - Published agenda (48h prior)
 - Open attendance for all interested participants
 
-## How to Participate
+## Getting Involved
 
-We welcome participation from anyone interested in MCP transports!
+We welcome contributions from anyone interested in MCP transports! Here is how you can get involved:
 
-- **Join** the `#transports-wg` channel on [MCP Discord](https://discord.com/invite/6CSzBmMkjX)
-- **Attend** weekly meetings (no approval needed!)
-- **Contribute** by opening issues, submitting PRs, or providing feedback
-- **Review** the [CONTRIBUTING guide](./CONTRIBUTING.md) for detailed guidelines
+1. **Join the community** — Connect on the `#transports-wg` channel in [MCP Discord](https://discord.com/invite/6CSzBmMkjX).
+2. **Attend meetings** — Join our weekly calls (find the next meeting at [https://meet.modelcontextprotocol.io/](https://meet.modelcontextprotocol.io/)). No approval needed!
+3. **Contribute** — Open issues to propose ideas or submit PRs for improvements.
 
-_See [GOVERNANCE.md](./GOVERNANCE.md) for current members, roles, and how to become a maintainer._
+Please review our **[CONTRIBUTING.md](./CONTRIBUTING.md)** guide for detailed guidelines on how to participate.
+
+All participants must abide by the **[MCP Code of Conduct](https://github.com/modelcontextprotocol/.github/blob/main/CODE_OF_CONDUCT.md)** and adhere to the **[MCP Antitrust Policy](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/ANTITRUST.md)**.
+
+_See [GOVERNANCE.md](./GOVERNANCE.md) for current members and governance roles._
 
 ## Current Focus Areas
 
@@ -66,19 +69,6 @@ Our work focuses on:
 ├── docs/                    # Guides and documentation
 └── meetings/               # Agendas and notes from working group meetings
 ```
-
-## Contributing
-
-We welcome contributions of all kinds! Please review:
-
-- **[CONTRIBUTING.md](./CONTRIBUTING.md)** — Detailed contribution guidelines
-- **[MCP Code of Conduct](https://github.com/modelcontextprotocol/.github/blob/main/CODE_OF_CONDUCT.md)** — Community standards
-- **[MCP Antitrust Policy](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/ANTITRUST.md)** — Required compliance
-
-**Quick Start:**
-- Open an issue to propose ideas or report problems
-- Submit a PR for proposals, documentation, or improvements
-- Join discussions in Discord or GitHub
 
 ## Related Resources
 
