@@ -360,6 +360,27 @@ This approach has several advantages:
 
 ### Alternatives Considered
 
+The following matrix compares the primary proposal (Global Scope) with
+the two alternatives that are closest in spirit -- Alternative 1
+(Tool-Level Capability Annotations) and Alternative 2 (Related Request
+Capabilities) -- across the goals that motivated this SEP.  Alternatives
+3 and 4 are included in the sections below for completeness but are not
+in the matrix because they fail to meet the core goal of coordinating
+capabilities across related requests.
+
+| Goal | Global Scope (Primary) | Alt 1: Tool-Level Annotations | Alt 2: Related Request Capabilities |
+|---|---|---|---|
+| **Solves cross-request capability problem** (e.g. `tools/list` knows what `tools/call` will support) | Yes, implicitly: same capabilities are assumed everywhere | Yes: client matches its own capabilities against per-tool annotations | Yes, explicitly: client declares capabilities per related method |
+| **Server-side filtering** | Yes: server filters the returned tool list | No: client filters locally | Yes: server filters using the related capabilities |
+| **Substitution** (server can swap one tool for a lower-functionality alternative) | Yes: server can freely substitute based on capabilities and runtime context | Partial: only static substitution via `whenCapabilitiesUnavailable`; client performs the swap | Yes: server can freely substitute |
+| **Parameterized adaptation** (decisions based on capability sub-fields) | Yes: server has full access to the capability object | Limited: client-side matching on nested sub-fields is error-prone | Yes: server has full access to the capability object |
+| **Simplicity for client implementers** | High: send the same capabilities on every request | Medium: must implement matching logic for `requiredCapabilities` (and `whenCapabilitiesUnavailable`) | High if possible with SDK support; without it, clients must manually attach related-request capabilities to each outgoing request |
+| **Simplicity for server implementers** | High: use the capabilities on each request directly | Medium: must declare capability requirements for every tool | Medium: must parse and apply related-request capabilities |
+| **Request payload overhead** | Low: single `clientCapabilities` object | Low on requests; slightly larger responses due to annotations | High: every request carries capabilities for multiple related methods |
+| **Transparency to the client** (client can see all tools the server provides) | No: filtered tools are invisible to the client | Yes: client sees all tools and their requirements | No: filtered tools are invisible to the client |
+| **True per-request capability scoping** (different capabilities for different request types) | No: capabilities are global | Yes: each tool's requirements are independent | Yes: capabilities are explicitly keyed by method |
+| **Compatibility with SEP-1442 stateless design** | Yes: each request is self-contained | Yes: each request is self-contained | Yes: each request is self-contained |
+
 #### Alternative 1: Tool-Level Capability Annotations
 
 In this approach, `tools/list` would return capability requirements
