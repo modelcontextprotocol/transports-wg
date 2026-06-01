@@ -9,7 +9,7 @@
 
 ## Abstract
 
-[SEP-1442](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1442)
+[SEP-2575](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/2575)
 introduces per-request client capabilities, where the client declares
 its supported capabilities in the `_meta` field of each request rather
 than negotiating them once during initialization.  However, that
