@@ -311,8 +311,11 @@ present-and-disagreeing header is rejected.
 #### Error responses
 
 The standard JSON-RPC `Error` object is `{ code, message, data? }` and
-carries no `_meta` of its own. Localized error content lives under
-`error.data._meta`:
+carries no `_meta` of its own. The standard JSON-RPC `error.code`
+remains the machine-interpreted identifier; `error.message` is the
+human-readable display string. When localizing, a server therefore
+**MUST** translate `error.message` directly, and **MUST** carry the
+language tag in `error.data._meta`:
 
 ```jsonc
 {
@@ -320,30 +323,28 @@ carries no `_meta` of its own. Localized error content lives under
   "id": 1,
   "error": {
     "code": -32602,
-    "message": "Invalid arguments",
+    "message": "Arguments invalides : « location » est requis.",
     "data": {
       "_meta": {
         "io.modelcontextprotocol/contentLanguage": "fr-CA",
       },
-      "localizedMessage": "Arguments invalides : « location » est requis.",
     },
   },
 }
 ```
 
-- When a server localizes the `error.message` text or any
-  human-readable field inside `error.data`, it **MUST** set
-  `error.data._meta['io.modelcontextprotocol/contentLanguage']` to the
-  language of that text. The `error.message` field itself **MAY** be
-  localized (in which case the example below would carry the
-  translated text directly in `message`); servers that prefer to keep
-  `error.message` in a stable, machine-friendly form **SHOULD** carry
-  the localized user-facing text in a structured `error.data` field
-  (the example uses `localizedMessage` for illustration; the exact
-  key is the server's choice).
+- When a server localizes `error.message` (or any human-readable
+  field it places inside `error.data`), it **MUST** set
+  `error.data._meta['io.modelcontextprotocol/contentLanguage']` to
+  the language of that text.
 - The HTTP `Content-Language` response header **MUST** mirror this
   value byte-identically on JSON error responses, exactly as for
   successful responses.
+- Clients **MUST NOT** branch on the text of `error.message`; per
+  JSON-RPC 2.0, programmatic dispatch is on `error.code`. This SEP
+  treats `code` as the identifier and `message` as a display string,
+  consistent with the [Scope](#scope-which-fields-are-eligible-for-translation)
+  rule that identifiers are not translated but display strings are.
 - This SEP introduces no new error field beyond `_meta`; servers
   remain free to use any other `error.data` shape they already use
   for structured error context.
