@@ -231,17 +231,41 @@ given primitive:
    primitive, so it is identical regardless of which page of a paginated list the
    primitive appeared on.
 
-### Recommended computation
+### Digest computation
 
-So that independent implementations of the same logical server agree (and avoid
-spurious churn behind a load balancer), servers **SHOULD** compute a primitive's
-digest as: `"sha256:" + hex( SHA-256( RFC8785-canonical-JSON(primitive) ) )`, where
-the canonical JSON is the primitive's full caller-visible definition serialized
-with [RFC 8785 JSON Canonicalization](https://www.rfc-editor.org/rfc/rfc8785)
+This SEP defines a single **standard computation** so that independent
+implementations of the same logical server agree (and so avoid spurious churn
+behind a load balancer). Servers **SHOULD** compute a primitive's digest as:
+
+```
+"sha256:" + hex( SHA-256( RFC8785-canonical-JSON(primitive) ) )
+```
+
+where the canonical JSON is the primitive's full caller-visible definition
+serialized with [RFC 8785 JSON Canonicalization](https://www.rfc-editor.org/rfc/rfc8785)
 (sorted keys, no insignificant whitespace), **excluding** the `_meta` field itself.
-Clients never need this recipe; it exists only so server operators and SDKs can
-interoperate. The `"sha256:"` prefix is informational; clients **MUST NOT** parse
-or depend on it and **MUST** compare the whole string for equality.
+The recipe is deliberately trivial to implement: canonicalize the object you already
+serialize, hash it, prefix it.
+
+Because clients treat the digest as fully opaque, a server **MAY** instead use any
+other ETag-style mechanism (e.g. a strong content hash it already maintains, or a
+storage-layer version tag) **provided** it satisfies the determinism requirements
+above — in particular cross-instance stability and sensitivity to any observable
+change. The standard computation exists so that servers which have no such mechanism
+have one clear, interoperable default rather than inventing their own. The
+`"sha256:"` prefix is informational; clients **MUST NOT** parse or depend on it and
+**MUST** compare the whole string for equality.
+
+### Protocol-version changes are observable changes
+
+A change in negotiated protocol version — which commonly accompanies a server
+upgrade or redeploy — can alter the shape of a primitive's definition (schema
+envelope, field semantics). This SEP treats that as a real, client-observable
+change: the digest **SHOULD** be allowed to change when the protocol version
+changes the definition the caller would observe. Noticing "the server was upgraded
+and my cached contract may no longer apply" is precisely the signal this SEP exists
+to provide, so servers **SHOULD NOT** normalize the protocol version out of the
+digest.
 
 ### Interaction with cache scope (public vs private)
 
@@ -286,6 +310,14 @@ not see it falls back to TTL and/or notifications. A client **MAY** send
 `expectedDigest` (below) without first confirming the capability and let the server
 ignore it if unsupported. The capability exists only to let a client _know in
 advance_ that the optimization is available; correctness never depends on it.
+
+A **single** `primitiveDigests` flag is intentional. Response-side digests and
+request-side reflection are not split into separately negotiated capabilities: the
+value of reflection comes from the digests a server already emits, a client can
+always _try_ `expectedDigest` and let an unsupporting server ignore it, and adding
+sub-capabilities would complicate the surface for no correctness benefit. Primitive
+definitions are also the largest dynamic surface subject to change, so a single
+coarse hint scoped to them is the right granularity.
 
 ### Client requirements
 
@@ -342,15 +374,20 @@ digest of the primitive it would currently serve the caller:
   the current digest in the result `_meta`. Reflection is an enabler, not an
   obligation.
 
-Servers **SHOULD** apply the precondition most aggressively to `tools/call`, where
-executing under a changed `inputSchema`/`outputSchema` risks unintended side
-effects or output the client cannot validate. Because the check happens _before_
-execution, the server **terminates a stale call early** and hands the harness a
-deterministic, machine-readable cue to re-fetch the primitive, re-plan, and
-re-prompt the model with the updated contract — the "the server changed, redirect
-the model" behavior that is otherwise impossible to deliver statelessly. Because
-the precondition is per-primitive, an unrelated change elsewhere in the surface
-does **not** trip a call to an unaffected tool.
+Reflection applies to **every** single-primitive method — `tools/call`,
+`prompts/get`, and `resources/read` — and to **all** primitive kinds, not just
+tools. Carrying and checking one extra opaque string per request is cheap, and
+doing it uniformly gives the server a complete, deterministic picture of which
+contract each request was planned against. Servers **SHOULD** apply the
+precondition wherever executing against a stale definition is consequential — most
+sharply for `tools/call`, where a changed `inputSchema`/`outputSchema` risks
+unintended side effects or output the client cannot validate. Because the check
+happens _before_ execution, the server **terminates a stale call early** and hands
+the harness a deterministic, machine-readable cue to re-fetch the primitive,
+re-plan, and re-prompt the model with the updated contract — the "the server
+changed, redirect the model" behavior that is otherwise impossible to deliver
+statelessly. Because the precondition is per-primitive, an unrelated change
+elsewhere in the surface does **not** trip a call to an unaffected primitive.
 
 #### New error: `DigestChangedError`
 
@@ -386,6 +423,32 @@ consistent with the existing tool-call retry rule. To avoid retry loops during a
 rolling deploy, clients **SHOULD** bound retries and **MAY** fall back to issuing
 the call without `expectedDigest` once re-synced.
 
+#### Soft reflection: process and flag (avoiding deploy-time retry storms)
+
+Rejecting with `DigestChangedError` is the strict posture. A server **MAY** instead
+choose a **soft** posture: process the request normally and report the mismatch in
+the result `_meta` by returning the current `io.modelcontextprotocol/digest`
+alongside the result (optionally with an advisory flag). The client sees that the
+digest it planned against differs from the one it got back, updates its cached
+definition, and re-plans _subsequent_ calls — without the just-issued call failing.
+This keeps a caller productive through a deploy while still guaranteeing the change
+is surfaced, and is the recommended posture for version-tolerant or read-only
+operations, and for reducing churn during long rolling upgrades.
+
+This tolerance is safe because of how deployments actually roll: as new instances
+come up, load balancers drain old connections and route new connections to updated
+instances, so digests converge to the new value as the old fleet finishes draining.
+The oscillation window is bounded by connection draining, not by MCP state.
+
+Notably, the one endpoint that drains **last** is a long-lived push/subscription
+stream: it stays pinned to the _old_ instance until that connection is terminated.
+That is a concrete reason this SEP does **not** build deploy-change propagation on
+the subscription channel — a client listening for `list_changed` over a persistent
+stream would be told about the change by the very instance that is on its way out,
+after new stateless requests are already landing on the new surface. A per-request
+digest has no such pinning: every request is stamped by whichever instance served
+it, which is exactly the instance whose contract the client is about to use.
+
 #### Client failure modes (open / closed / prompt)
 
 On a digest mismatch — whether discovered by the server (via `DigestChangedError`)
@@ -402,25 +465,60 @@ or by the client noticing a changed digest on a result — the client implemento
 This is deliberately a `MAY`: the protocol guarantees the _signal_ is available and
 deterministic; policy belongs to the client.
 
-### Optional: HTTP header mirroring for intermediaries and rolling upgrades
+### HTTP conditional requests: lists vs. single-primitive calls
 
 The digest lives in `_meta` (the JSON body) so it works over every transport,
-including stdio. For the Streamable HTTP transport, a server **MAY** additionally
-mirror the digest of a single-primitive operation into an HTTP header, and a client
-**MAY** send `expectedDigest` as a request header, so that network intermediaries
-(CDNs, proxies, gateways) can revalidate without parsing the body — in the spirit
-of [SEP-2243](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2243)'s
-header mirroring. Header mirroring is well defined only for **single-primitive**
-requests/responses (`tools/call`, `prompts/get`, `resources/read`), where exactly
-one digest applies; `*/list` responses enumerate many primitives and therefore keep
-their per-primitive digests in the body.
+including stdio. Over the Streamable HTTP transport it can additionally be surfaced
+in HTTP headers so intermediaries (CDNs, proxies, gateways) can act without parsing
+the body — but the _right_ HTTP mechanism differs between list endpoints and
+single-primitive calls, and conflating them is a mistake.
 
-This is what lets the validator survive **rolling upgrades within a still-fresh TTL
-window**: even while a client is content to skip re-listing (its `ttlMs` has not
-expired), the header lets an intermediary or the client itself observe — at call
-time — that the targeted primitive's digest changed after a partial deploy, and
-revalidate just that primitive. Whether to reuse standard `ETag`/`If-Match` headers
-or a dedicated `Mcp-*` header is left as an open question.
+**List endpoints — use a standard `ETag`.** A `*/list` response _as a whole_ is a
+cacheable entity, so it maps cleanly onto standard HTTP conditional requests: the
+server **MAY** return an `ETag` header for the list response, and a client **MAY**
+send `If-None-Match` to revalidate and receive `304 Not Modified` when the list is
+unchanged. This is ordinary web caching and dovetails with the caching track; the
+per-primitive `io.modelcontextprotocol/digest` values still ride _inside_ the list
+body, one per enumerated primitive, so the client also learns each primitive's
+validator for later call-time use.
+
+**Single-primitive calls — a standard `ETag` is the wrong tool.** For `tools/call`,
+`prompts/get`, and `resources/read`, the HTTP response is _not_ a stable cacheable
+entity: a tool call yields fresh output every time, so an `ETag` over the response
+body would validate the wrong thing (the output, not the primitive's contract).
+Here the validator is about the **primitive definition**, which is why it belongs in
+`_meta`. When advertised, a server that emits digests **MUST** include the current
+primitive digest in the result `_meta` of these single-primitive operations (as
+specified above). For intermediaries, a server **MAY** additionally mirror it into a
+dedicated MCP header — e.g. `Mcp-Digest` on the response — and a client **MAY** send
+its precondition as `Mcp-Expected-Digest` on the request, in the spirit of
+[SEP-2243](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2243)'s
+`Mcp-*` mirroring. A standard `If-Match`/`ETag` header pair **SHOULD NOT** be reused
+for this, because it would assert a precondition on the HTTP entity rather than on
+the targeted primitive. (The exact `Mcp-*` header spellings are a detail for the
+transport spec; see Open Questions.)
+
+This header path is what lets the validator survive **rolling upgrades within a
+still-fresh TTL window**: even while a client is content to skip re-listing (its
+`ttlMs` has not expired), the mirrored digest lets an intermediary or the client
+observe — at call time — that the targeted primitive changed after a partial deploy,
+and revalidate just that primitive.
+
+### Resource content revalidation (complementary)
+
+This SEP digests primitive _definitions_ (the descriptor a client caches from
+`*/list`). A resource's _content_ can change independently of its descriptor, and
+the caching track wants conditional reads of that content ("return the resource only
+if it changed since X"). That is complementary and uses ordinary ETag semantics: a
+server **MAY** attach a content validator to `resources/read` results, and when a
+server provides one, clients **SHOULD** use it to make conditional reads (and skip
+re-transferring unchanged content). Because `resources/read` is a single-primitive
+HTTP response whose body _is_ the entity, the standard HTTP `ETag`/`If-None-Match`
+pair is appropriate here (unlike the tool-call case above). To keep the two concerns
+unambiguous, a resource-content validator is a **distinct** value from the primitive
+`io.modelcontextprotocol/digest`; the precise key/header for content validators is
+left to the caching track / a sibling proposal, and this SEP only notes that the two
+compose and do not overload one field.
 
 ### Interaction with TTL (SEP-2549)
 
@@ -553,8 +651,11 @@ are genuinely live — and resolves to one value once old instances drain. It is
 deployment/routing concern (standard connection draining and routing new connections
 to new instances addresses it), is **out of scope** for MCP, and is not MCP internal
 state. Strict reflection during this window can produce repeated
-`DigestChangedError`s; the retry guidance above (bounded retries, fall back to
-issuing without `expectedDigest` once re-synced) keeps it from becoming a loop.
+`DigestChangedError`s; the soft "process and flag" posture and the retry guidance
+above (bounded retries, fall back to issuing without `expectedDigest` once
+re-synced) keep it from becoming a loop. Note too that the persistent subscription
+channel drains _last_, so it is the worst place to learn about a deploy — another
+reason this SEP puts the signal on every ordinary request instead.
 
 ## Backward Compatibility
 
@@ -611,34 +712,58 @@ _No reference implementation yet._
 
 ## Open Questions
 
-1. **Header mirroring shape.** For Streamable HTTP single-primitive operations,
-   should the optional mirror reuse standard `ETag`/`If-Match` headers or a dedicated
-   `Mcp-*` header, and how should it interact with SEP-2243's existing mirrored
-   headers?
-2. **Canonicalization recipe.** Should RFC 8785 canonicalization be normative (to
-   guarantee cross-implementation agreement for the same logical server) or left
-   server-defined (treating cross-instance agreement purely as an operator
-   responsibility)?
-3. **Resource content vs definition.** This SEP digests primitive _definitions_. The
-   caching track also wants conditional reads of resource _content_ ("give me the
-   resource only if changed since X"), which can change independently of the
-   descriptor. Should content revalidation reuse this `_meta` ETag convention under a
-   distinct key, or be a sibling proposal?
-4. **Protocol-version interplay.** A protocol-version change can alter primitive
-   schema shapes and therefore digests. Is "the digest changes on a version bump"
-   acceptable (it is a real change to what the client observes), or should the digest
-   be normalized against protocol version?
-5. **Reflection scope.** Should `expectedDigest`/`DigestChangedError` be defined for
-   all single-primitive methods (`tools/call`, `prompts/get`, `resources/read`) or
-   begin with `tools/call`, where executing against a stale contract is most
-   consequential?
-6. **Deploy-time retry storms.** During a long rolling deploy a primitive's digest
-   may oscillate, so strict reflection could cause repeated `DigestChangedError`s.
-   What guidance (backoff, a "reflect once then proceed" mode, a grace window) best
-   prevents pathological loops while preserving the safety benefit?
-7. **Capability granularity.** Is a single `primitiveDigests` hint sufficient, or
-   should support for request-side reflection be separately discoverable from
-   support for response-side digests?
+Most of the original open questions were resolved during Transports Working Group
+review; the resolutions are folded into the body above and summarized here for the
+record. The remaining genuinely-open items are listed separately.
+
+### Resolved
+
+1. **Header shape (lists vs. calls).** _Resolved._ List endpoints use the standard
+   `ETag`/`If-None-Match` pair (the list body is a cacheable entity). Single-primitive
+   calls do **not** reuse `ETag`/`If-Match` — a response `ETag` would validate the
+   call output, not the primitive contract — so the digest stays in `_meta` and, over
+   HTTP, **MAY** be mirrored into a dedicated `Mcp-*` header. See "HTTP conditional
+   requests."
+2. **Canonicalization recipe.** _Resolved (soft-normative)._ The SEP gives one clear,
+   easy-to-implement recipe (RFC 8785 JCS over the definition, SHA-256), but servers
+   **MAY** use any equivalent mechanism that yields a deterministic, collision-
+   resistant, cross-instance-stable validator. Interoperability depends only on
+   opaque equality, not on a shared algorithm. See "Digest computation."
+3. **Resource content vs. definition.** _Resolved._ They are complementary. This SEP
+   digests primitive _definitions_; resource _content_ revalidation uses ordinary
+   HTTP `ETag`/`If-None-Match` on `resources/read`, under a **distinct** validator
+   from `io.modelcontextprotocol/digest`. If a server provides a content validator,
+   clients **SHOULD** use it. See "Resource content revalidation."
+4. **Protocol-version interplay.** _Resolved._ A protocol-version change (e.g. from a
+   server upgrade) is precisely the kind of change a stateless client _wants_ to
+   notice, so the digest is **not** normalized against protocol version; a version
+   bump that alters an observable definition legitimately changes the digest. See
+   "Protocol-version changes are observable changes."
+5. **Reflection scope.** _Resolved._ Reflection is defined for **all** single-
+   primitive methods and all primitive kinds, not just `tools/call` (it is cheap and
+   deterministic), while servers still apply the precondition most sharply where a
+   stale contract is consequential. See "Reflection."
+6. **Deploy-time retry storms.** _Resolved._ Servers **MAY** adopt a soft "process
+   and flag" posture (serve the call, reflect the new digest in the result `_meta`)
+   instead of erroring, and the SEP documents why connection draining bounds digest
+   oscillation and why the subscription channel — which drains last — is the wrong
+   place to propagate deploy changes. See "Soft reflection."
+7. **Capability granularity.** _Resolved._ A single `primitiveDigests` hint is
+   sufficient; request-side reflection is **not** separately discoverable. See
+   "Capability advertisement is an optional optimization."
+
+### Still open
+
+1. **Exact `Mcp-*` header spellings.** The response/request header names for
+   single-primitive digest mirroring (e.g. `Mcp-Digest` / `Mcp-Expected-Digest`) and
+   their precise interaction with SEP-2243's mirrored headers should be pinned down in
+   the transport spec.
+2. **Soft vs. strict signaling.** Whether a client should be able to _signal_ a
+   preference for strict (`DigestChangedError`) vs. soft (process-and-flag) reflection
+   on a given request, or whether that choice stays entirely a server/operator policy.
+3. **Content-validator home.** The exact key/header and normative text for resource
+   _content_ validators belong to the caching track; this SEP only reserves the space
+   and asserts the two validators must not be overloaded onto one field.
 
 ## Acknowledgments
 
