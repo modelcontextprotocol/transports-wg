@@ -440,6 +440,15 @@ come up, load balancers drain old connections and route new connections to updat
 instances, so digests converge to the new value as the old fleet finishes draining.
 The oscillation window is bounded by connection draining, not by MCP state.
 
+Choosing strict versus soft is a **server/operator policy decision, not a client
+negotiation**: the client always sends `expectedDigest` the same way, and the server
+decides — per method, per primitive, or per deployment phase — whether a mismatch
+rejects or proceeds-and-flags. There is deliberately no client-facing knob to request
+one posture over the other; adding one would push deployment policy into every client
+for no correctness benefit. A client only needs to handle both outcomes it can
+already see: a `DigestChangedError`, or a result whose digest differs from the one it
+planned against.
+
 Notably, the one endpoint that drains **last** is a long-lived push/subscription
 stream: it stays pinned to the _old_ instance until that connection is terminated.
 That is a concrete reason this SEP does **not** build deploy-change propagation on
@@ -489,14 +498,14 @@ body would validate the wrong thing (the output, not the primitive's contract).
 Here the validator is about the **primitive definition**, which is why it belongs in
 `_meta`. When advertised, a server that emits digests **MUST** include the current
 primitive digest in the result `_meta` of these single-primitive operations (as
-specified above). For intermediaries, a server **MAY** additionally mirror it into a
-dedicated MCP header — e.g. `Mcp-Digest` on the response — and a client **MAY** send
-its precondition as `Mcp-Expected-Digest` on the request, in the spirit of
+specified above). For intermediaries, a server **MAY** additionally mirror it into
+the response header **`Mcp-Digest`**, and a client **MAY** send its precondition as
+the request header **`Mcp-Expected-Digest`**, following
 [SEP-2243](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2243)'s
-`Mcp-*` mirroring. A standard `If-Match`/`ETag` header pair **SHOULD NOT** be reused
-for this, because it would assert a precondition on the HTTP entity rather than on
-the targeted primitive. (The exact `Mcp-*` header spellings are a detail for the
-transport spec; see Open Questions.)
+`Mcp-*` mirroring convention. These two names are the normative spellings for this
+mechanism. A standard `If-Match`/`ETag` header pair **MUST NOT** be reused for
+single-primitive digests, because it would assert a precondition on the HTTP entity
+(the call output) rather than on the targeted primitive's definition.
 
 This header path is what lets the validator survive **rolling upgrades within a
 still-fresh TTL window**: even while a client is content to skip re-listing (its
@@ -516,9 +525,11 @@ re-transferring unchanged content). Because `resources/read` is a single-primiti
 HTTP response whose body _is_ the entity, the standard HTTP `ETag`/`If-None-Match`
 pair is appropriate here (unlike the tool-call case above). To keep the two concerns
 unambiguous, a resource-content validator is a **distinct** value from the primitive
-`io.modelcontextprotocol/digest`; the precise key/header for content validators is
-left to the caching track / a sibling proposal, and this SEP only notes that the two
-compose and do not overload one field.
+`io.modelcontextprotocol/digest`: it is carried as the reserved `_meta` key
+**`io.modelcontextprotocol/contentDigest`** (and, over HTTP, the standard `ETag`),
+so definition-change detection and content revalidation never overload one field.
+The `contentDigest` value is opaque and follows the same `cacheScope` rules as the
+resource it belongs to.
 
 ### Interaction with TTL (SEP-2549)
 
@@ -710,60 +721,45 @@ _No reference implementation yet._
 
 ---
 
-## Open Questions
+## Design Decisions
 
-Most of the original open questions were resolved during Transports Working Group
-review; the resolutions are folded into the body above and summarized here for the
-record. The remaining genuinely-open items are listed separately.
+These points were raised in Transports Working Group review and are settled here as
+firm positions rather than left open; the normative text lives in the sections cited.
 
-### Resolved
-
-1. **Header shape (lists vs. calls).** _Resolved._ List endpoints use the standard
+1. **Header shape (lists vs. calls).** List endpoints use the standard
    `ETag`/`If-None-Match` pair (the list body is a cacheable entity). Single-primitive
    calls do **not** reuse `ETag`/`If-Match` — a response `ETag` would validate the
    call output, not the primitive contract — so the digest stays in `_meta` and, over
-   HTTP, **MAY** be mirrored into a dedicated `Mcp-*` header. See "HTTP conditional
-   requests."
-2. **Canonicalization recipe.** _Resolved (soft-normative)._ The SEP gives one clear,
-   easy-to-implement recipe (RFC 8785 JCS over the definition, SHA-256), but servers
-   **MAY** use any equivalent mechanism that yields a deterministic, collision-
-   resistant, cross-instance-stable validator. Interoperability depends only on
-   opaque equality, not on a shared algorithm. See "Digest computation."
-3. **Resource content vs. definition.** _Resolved._ They are complementary. This SEP
-   digests primitive _definitions_; resource _content_ revalidation uses ordinary
-   HTTP `ETag`/`If-None-Match` on `resources/read`, under a **distinct** validator
-   from `io.modelcontextprotocol/digest`. If a server provides a content validator,
+   HTTP, is mirrored with the normative headers `Mcp-Digest` (response) and
+   `Mcp-Expected-Digest` (request). See "HTTP conditional requests."
+2. **Canonicalization recipe.** The SEP gives one clear, easy-to-implement recipe
+   (RFC 8785 JCS over the definition, SHA-256); servers **MAY** use any equivalent
+   mechanism that yields a deterministic, collision-resistant, cross-instance-stable
+   validator, because interoperability depends only on opaque equality, not on a
+   shared algorithm. See "Digest computation."
+3. **Resource content vs. definition.** They are complementary. This SEP digests
+   primitive _definitions_; resource _content_ revalidation uses ordinary
+   `ETag`/`If-None-Match` on `resources/read`, carried as the distinct reserved key
+   `io.modelcontextprotocol/contentDigest`. If a server provides a content validator,
    clients **SHOULD** use it. See "Resource content revalidation."
-4. **Protocol-version interplay.** _Resolved._ A protocol-version change (e.g. from a
-   server upgrade) is precisely the kind of change a stateless client _wants_ to
-   notice, so the digest is **not** normalized against protocol version; a version
-   bump that alters an observable definition legitimately changes the digest. See
+4. **Protocol-version interplay.** A protocol-version change (e.g. from a server
+   upgrade) is precisely the kind of change a stateless client _wants_ to notice, so
+   the digest is **not** normalized against protocol version; a version bump that
+   alters an observable definition legitimately changes the digest. See
    "Protocol-version changes are observable changes."
-5. **Reflection scope.** _Resolved._ Reflection is defined for **all** single-
-   primitive methods and all primitive kinds, not just `tools/call` (it is cheap and
-   deterministic), while servers still apply the precondition most sharply where a
-   stale contract is consequential. See "Reflection."
-6. **Deploy-time retry storms.** _Resolved._ Servers **MAY** adopt a soft "process
-   and flag" posture (serve the call, reflect the new digest in the result `_meta`)
-   instead of erroring, and the SEP documents why connection draining bounds digest
-   oscillation and why the subscription channel — which drains last — is the wrong
-   place to propagate deploy changes. See "Soft reflection."
-7. **Capability granularity.** _Resolved._ A single `primitiveDigests` hint is
-   sufficient; request-side reflection is **not** separately discoverable. See
-   "Capability advertisement is an optional optimization."
-
-### Still open
-
-1. **Exact `Mcp-*` header spellings.** The response/request header names for
-   single-primitive digest mirroring (e.g. `Mcp-Digest` / `Mcp-Expected-Digest`) and
-   their precise interaction with SEP-2243's mirrored headers should be pinned down in
-   the transport spec.
-2. **Soft vs. strict signaling.** Whether a client should be able to _signal_ a
-   preference for strict (`DigestChangedError`) vs. soft (process-and-flag) reflection
-   on a given request, or whether that choice stays entirely a server/operator policy.
-3. **Content-validator home.** The exact key/header and normative text for resource
-   _content_ validators belong to the caching track; this SEP only reserves the space
-   and asserts the two validators must not be overloaded onto one field.
+5. **Reflection scope.** Reflection is defined for **all** single-primitive methods
+   and all primitive kinds, not just `tools/call`, while servers still apply the
+   precondition most sharply where a stale contract is consequential. See
+   "Reflection."
+6. **Deploy-time posture.** Strict (`DigestChangedError`) versus soft
+   (process-and-flag) is a server/operator policy choice, not a client-negotiated
+   knob; the client sends `expectedDigest` identically either way and handles both
+   outcomes. Connection draining bounds digest oscillation, and the subscription
+   channel — which drains last — is deliberately not the propagation path. See "Soft
+   reflection."
+7. **Capability granularity.** A single `primitiveDigests` hint is sufficient;
+   request-side reflection is **not** separately discoverable. See "Capability
+   advertisement is an optional optimization."
 
 ## Acknowledgments
 
