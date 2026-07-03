@@ -10,23 +10,23 @@
 
 ## Abstract
 
-This SEP gives every caller-visible primitive — each tool, prompt, resource, and
-resource template — a deterministic, opaque **digest** of its own definition,
+This SEP gives every MCP primitive (Tools, Resoures & Prompts) a deterministic, opaque digest of its own definition,
 carried in that primitive's `_meta`. The digest is an
 [ETag](https://www.rfc-editor.org/rfc/rfc7232) for a single primitive: an opaque
-validator that a client compares only for equality.
+validator that a client reflects back to a server to add determinism to cache mechanics.
+TTLs are a complementary but different part of this mechanic. TTLs tell clients when to
+proactively check, but do not provide a mechanic for explicit cache invalidation at call time.
 
-Because the digest travels with the primitive in `*/list` results, a client
-remembers the digest of each primitive it caches. When the client later acts on a
-primitive — `tools/call`, `prompts/get`, `resources/read` — it **MAY** echo the
-digest it planned against in the request `_meta`. This turns an ordinary request
+The digest is derived from the response value of primitive `*/list` results (i.e. it is a digest of which primitives are available, but not a digest of any returned content from those primitives), a client
+retains the digest of each primitive it caches. When the client later acts on a
+primitive, `tools/call`, `prompts/get`, `resources/read` - it **MAY** echo the
+digest it holds against in the request `_meta`. This turns an ordinary request
 into an optimistic conditional request (an MCP-native `If-Match`): the server can
 detect that _this specific primitive_ changed underneath the caller and decline to
-execute against a contract the client no longer shares — returning the current
-digest — instead of running a tool whose input or **output schema** has drifted.
-A server **MAY** instead serve the request and return the current digest. The
+execute against a contract the client no longer shares - returning an error instead of running a tool whose input or **output schema** has drifted.
+A server **MAY** instead serve the request and return the current digest in metadata, if the underlying primitive being called has not changed. The
 client, in turn, **MAY** fail open, fail closed, or prompt the user when a digest
-no longer matches.
+no longer matches (a host could decide to revoke the model's access to changed tools during a running session - note it could also do so by stubbing tool calls to avoid prompt cache invalidation NB this note should be moved to a section on implementation details)
 
 The mechanism is built for a stateless-first protocol
 ([SEP-2575](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2575),
@@ -34,94 +34,74 @@ The mechanism is built for a stateless-first protocol
 It needs no long-lived connection, no SSE stream, and no `subscriptions/listen`.
 It composes with the caching utility
 ([SEP-2549](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2549)):
-`ttlMs` remains the **freshness budget** that governs when a client re-lists,
-while the per-primitive digest is the **validator** that governs whether an
-individual call is still operating against the primitive the client planned for.
-Together they cover both sides of staleness — TTL ensures a client **does not stay
-stale**, and the digest ensures a client that _is_ stale right now **gets corrected**
-deterministically at call time — without polling or a persistent connection.
+`ttlMs` remains the pessimistic check that governs when a client re-lists,
+while the per-primitive digest is the optimistic heck that governs whether an
+individual call is still operating against the primitive the client expects.
+Together they cover both sides of staleness - TTL ensures a client does not stay
+stale even if it hasn't made any calls, while the digest ensures a client that _is_ stale right now gets corrected
+deterministically at call time without polling or a persistent connection.
 A digest's shareability follows the primitive's `cacheScope`. The change is
 additive and fully backward compatible.
+
+Persistent connections and server push update mechanics are not actually capable of solving this problem whatseover, because in standard production deployment practices connections are drained from old hosts, and long-running connections will be evicted last. Meanwhile new servers will have started, and all subsqeuent calls will be made against those new hosts. Deployment and associated race conditions has not previously been handled by the specification, and this SEP is the first opportunity to make it truly deterministic.
 
 ## Motivation
 
 ### The fundamental case: production server deployments
 
-The case MCP has never had a working specification answer for is the most ordinary
-one in production: **a server is redeployed and its primitives change.** A new
-version adds, removes, or alters tools — including changing an `inputSchema` or
-`outputSchema` — and every client that cached the old surface is now planning and
-validating calls against a contract the live deployment no longer honors.
+The case MCP has never had a working specification answer for production deployment scenarios: a server is redeployed: and its primitives change. A new
+version adds, removes, or alters tools - including changing an `inputSchema` or
+`outputSchema` - and every client that cached the old surface is executing calls against a stale contract.
 
 This is not MCP internal session state. It is a fact about the world: the
 deployment of a server is not static, and a connected agent's view of the
-primitive surface should be able to reflect that reality deterministically. Yet
-the existing mechanisms do not deliver it for real, scaled deployments:
+primitive surface should be able to reflect that reality deterministically.
+Existing mechanisms do not deliver it for production deployments:
 
-- **TTL alone is non-deterministic with respect to deploys.** A client that
-  fetched `tools/list` one second before a rollout keeps using the old list for
-  the remainder of its freshness budget — possibly minutes or hours — while every
-  call is being served by a new deployment with a different surface. TTL tells the
-  client how long it _may avoid re-listing_, not whether a primitive it is about to
-  call has changed.
-- **`list_changed` requires a connection nobody is holding.** A stateless client
-  has no open `subscriptions/listen` stream to receive a push on, and — as the
-  operational experience below shows — routing a deploy-driven notification back to
-  the right connection across a scaled fleet is racy and was never practical.
+- TTL alone is non-deterministic with respect to deploys: A client fetching `tools/list` one second before a rollout keeps using the old list for
+  the remainder of the TTL. TTL tells the
+  client how long it _may avoid re-listing_, but that only helps in the passive case.
+- `list_changed` doesn't solve this either: it is likely that long running connections would be the last ones drained off stale hosts.
+- Deployments also get rolled back, and so even an up-to-date client may end up with stale tools
 
-A per-primitive digest closes exactly this gap: the moment a client calls a tool
+A per-primitive digest handles this explicitly: the moment a client calls a tool
 whose definition changed in the new deployment, the echoed digest no longer
-matches and the server can say so — before the call runs — with no session, no
-subscription, and no cross-instance coordination.
+matches and the server can say so before the call executes,  with no requirements for sessions,
+subscriptions, and no cross-instance coordination.
 
-### Other drivers: permission changes and schema drift
+### Other drivers: permission changes, feature flags
 
 The same per-primitive validator covers two related changes that are likewise
 "state of the world," not protocol state:
 
-- **External authorization changed.** A caller gains or loses access to a tool, or
-  a tool's visible definition is permission-filtered. Servers may vary the visible
-  set by the authorization presented on the request (`server/tools`: the set
-  "**MAY** vary by the authorization presented on the request"). When entitlements
-  change, the digest of an affected primitive changes with them.
-- **A running server can violate its own advertised schema.** When a deploy changes
-  a tool's `outputSchema`, a client holding the old definition validates
-  `structuredContent` against a contract the live server no longer honors — the
-  server returns output valid under its _new_ schema that fails the client's _old_
-  one. Worse, the model may have chosen arguments against a stale `inputSchema`.
-  The per-primitive digest lets either side notice the drift on the specific
-  primitive being used, before the call produces a confusing failure or an
-  unintended side effect.
+- External authorization changed.
+  - A caller gains or loses access to a tool, or a tool's visible definition is permission-dependent.
+  - Resource access is highly likely to be impacted by external permissions in many cases.
+- Servers my utilise other external state like feature flag experiments
+  - For example, a user that is added or remove from a feature flag cohort may have stale primitive lists.
 
-List-level _discovery_ of change — "has any primitive in this list changed?" — is
-deliberately **not** this SEP's job; that is what `ttlMs` (re-list when stale) and,
-optionally, `list_changed` are for. This SEP adds the one thing neither of those
-can provide statelessly: a deterministic, per-call answer to "is the primitive I
-am about to invoke still the one I planned against?"
 
 ### Operational experience: why the existing mechanisms did not solve this
 
-Operating a large remote MCP server (the GitHub MCP server) surfaced three dead
-ends when we tried to tell clients "the server changed, please refresh":
+Operating a large remote MCP servers (ex. the GitHub MCP server) surfaced three dead
+ends when attempting to tell clients "the server changed, please refresh":
 
-1. **We did not want to require a GET/stream just for deploy updates.** Standing up
+1. **Requiring a GET/stream just for deploy updates.**: Standing up
    and holding a server-to-client stream solely so we could occasionally announce a
-   deployment is disproportionate, and a stateless client will not hold it open
+   deployment is disproportionate, and moving forward, moving forward a stateless client will not hold it open
    anyway.
-2. **`tools/list_changed` is not universally supported.** Many clients do not act
-   on it today, and a stateless transport makes it opt-in via a subscription that
-   most stateless callers will not take. A signal only some clients honor cannot be
-   the system of record for "your tools are stale."
-3. **Revoking a session to force renegotiation bricked the server in practice.** In
+2. **`tools/list_changed` has never been universally supported.** Many clients do not act
+   on it today, and a stateless transport makes it entirely opt-in via a subscription
+3. **Revoking a session to force renegotiation was not respected by real clients.** In
    testing with real clients, a revoked session id did not cause a clean
-   re-handshake; it left the agent unable to access the server at all. Session
+   re-handshake; it left the agent unable to access the server at all in most cases. Session
    identity was meant to be revocable to trigger renegotiation, but practically it
-   was not a usable change-propagation tool — and the stateless direction removes
-   sessions entirely.
+   was not a usable change-propagation tool, and the stateless direction removes
+   sessions entirely, so this is no longer an option.
 
 Each path failed for the same reason: it tried to make change-propagation a
 property of a _connection or session_. A per-primitive digest makes it a property
-of the _primitive_, which is exactly the thing that changed.
+of the _primitive_ list itself, which is exactly the thing that has changed.
 
 ### Why push notifications are especially awkward for scaled deployments
 
@@ -136,12 +116,7 @@ deployed" over `list_changed` is hard to reason about at scale:
   single "change instant" to announce; different replicas would emit the
   notification at different moments, which is racy and confusing.
 
-A pull-based, per-primitive digest sidesteps all of it: each instance simply stamps
-the digest of the primitive it is serving. Correctness needs no cross-instance
-coordination and no notion of a global change moment — a property the push model
-cannot offer for a gradual rollout. Push remains the right tool for prompt,
-low-latency invalidation on a connection a client is _already_ holding; the digest
-is the right tool for stateless clients and for deploy-driven change.
+A pull-based, per-primitive digest sidesteps all of it.
 
 ## Specification
 
@@ -195,11 +170,6 @@ A server that emits per-primitive digests includes
   **current** digest of the primitive that was acted on. This lets the client
   refresh its remembered digest after a call and notice drift even on a successful
   response.
-
-It is intentionally **not** emitted as an aggregate over the whole surface and not
-attached to unrelated results. The digest answers a question about one primitive;
-list freshness and whole-surface discovery remain the domain of `ttlMs` and
-`list_changed`.
 
 Because every primitive type (`Tool`, `Prompt`, `Resource`, `ResourceTemplate`)
 and every single-primitive result already defines an optional `_meta`, no
