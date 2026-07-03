@@ -37,6 +37,9 @@ It composes with the caching utility
 `ttlMs` remains the **freshness budget** that governs when a client re-lists,
 while the per-primitive digest is the **validator** that governs whether an
 individual call is still operating against the primitive the client planned for.
+Together they cover both sides of staleness — TTL ensures a client **does not stay
+stale**, and the digest ensures a client that _is_ stale right now **gets corrected**
+deterministically at call time — without polling or a persistent connection.
 A digest's shareability follows the primitive's `cacheScope`. The change is
 additive and fully backward compatible.
 
@@ -533,19 +536,40 @@ resource it belongs to.
 
 ### Interaction with TTL (SEP-2549)
 
-The digest and `ttlMs` operate at different layers and compose:
+TTL and the digest are the two halves of keeping a stateless client correct, and
+each covers the other's blind spot:
 
-- `ttlMs` is the **list freshness budget**: it governs when a client re-fetches a
-  `*/list`. It is unchanged by this SEP.
-- The per-primitive digest is the **call-time validator**: within a still-fresh TTL
-  window, a client uses its cached list to _plan_ a call, and the echoed digest lets
-  the server catch the case where _that specific primitive_ changed under the fresh
-  budget — the deterministic gap TTL cannot close, now scoped precisely to the
-  primitive actually used.
+- **TTL keeps a client from _staying_ stale.** `ttlMs` is a freshness budget that
+  makes the client re-fetch a `*/list` on its own, with no signal from anyone. It is
+  proactive but time-based and therefore non-deterministic: it bounds _how long_ a
+  client may hold an old view, but says nothing about whether the view is actually
+  right at any given instant, and a redeploy can change the surface long before the
+  budget expires.
+- **The digest catches a client that is stale _right now_.** The per-primitive digest
+  is a call-time validator: within a still-fresh TTL window a client plans a call from
+  its cached list, and the echoed digest lets the server deterministically detect that
+  _that specific primitive_ changed under the fresh budget — the exact gap TTL cannot
+  close, scoped precisely to the primitive actually used. It is reactive and exact,
+  but only fires when the client acts.
 
-A client **MAY** also use a result-carried digest as a hint to re-list early (it is
-already permitted to re-fetch before TTL expiry when it has reason to believe data
-changed), but the digest does not replace or extend `ttlMs`.
+So the two compose into both guarantees at once: with TTL alone a client eventually
+refreshes but can act on stale definitions in the meantime; with the digest alone a
+client is corrected whenever it is wrong but has no schedule that forces it to catch
+up on quiet primitives. Together, a client **does not remain stale** (TTL forces the
+periodic refresh) **and is corrected when it is wrong** (the digest fires the moment a
+cached definition is used after it changed) — without polling and without a
+persistent connection.
+
+Concretely, these are different layers and do not substitute for one another:
+
+- `ttlMs` governs **when** a client re-fetches a `*/list`. It is unchanged by this
+  SEP.
+- The digest governs **whether a specific call is valid** against the definition the
+  client planned with.
+
+A client **MAY** also treat a changed result-carried digest as a hint to re-list
+early (it is already permitted to re-fetch before TTL expiry when it has reason to
+believe data changed), but the digest neither replaces nor extends `ttlMs`.
 
 ### Interaction with notifications / subscriptions
 
