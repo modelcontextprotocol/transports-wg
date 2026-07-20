@@ -1,0 +1,77 @@
+{
+  "id": "evalstate/kokoro-tts-streaming-demo",
+  "author": "evalstate",
+  "card_data": {},
+  "created_at": "2026-07-16T15:41:08+00:00",
+  "disabled": false,
+  "gated": false,
+  "host": "https://evalstate-kokoro-tts-streaming-demo.hf.space",
+  "last_modified": "2025-04-09T20:21:52+00:00",
+  "likes": 0,
+  "models": [
+    "hexgrad/Kokoro-82M"
+  ],
+  "private": false,
+  "runtime": {
+    "stage": "RUNNING",
+    "hardware": "zero-a10g",
+    "requested_hardware": "zero-a10g",
+    "sleep_time": 172800,
+    "dev_mode": false,
+    "raw": {
+      "stage": "RUNNING",
+      "hardware": {
+        "current": "zero-a10g",
+        "requested": "zero-a10g"
+      },
+      "gcTimeout": 172800,
+      "replicas": {
+        "current": 1,
+        "requested": 1
+      },
+      "devMode": false,
+      "domains": [
+        {
+          "domain": "evalstate-kokoro-tts-streaming-demo.hf.space",
+          "stage": "READY"
+        }
+      ],
+      "sha": "555d90e5a1eaaabd017f0b458069ad112867a6d4",
+      "pySpacesVersion": "0.51.0"
+    }
+  },
+  "sdk": "gradio",
+  "sha": "555d90e5a1eaaabd017f0b458069ad112867a6d4",
+  "siblings": [
+    {
+      "rfilename": ".gitattributes"
+    },
+    {
+      "rfilename": "README.md"
+    },
+    {
+      "rfilename": "app.py"
+    },
+    {
+      "rfilename": "en.txt"
+    },
+    {
+      "rfilename": "frankenstein5k.md"
+    },
+    {
+      "rfilename": "gatsby5k.md"
+    },
+    {
+      "rfilename": "packages.txt"
+    },
+    {
+      "rfilename": "requirements.txt"
+    }
+  ],
+  "subdomain": "evalstate-kokoro-tts-streaming-demo",
+  "tags": [
+    "gradio",
+    "region:us"
+  ],
+  "used_storage": 5453930
+}

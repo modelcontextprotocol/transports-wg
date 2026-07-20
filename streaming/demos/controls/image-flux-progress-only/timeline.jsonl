@@ -1,0 +1,18 @@
+{"elapsed": 0.5, "code": "Status.STARTING", "progress": [], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 1.0, "code": "Status.PROCESSING", "progress": [], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 1.5, "code": "Status.PROCESSING", "progress": [], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 2.0, "code": "Status.PROGRESS", "progress": [{"index": 10, "length": 100, "unit": "steps", "desc": "ZeroGPU init"}], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 2.5, "code": "Status.PROGRESS", "progress": [{"index": 26, "length": 100, "unit": "steps", "desc": "ZeroGPU init"}], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 3.0, "code": "Status.PROGRESS", "progress": [{"index": 36, "length": 100, "unit": "steps", "desc": "ZeroGPU init"}], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 3.5, "code": "Status.PROGRESS", "progress": [{"index": 46, "length": 100, "unit": "steps", "desc": "ZeroGPU init"}], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 4.0, "code": "Status.PROGRESS", "progress": [{"index": 55, "length": 100, "unit": "steps", "desc": "ZeroGPU init"}], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 4.51, "code": "Status.PROGRESS", "progress": [{"index": 64, "length": 100, "unit": "steps", "desc": "ZeroGPU init"}], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 5.01, "code": "Status.PROGRESS", "progress": [{"index": 73, "length": 100, "unit": "steps", "desc": "ZeroGPU init"}], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 5.51, "code": "Status.PROGRESS", "progress": [{"index": 83, "length": 100, "unit": "steps", "desc": "ZeroGPU init"}], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 6.01, "code": "Status.PROGRESS", "progress": [{"index": 92, "length": 100, "unit": "steps", "desc": "ZeroGPU init"}], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 6.51, "code": "Status.PROGRESS", "progress": [], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 7.01, "code": "Status.PROGRESS", "progress": [], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 7.51, "code": "Status.PROGRESS", "progress": [{"index": 2, "length": 4, "unit": "steps", "desc": null}], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 8.01, "code": "Status.PROGRESS", "progress": [], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 8.51, "code": "Status.FINISHED", "progress": [], "log": null, "queue_size": null, "eta": null}
+{"elapsed": 9.01, "code": "Status.FINISHED", "progress": [], "log": null, "queue_size": null, "eta": null}

@@ -1,0 +1,7 @@
+{
+  "ref_audio": "https://github.com/gradio-app/gradio/raw/main/test/test_files/audio_sample.wav",
+  "ref_text": "Hello, this is a reference voice.",
+  "gen_text": "This is a test of streaming text to speech, demonstrating how progressive audio chunks would improve latency.",
+  "remove_silence": false,
+  "api_name": "/predict"
+}
