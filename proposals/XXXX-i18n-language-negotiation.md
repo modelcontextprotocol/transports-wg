@@ -280,12 +280,31 @@ the same payload/header agreement rule [SEP-2243] established for
 direction only: a missing header is tolerated (CDNs strip it), but a
 present-and-disagreeing header is rejected.
 
-For this agreement rule, implementations **MUST** remove leading and
-trailing optional whitespace (OWS) from both values and then compare the
-remaining strings exactly. Repeated HTTP field lines are combined per
-[RFC 9110 §5.2] before comparison. Implementations **MUST NOT** apply
-further semantic normalization: internal whitespace, language-tag
-casing, list order, and `q`-value serialization remain significant.
+For this agreement rule, equality is defined as follows:
+
+1. Parse the JSON body and obtain the decoded `_meta` string. The
+   implementation **MUST NOT** trim or otherwise normalize this value.
+2. Obtain the combined HTTP field value. Per [RFC 9110 §5.5], optional
+   whitespace surrounding each HTTP field line is not part of its field
+   line value. If the HTTP implementation exposes multiple field line
+   values separately, concatenate them in received order with comma and
+   space (`", "`) between values, following the consistency
+   recommendation in [RFC 9110 §5.3]. If it exposes only the already
+   combined field value, use that value directly.
+3. Compare the two values character-for-character. Because both field
+   grammars are restricted to ASCII, this is equivalent to comparing
+   their ASCII encodings octet-for-octet.
+
+Implementations **MUST** use an HTTP API that exposes either every field
+line value or the complete combined field value. An accessor that
+silently returns only the first value for a repeated field is not
+sufficient for this comparison.
+
+Except for constructing the combined HTTP field value as specified
+above, implementations **MUST NOT** parse and re-serialize either value
+before comparison. Internal whitespace, language-tag casing, list
+order, and `q`-value serialization are therefore significant. Senders
+**MUST** emit exactly one field line for each mirrored header.
 
 #### Request
 
@@ -323,6 +342,12 @@ casing, list order, and `q`-value serialization remain significant.
   the same value, and **MUST** set `Vary: Accept-Language` on any
   cacheable response whose body depends on the negotiated language
   ([RFC 9110 §12.5.5], [RFC 9111 §4.1]).
+- If the response depends on a preference obtained from `_meta` but the
+  HTTP request did not carry `Accept-Language`, `Vary: Accept-Language`
+  cannot distinguish representations at a shared cache. The server
+  **MUST** either prevent shared caching (for example, with
+  `Cache-Control: private`) or ensure that every shared cache keys on an
+  equivalent language-selection signal visible to that cache.
 - **Server (SSE responses).** Because HTTP response headers are
   flushed before the response body is known, `Content-Language`
   **MAY** be omitted on `text/event-stream` responses; per-event
@@ -411,6 +436,15 @@ untouched. Concretely:
 - Reverse proxies that re-serialize `Accept-Language` (sorting ranges,
   normalizing whitespace, canonicalizing `q` values) will also trip
   the rule. They **MUST** preserve the header verbatim or remove it.
+- `Accept-Language` and `Content-Language` are list-based fields, so
+  [RFC 9110 §5.3] permits intermediaries to merge repeated field lines
+  without changing HTTP semantics. Such recombination can still change
+  the combined field value used by this SEP and cause a mismatch.
+  Operators **MUST** verify that intermediaries preserve each mirrored
+  header as a single field line and do not recombine it.
+- Some HTTP APIs expose only the first value of a repeated field.
+  Implementations **MUST NOT** use such an accessor for the exact-match
+  check; doing so could hide an additional, conflicting field line.
 
 ### stdio (and other non-HTTP) transports
 
@@ -557,8 +591,11 @@ observability tools work without parsing the JSON-RPC body.
 For those benefits to be sound, intermediaries must be able to rely on
 the header agreeing with the payload that the origin executes on; the
 security/correctness argument [SEP-2243] makes for `Mcp-Method` /
-`Mcp-Name` is the same one that applies here, so this SEP extends
-SEP-2243's payload/header agreement rule rather than weakening it.
+`Mcp-Name` is the same one that applies here. This SEP reuses
+SEP-2243's agreement invariant, when both header and payload are
+present they must match exactly, while relaxing its mandatory-presence
+requirement because standard language headers can legitimately be
+stripped by intermediaries.
 
 Two design choices follow from extending that rule to a first-class
 HTTP header rather than an MCP-specific one:
@@ -571,20 +608,24 @@ HTTP header rather than an MCP-specific one:
    do supply the header, and falls back to `_meta` cleanly otherwise.
    `_meta` is the canonical transport-agnostic carrier in any case,
    since it is the only one stdio has.
-2. **The comparison is exact, not semantic.** [RFC 9110][rfc9110]
-   does not define a single canonical serialization for
-   `Accept-Language`: optional whitespace after commas
-   ([§5.6.1.1][rfc9110-5.6.1.1]), case-insensitive language tags
+2. **The comparison is exact, not semantic or raw-wire equality.**
+   HTTP/1.1, HTTP/2, and HTTP/3 encode field lines differently, so the
+   comparison begins with the field value produced by normal HTTP
+   parsing, not with transport bytes. In particular, surrounding OWS is
+   excluded from the field value by [RFC 9110 §5.5]. The resulting
+   field value is compared character-for-character with the decoded
+   JSON string. [RFC 9110][rfc9110] does not define a single canonical
+   serialization for `Accept-Language`: optional whitespace around
+   commas ([§5.6.1.1][rfc9110-5.6.1.1]), case-insensitive language tags
    ([RFC 5646 §2.1.1][rfc5646-2.1.1]), and `q` parameter normalization
    and trailing-zero weights ([§12.4.2][rfc9110-12.4.2]) all admit
-   multiple serializations for the same semantics. Repeated field
-   lines are first combined using the standard processing in
-   [RFC 9110 §5.2], and leading and trailing OWS is ignored, matching
-   [SEP-2243]. Beyond that transport-level processing, a semantic
-   equality rule would require every conformant SDK to ship the same
+   multiple serializations for the same semantics. A semantic equality
+   rule would therefore require every conformant SDK to ship the same
    language parsing and normalization step, which is itself a
-   conformance hazard. Exact string equality is unambiguous and
-   trivial to verify.
+   conformance hazard. Exact string equality is unambiguous and trivial
+   to verify. Requiring senders to emit a single field line removes
+   sender-side ambiguity; RFC-valid intermediary recombination can
+   still change the combined field value and trigger a mismatch.
 
 The cost of the exact-match rule is the
 [normalization footgun](#normalization-footgun-and-intermediary-configuration):
@@ -669,7 +710,12 @@ This proposal is fully backward compatible.
 - **Cache poisoning.** Forgetting `Vary: Accept-Language` on a
   localized response is a known cache-poisoning vector; the
   normative requirement lives in
-  [Streamable HTTP transport binding > Response](#response).
+  [Streamable HTTP transport binding > Response](#response). Where a
+  server selects a language from `_meta` after the HTTP header was
+  stripped, `Vary` alone is insufficient because the cache sees the
+  same absent header for every language. Such responses cannot be
+  shared-cacheable unless the cache keys on another visible,
+  equivalent language signal.
 - **Header tampering by intermediaries** that rewrite `Accept-Language`
   or `Content-Language` causes exact-match rejections under the rule
   in [Streamable HTTP transport binding](#streamable-http-transport-binding).
@@ -726,6 +772,16 @@ reach Final. The scenario will cover, at minimum:
    carrying both `Content-Language` and `_meta[contentLanguage]` whose
    values are not an exact match: the client **MUST** treat the
    response as malformed.
+8. Exact-match edge cases:
+   - An HTTP/1.1 field line `Accept-Language:  en ` and a decoded
+     `_meta` value of `"en"` **MUST** match because the surrounding OWS
+     is not part of the HTTP field value.
+   - `en-US,en;q=0.9` and `en-US, en;q=0.9` **MUST NOT** match.
+   - `en-US` and `en-us` **MUST NOT** match.
+   - `en;q=0.9` and `en;q=0.900` **MUST NOT** match.
+   - Two field lines with values `en-US` and `en;q=0.9` have a combined
+     field value of `en-US, en;q=0.9`; they **MUST** match that exact
+     `_meta` value and **MUST NOT** match `en-US,en;q=0.9`.
 
 ## Acknowledgments
 
@@ -743,7 +799,8 @@ reach Final. The scenario will cover, at minimum:
 [RFC 9110 §8.5]: https://httpwg.org/specs/rfc9110.html#field.content-language
 [RFC 9110 §12.5.4]: https://httpwg.org/specs/rfc9110.html#field.accept-language
 [rfc9110-accept-language]: https://httpwg.org/specs/rfc9110.html#field.accept-language
-[RFC 9110 §5.2]: https://www.rfc-editor.org/rfc/rfc9110.html#section-5.2
+[RFC 9110 §5.3]: https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3
+[RFC 9110 §5.5]: https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5
 [RFC 9110 §12.5.5]: https://www.rfc-editor.org/rfc/rfc9110.html#section-12.5.5
 [RFC 9111 §4.1]: https://www.rfc-editor.org/rfc/rfc9111.html#section-4.1
 [MCP _meta]: https://modelcontextprotocol.io/specification/draft/basic/index#meta
