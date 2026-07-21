@@ -5,6 +5,29 @@ capturing streaming progress, partial results, and final outputs. Captures use
 either `gradio_client` or the Space's raw Gradio SSE endpoint, depending on
 which representation exposes the streaming behavior most faithfully.
 
+## Ranked evidence index
+
+This table covers every empirical capture under `streaming/` and `controls/`.
+The ranking favors examples that add a distinct, directly observed content
+behavior; controls rank lower because they expose progress or only a terminal
+result.
+
+| Rank | Producer | Input behavior | Output behavior | Why it adds evidence |
+|---:|---|---|---|---|
+| 1 | `okadahiroaki/qwen3-omni-realtime-asr-demo` | Binary float32 speech arrives incrementally over WebSocket | True provisional text deltas within each inference round, followed by corrected `confirmed` snapshots | Demonstrates that appendable deltas can be temporary and later reconciled; captured corrections include `Mister` → `Mr.` and `him` → `his gospel` |
+| 2 | `multimodalart/self-forcing` | Text prompt starts autoregressive video generation | 89 progress snapshots, changing HLS manifests, and seven independently usable MPEG-TS artifacts | Cleanest proof that UI yields, manifests, and newly playable media artifacts are different event classes |
+| 3 | `hexgrad/Kokoro-TTS` via `evalstate/kokoro-tts-streaming-demo` | Text is split into TTS utterance chunks | Changing HLS manifests publish five playable AAC artifacts before completion | Demonstrates time-to-first-playback, ordered binary artifacts, and final media assembly |
+| 4 | `ATH-MaaS/OvisOCR2` | A document image or bounded PDF page group is uploaded | Page lifecycle events contain cumulative markdown snapshots, completed pages, and a terminal document result | Adds hierarchical completion: partial page text → completed page → completed document |
+| 5 | `evalstate/flux-streaming-denoising` using `FLUX.1-schnell` | Text prompt starts four denoising steps | Four distinct decoded image snapshots followed by a final image | Demonstrates replacement-style visual supervision and useful intermediate model state |
+| 6 | `gradio/stream_asr` | Consecutive audio chunks are submitted in one stateful Gradio session | Each call retranscribes accumulated audio and returns a transcript snapshot; later snapshots may revise punctuation | Adds streaming input, hidden session state, cumulative reprocessing, and snapshot correction |
+| 7 | `OpenMOSS-Team/openmoss-team-moss-vl-realtime` | An uploaded video is sampled and pushed frame-by-frame into a realtime model session | `observing` snapshots track consumed frames, followed by cumulative answer snapshots and `done` | Separates progressive perception of input from progressive lexical output |
+| 8 | `huggingface-projects/gemma-4-12b-it` | A complete prompt is available before decoding | 44 cumulative text snapshots; the simple SSE API does not expose native suffix deltas | Establishes snapshot semantics and contrasts application accumulation with Gradio UI diff transport |
+| 9 | `black-forest-labs/FLUX.1-schnell` control | Text prompt starts diffusion | Queue and denoising progress, then one final image | Shows that detailed progress is not partial image content |
+| 10 | `kulkas2pintu/wan555` control | Image and prompt start video diffusion | GPU queue, denoising, and rendering progress, then one final MP4 | Shows long multimodal progress without partial video artifacts |
+| 11 | `Qwen/Qwen3-TTS` control | Text and voice instructions are submitted together | Initialization and processing progress, then one final WAV | Contrasts terminal TTS with playable audio-artifact streaming |
+| 12 | `mrfakename/E2-F5-TTS` control | Reference audio/text and generation text are submitted together | Processing progress, then one final WAV | Another final-only TTS boundary with reference-audio conditioning |
+| 13 | `openai/whisper` control | A complete audio file is uploaded | Processing state followed by one terminal transcript | Baseline final-only speech-to-text behavior |
+
 ## Structure
 
 Positive captures are under `streaming/`; progress-only and final-only

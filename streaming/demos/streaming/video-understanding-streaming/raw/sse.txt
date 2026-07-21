@@ -1,0 +1,156 @@
+8.237234	event: generating
+8.237258	data: ["\u2026(observing, no response yet)", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "observing", "frames_processed": 1, "frames_total": 11, "timestamp_seconds": 0.0, "response": "\u2026(observing, no response yet)"}]
+8.237281	
+8.237308	event: generating
+8.237310	data: ["\u2026(observing, no response yet)", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "observing", "frames_processed": 2, "frames_total": 11, "timestamp_seconds": 0.459, "response": "\u2026(observing, no response yet)"}]
+8.237316	
+8.238445	event: generating
+8.238456	data: ["\u2026(observing, no response yet)", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "observing", "frames_processed": 3, "frames_total": 11, "timestamp_seconds": 0.959, "response": "\u2026(observing, no response yet)"}]
+8.238472	
+8.238510	event: generating
+8.238513	data: ["\u2026(observing, no response yet)", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "observing", "frames_processed": 4, "frames_total": 11, "timestamp_seconds": 1.46, "response": "\u2026(observing, no response yet)"}]
+8.238529	
+8.239208	event: generating
+8.239216	data: ["\u2026(observing, no response yet)", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "observing", "frames_processed": 5, "frames_total": 11, "timestamp_seconds": 1.96, "response": "\u2026(observing, no response yet)"}]
+8.239229	
+8.239252	event: generating
+8.239254	data: ["\u2026(observing, no response yet)", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "observing", "frames_processed": 6, "frames_total": 11, "timestamp_seconds": 2.461, "response": "\u2026(observing, no response yet)"}]
+8.239260	
+8.240319	event: generating
+8.240335	data: ["\u2026(observing, no response yet)", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "observing", "frames_processed": 7, "frames_total": 11, "timestamp_seconds": 2.961, "response": "\u2026(observing, no response yet)"}]
+8.240357	
+8.241440	event: generating
+8.241450	data: ["\u2026(observing, no response yet)", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "observing", "frames_processed": 8, "frames_total": 11, "timestamp_seconds": 3.462, "response": "\u2026(observing, no response yet)"}]
+8.241461	
+8.242455	event: generating
+8.242462	data: ["\u2026(observing, no response yet)", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "observing", "frames_processed": 9, "frames_total": 11, "timestamp_seconds": 3.962, "response": "\u2026(observing, no response yet)"}]
+8.242475	
+8.244543	event: generating
+8.244550	data: ["\u2026(observing, no response yet)", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "observing", "frames_processed": 10, "frames_total": 11, "timestamp_seconds": 4.463, "response": "\u2026(observing, no response yet)"}]
+8.244564	
+8.324573	event: generating
+8.324654	data: ["\u2026(observing, no response yet)", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "observing", "frames_processed": 11, "frames_total": 11, "timestamp_seconds": 4.963, "response": "\u2026(observing, no response yet)"}]
+8.324736	
+12.637211	event: generating
+12.637258	data: ["<|response|>", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>"}]
+12.637371	
+12.713352	event: generating
+12.713404	data: ["<|response|>A", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A"}]
+12.713446	
+12.781214	event: generating
+12.781238	data: ["<|response|>A dark", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark"}]
+12.781259	
+12.841211	event: generating
+12.841253	data: ["<|response|>A dark,", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark,"}]
+12.841286	
+12.899462	event: generating
+12.899505	data: ["<|response|>A dark, cloudy", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy"}]
+12.899542	
+12.944056	event: generating
+12.944103	data: ["<|response|>A dark, cloudy night", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night"}]
+12.944137	
+13.002022	event: generating
+13.002071	data: ["<|response|>A dark, cloudy night sky", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky"}]
+13.002110	
+13.059556	event: generating
+13.059597	data: ["<|response|>A dark, cloudy night sky with", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with"}]
+13.059627	
+13.115712	event: generating
+13.115764	data: ["<|response|>A dark, cloudy night sky with a", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a"}]
+13.115807	
+13.173023	event: generating
+13.173068	data: ["<|response|>A dark, cloudy night sky with a cres", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a cres"}]
+13.173106	
+13.228765	event: generating
+13.228823	data: ["<|response|>A dark, cloudy night sky with a crescent", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent"}]
+13.228868	
+13.286643	event: generating
+13.286676	data: ["<|response|>A dark, cloudy night sky with a crescent moon", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon"}]
+13.286704	
+13.342992	event: generating
+13.343033	data: ["<|response|>A dark, cloudy night sky with a crescent moon is", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is"}]
+13.343081	
+13.400847	event: generating
+13.400903	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible"}]
+13.400949	
+13.459720	event: generating
+13.459767	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible,", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible,"}]
+13.459802	
+13.515225	event: generating
+13.515276	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and"}]
+13.515319	
+13.571504	event: generating
+13.571563	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two"}]
+13.571609	
+13.630915	event: generating
+13.630956	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two wing", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two wing"}]
+13.631006	
+13.687106	event: generating
+13.687134	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged"}]
+13.687153	
+13.745851	event: generating
+13.745880	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged,", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged,"}]
+13.745905	
+13.801317	event: generating
+13.801366	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon"}]
+13.801406	
+13.858944	event: generating
+13.858985	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like"}]
+13.859046	
+13.917311	event: generating
+13.917357	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures"}]
+13.917409	
+13.974907	event: generating
+13.974959	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly"}]
+13.975005	
+14.030574	event: generating
+14.030599	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from"}]
+14.030624	
+14.091261	event: generating
+14.091282	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the"}]
+14.091311	
+14.147071	event: generating
+14.147132	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left"}]
+14.147189	
+14.204425	event: generating
+14.204450	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward"}]
+14.204479	
+14.261802	event: generating
+14.261874	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the"}]
+14.261938	
+14.319828	event: generating
+14.319903	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right"}]
+14.319990	
+14.378223	event: generating
+14.378280	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right,", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right,"}]
+14.378341	
+14.435143	event: generating
+14.435229	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing"}]
+14.435292	
+14.494354	event: generating
+14.494470	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in"}]
+14.494539	
+14.550618	event: generating
+14.550679	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front"}]
+14.550728	
+14.606891	event: generating
+14.606948	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of"}]
+14.606993	
+14.663409	event: generating
+14.663477	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of the", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of the"}]
+14.663532	
+14.720341	event: generating
+14.720417	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of the moon", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of the moon"}]
+14.720491	
+14.778486	event: generating
+14.778564	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of the moon.", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "responding", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of the moon."}]
+14.778662	
+18.151003	event: heartbeat
+18.151090	data: null
+18.151160	
+23.401272	event: generating
+23.401386	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of the moon.", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "done", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of the moon."}]
+23.401476	
+23.554205	event: complete
+23.554317	data: ["<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of the moon.", {"prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.", "status": "done", "frames_processed": 11, "frames_total": 11, "response": "<|response|>A dark, cloudy night sky with a crescent moon is visible, and two winged, dragon-like creatures fly from the left toward the right, passing in front of the moon."}]
+23.554407	
