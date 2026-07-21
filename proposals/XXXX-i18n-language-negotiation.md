@@ -75,8 +75,8 @@ already in the hands of every server author:
   `Negotiator` in JavaScript, `golang.org/x/text/language`, Python
   `Babel` and `langcodes`, Java/ICU `ULocale.acceptLanguage`, Ruby's
   `Rack::Utils.q_values`, and .NET's Request Localization middleware.
-  Server authors can reuse these building blocks instead of inventing
-  language matching.
+  Server authors can reuse these building blocks instead of re-inventing
+  language matching logic.
 - **Infrastructure already exists**, CDNs, caches, reverse proxies, WAFs
   and observability tools already understand `Accept-Language`,
   `Content-Language`, and `Vary: Accept-Language`. Mirroring the field
