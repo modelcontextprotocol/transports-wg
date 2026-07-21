@@ -1,0 +1,103 @@
+{
+  "type": "object",
+  "properties": {
+    "input_image": {
+      "title": "ImageData",
+      "type": "string",
+      "description": "The input image to animate. Will be resized to target dimensions.",
+      "format": "Gradio File Input - a http or https url to a file"
+    },
+    "last_image": {
+      "title": "ImageData",
+      "type": "string",
+      "description": "The optional last image for the video.",
+      "format": "Gradio File Input - a http or https url to a file"
+    },
+    "prompt": {
+      "type": "string",
+      "description": "Text prompt describing the desired animation or motion.",
+      "default": "make this image come alive, cinematic motion, smooth animation"
+    },
+    "steps": {
+      "type": "number",
+      "description": "Number of inference steps. More steps = higher quality but slower.",
+      "default": 6
+    },
+    "negative_prompt": {
+      "type": "string",
+      "description": "Negative prompt to avoid unwanted elements.",
+      "default": "色调艳丽, 过曝, 静态, 细节模糊不清, 字幕, 风格, 作品, 画作, 画面, 静止, 整体发灰, 最差质量, 低质量, JPEG压缩残留, 丑陋的, 残缺的, 多余的手指,
+画得不好的手部, 画得不好的脸部, 畸形的, 毁容的, 形态畸形的肢体, 手指融合, 静止不动的画面, 杂乱的背景, 三条腿, 背景人很多, 倒着走"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "description": "Duration of the generated video in seconds.",
+      "default": 3.5
+    },
+    "guidance_scale": {
+      "type": "number",
+      "description": "Controls adherence to the prompt. Higher values = more adherence.",
+      "default": 1
+    },
+    "guidance_scale_2": {
+      "type": "number",
+      "description": "Controls adherence to the prompt. Higher values = more adherence.",
+      "default": 1
+    },
+    "seed": {
+      "type": "number",
+      "description": "Random seed for reproducible results. Defaults to 42.",
+      "default": 42
+    },
+    "randomize_seed": {
+      "type": "boolean",
+      "description": "Whether to use a random seed instead of the provided seed.",
+      "default": true
+    },
+    "quality": {
+      "type": "number",
+      "description": "Video output quality. Default is 5. Uses variable bit rate.",
+      "default": 6
+    },
+    "scheduler": {
+      "type": "string",
+      "enum": [
+        "FlowMatchEulerDiscrete",
+        "SASolver",
+        "DEISMultistep",
+        "DPMSolverMultistepInverse",
+        "UniPCMultistep",
+        "DPMSolverMultistep",
+        "DPMSolverSinglestep"
+      ],
+      "description": "The name of the scheduler to use for inference. Defaults to \"UniPCMultistep\".",
+      "default": "UniPCMultistep"
+    },
+    "flow_shift": {
+      "type": "number",
+      "description": "The flow shift value for compatible schedulers. Defaults to 6.0.",
+      "default": 3.0
+    },
+    "frame_multiplier": {
+      "type": "string",
+      "enum": [
+        16,
+        32,
+        64,
+        128
+      ],
+      "description": "The int value for fps enhancer",
+      "default": 16
+    },
+    "safe_mode": {
+      "type": "boolean",
+      "description": "",
+      "default": true
+    },
+    "video_component": {
+      "type": "boolean",
+      "description": "",
+      "default": true
+    }
+  }
+}

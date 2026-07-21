@@ -1,0 +1,30 @@
+{"elapsed": 0.5, "code": "Status.STARTING", "progress": []}
+{"elapsed": 1.0, "code": "Status.STARTING", "progress": []}
+{"elapsed": 1.5, "code": "Status.PROGRESS", "progress": [{"index": 22, "length": 100, "unit": "steps", "progress": null, "desc": "ZeroGPU init"}]}
+{"elapsed": 2.0, "code": "Status.PROGRESS", "progress": [{"index": 66, "length": 100, "unit": "steps", "progress": null, "desc": "ZeroGPU init"}]}
+{"elapsed": 2.5, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 3.0, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 3.5, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 4.0, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 4.5, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 5.01, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 5.51, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 6.01, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 6.51, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 7.01, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 7.51, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 8.01, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 8.51, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 9.01, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 9.51, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 10.01, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 10.51, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 11.01, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 11.51, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 12.01, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 12.51, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 13.01, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 13.51, "code": "Status.PROGRESS", "progress": []}
+{"elapsed": 14.01, "code": "Status.FINISHED", "progress": []}
+{"elapsed": 14.51, "code": "Status.FINISHED", "progress": []}
+{"elapsed": 15.01, "code": "Status.FINISHED", "progress": []}
