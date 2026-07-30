@@ -106,7 +106,78 @@ the SDK; the spec describes required semantics rather than a single wire format.
 
 ---
 
-## 3. HTTP over STDIO
+## 3. Error Standardization
+
+**Goal:** Make error handling programmatic and consistent across transports.
+Every error condition should have both a defined JSON-RPC error code *and* a
+defined HTTP status code, with generic fallbacks for conditions too unspecific
+to warrant their own code — so SDKs stop inventing proprietary interpretations
+and clients can branch on errors reliably instead of string-matching messages.
+
+**Core Idea:** Build on the error code allocation policy adopted in the
+[2026-07-28 revision](https://modelcontextprotocol.io/specification/2026-07-28/basic/index#error-codes),
+which partitions the JSON-RPC server-error range — `-32000` to `-32019` stays
+implementation-defined (existing SDK usage grandfathered) and `-32020` to
+`-32099` is reserved for the spec — and renumbered the codes introduced in that
+draft accordingly (`HeaderMismatch` → `-32020`,
+`MissingRequiredClientCapability` → `-32021`, `UnsupportedProtocolVersion` →
+`-32022`). That work established *where* codes live; this track establishes
+*what the full set is*. Maintain a single normative error registry in the spec
+where each condition has a name, a JSON-RPC code, an HTTP status, and a
+retryability classification — and where every layer has a generic fallback, so
+an implementation never has to mint its own code. Codes stay machine-readable;
+message text stays free-form for human debugging.
+
+Related prior art: [SEP-2164](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2164)
+moved resource-not-found from the MCP-custom `-32002` to the JSON-RPC standard
+`-32602` (Invalid Params), on the reasoning that convergence on one value beats
+every client handling several.
+
+**Key Requirements:**
+
+* A normative registry of error conditions: name, JSON-RPC code, HTTP status,
+  and whether a retry is safe.
+* Dual coding for every error. The HTTP status serves infrastructure — load
+  balancers, proxies, gateways — that will not parse a JSON-RPC body; the
+  JSON-RPC code serves the client.
+* Generic fallback codes at each class of error, so an implementation facing an
+  unlisted condition has a correct-if-unspecific code to return rather than
+  inventing one.
+* Codes for machines, messages for humans: the WG explicitly cautioned against
+  over-constraining error message *text* (gRPC precedent — status codes are for
+  machines, messages are flexible text for debugging), so this track
+  standardizes codes and leaves prose free.
+* Retryability signaling: whether the client may retry, and if so with what
+  backoff (a `Retry-After` analogue).
+* Transport independence: transports with no native HTTP status concept need a
+  defined mapping — ties directly to the Pluggable Transports and HTTP over
+  STDIO tracks.
+
+**Open Questions:**
+
+* When does an error get a non-200 HTTP status versus a 200 carrying a
+  JSON-RPC error in the body? Today the two layers overlap and the split is not
+  crisply defined.
+* Are the HTTP status mappings normative (MUST) or preferred (SHOULD)? The WG
+  discussed standardizing "preferred HTTP status codes" — the tension is
+  keeping the mapping useful without over-constraining implementations.
+* Scope: does this cover only protocol-level errors, or also tool *execution*
+  errors (`isError` results), which are a different axis entirely?
+* How do extensions and third parties mint error codes? Is the grandfathered
+  `-32000`–`-32019` band the designated space, and is that band frozen
+  permanently or eventually reclaimable?
+* Do we standardize the shape of `error.data` (e.g. field paths for validation
+  failures), or leave it opaque?
+* Interaction with i18n: error messages are user-visible strings, so the
+  `contentLanguage` rules apply to them — but codes must never be localized.
+
+*Note: an action item from the 2026-05-27 meeting assigns Kurtis Van Gent to
+draft a problem statement on standardized error message formatting; this track
+is that work.*
+
+---
+
+## 4. HTTP over STDIO
 
 **Goal:** Reduce the behavioral divergence between the stdio and Streamable HTTP
 transports. Today stdio has a pile of bespoke behavior (framing, lifecycle, no
@@ -152,7 +223,7 @@ single transport binding with one behavior model.
 
 ---
 
-## 4. Streaming
+## 5. Streaming
 
 **Goal:** Let servers return large or incremental results — database queries
 with thousands of rows, generated images, long documents — as a stream of chunks
@@ -194,7 +265,7 @@ naturally; stdio needs the same model — see the HTTP-over-stdio track).
 
 ---
 
-## 5. Internationalization
+## 6. Internationalization
 
 **Goal:** Give clients a standard way to request human-readable strings in a
 particular language and servers a standard way to declare which language they
@@ -236,7 +307,7 @@ renegotiation or session state.
 
 ---
 
-## 6. Capabilities for Tools
+## 7. Capabilities for Tools
 
 **Goal:** Remove the ambiguity SEP-1442 introduced when client capabilities
 moved from initialization to per-request `_meta`: servers no longer know, at
@@ -281,7 +352,7 @@ capabilities.
 
 ---
 
-## 7. Sessions
+## 8. Sessions
 
 > **Note — deprioritized pending stronger use cases.** The WG is not committing
 > effort to a sessions design until more compelling use cases are documented
