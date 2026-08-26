@@ -1,0 +1,7 @@
+{
+  "input_image": "/tmp/test_image.jpg",
+  "prompt": "a cute cat dancing",
+  "steps": 4,
+  "duration": 2.0,
+  "frame_multiplier": 16
+}

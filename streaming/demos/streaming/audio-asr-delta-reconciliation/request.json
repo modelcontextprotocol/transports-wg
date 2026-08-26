@@ -1,0 +1,28 @@
+{
+  "producer": "okadahiroaki/qwen3-omni-realtime-asr-demo",
+  "capture_space": "evalstate/qwen-realtime-asr-evidence",
+  "transport": "WebSocket binary float32 audio and JSON messages",
+  "input": {
+    "path": "artifacts/input/1272-128104-0000.wav",
+    "sha256": "4d74c922a8d1156b953dfd64697c3d672508af4b5cb18609d88210a3ef1a8eb0",
+    "source_dataset": "hf-internal-testing/librispeech_asr_demo",
+    "config": "clean",
+    "split": "validation",
+    "row": 0,
+    "source_speech_seconds": 5.855,
+    "trailing_silence_seconds": 0.5
+  },
+  "server_health": {
+    "ready": true,
+    "interval": 1.5,
+    "model": "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+    "start_after": 1.5,
+    "use_prefix": true
+  },
+  "deployment": {
+    "model": "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+    "hardware": "A100 80 GB",
+    "source_server": "source/server.py",
+    "container": "source/Dockerfile"
+  }
+}

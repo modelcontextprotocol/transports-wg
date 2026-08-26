@@ -1,0 +1,15 @@
+{
+  "space": "multimodalart/self-forcing",
+  "endpoint": "/video_generation_handler_streaming",
+  "transport": {
+    "submit": "POST /gradio_api/call/video_generation_handler_streaming",
+    "stream": "GET /gradio_api/call/video_generation_handler_streaming/{event_id}",
+    "media_type": "text/event-stream",
+    "media_delivery": "HLS playlist snapshots with MPEG-TS artifacts"
+  },
+  "payload": {
+    "prompt": "A small red paper boat sailing across a moonlit pond, cinematic, stable camera",
+    "seed": 12345,
+    "fps": 15
+  }
+}

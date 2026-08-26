@@ -1,0 +1,14 @@
+{
+  "producer": "ATH-MaaS/OvisOCR2",
+  "endpoint": "/run_ocr",
+  "input": {
+    "path": "artifacts/input/invoice-test-2.jpg",
+    "sha256": "3cfb699be44ff586a50e6209de4b5e61183948fbf63722d40c72a30a2437715b",
+    "source_dataset": "katanaml-org/invoices-donut-data-v1",
+    "config": "default",
+    "split": "test",
+    "row": 2
+  },
+  "page_index": 0,
+  "page_count": 1
+}

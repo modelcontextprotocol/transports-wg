@@ -1,0 +1,233 @@
+{
+  "terminal_event": "complete",
+  "elapsed_seconds": 24.48601,
+  "time_to_first_video_seconds": 6.777735,
+  "playlist_revision_count": 8,
+  "segment_count": 7,
+  "progress_update_count": 89,
+  "declared_video_duration_seconds": 5.4,
+  "segment_frame_count": 81,
+  "final_playlist": "artifacts/final_playlist.m3u8",
+  "final_video": "artifacts/final_video.mp4",
+  "final_video_sha256": "f72b0f0edf2f58f35adb74883d9c9509fc147a0877eac9b0c8de2a68445b4f60",
+  "reconstruction": "pyav-decode-reencode-with-explicit-1/15-second-timestamps",
+  "final_media_info": {
+    "codec": "h264",
+    "width": 832,
+    "height": 480,
+    "fps": 15.0,
+    "duration_seconds": 5.4,
+    "frames": 81
+  },
+  "segments": [
+    {
+      "index": 0,
+      "elapsed_seconds": 6.777735,
+      "artifact": "artifacts/segments/segment_000.ts",
+      "mime_type": "video/MP2T",
+      "bytes": 244588,
+      "sha256": "45756b1364f826b25c1469b33cce7885c7eaf62b4def426454ba207614c8719e",
+      "declared_duration_seconds": 0.6,
+      "media_info": {
+        "codec": "h264",
+        "width": 832,
+        "height": 480,
+        "fps": 15.0,
+        "duration_seconds": 0.6,
+        "frames": 9
+      }
+    },
+    {
+      "index": 1,
+      "elapsed_seconds": 8.82482,
+      "artifact": "artifacts/segments/segment_001.ts",
+      "mime_type": "video/MP2T",
+      "bytes": 266020,
+      "sha256": "5a3d5a1cb33cc3f3fa7983521ff6e98dd101edc1bf2eb93941f109a5faacdc4b",
+      "declared_duration_seconds": 0.8,
+      "media_info": {
+        "codec": "h264",
+        "width": 832,
+        "height": 480,
+        "fps": 15.0,
+        "duration_seconds": 0.8,
+        "frames": 12
+      }
+    },
+    {
+      "index": 2,
+      "elapsed_seconds": 10.888119,
+      "artifact": "artifacts/segments/segment_002.ts",
+      "mime_type": "video/MP2T",
+      "bytes": 275420,
+      "sha256": "9ef950943792dd394833ca1045b55db87e7393a7d39577f6cb14c0e2706c5f7c",
+      "declared_duration_seconds": 0.8,
+      "media_info": {
+        "codec": "h264",
+        "width": 832,
+        "height": 480,
+        "fps": 15.0,
+        "duration_seconds": 0.8,
+        "frames": 12
+      }
+    },
+    {
+      "index": 3,
+      "elapsed_seconds": 13.068547,
+      "artifact": "artifacts/segments/segment_003.ts",
+      "mime_type": "video/MP2T",
+      "bytes": 272788,
+      "sha256": "7442ede295a99fb9006d01a1887f8535f7a78324445a0d23de360bf9e06cb772",
+      "declared_duration_seconds": 0.8,
+      "media_info": {
+        "codec": "h264",
+        "width": 832,
+        "height": 480,
+        "fps": 15.0,
+        "duration_seconds": 0.8,
+        "frames": 12
+      }
+    },
+    {
+      "index": 4,
+      "elapsed_seconds": 15.413284,
+      "artifact": "artifacts/segments/segment_004.ts",
+      "mime_type": "video/MP2T",
+      "bytes": 273916,
+      "sha256": "d715e99695e40e68249a36407c9b916a0be8239f89f0396f7f3d8f5f87e7f409",
+      "declared_duration_seconds": 0.8,
+      "media_info": {
+        "codec": "h264",
+        "width": 832,
+        "height": 480,
+        "fps": 15.0,
+        "duration_seconds": 0.8,
+        "frames": 12
+      }
+    },
+    {
+      "index": 5,
+      "elapsed_seconds": 17.840957,
+      "artifact": "artifacts/segments/segment_005.ts",
+      "mime_type": "video/MP2T",
+      "bytes": 275420,
+      "sha256": "18afbec44bd76913444f497119414c96462edec071c603dffdb6e0f4cc2f0f7f",
+      "declared_duration_seconds": 0.8,
+      "media_info": {
+        "codec": "h264",
+        "width": 832,
+        "height": 480,
+        "fps": 15.0,
+        "duration_seconds": 0.8,
+        "frames": 12
+      }
+    },
+    {
+      "index": 6,
+      "elapsed_seconds": 20.168818,
+      "artifact": "artifacts/segments/segment_006.ts",
+      "mime_type": "video/MP2T",
+      "bytes": 269404,
+      "sha256": "b9508072b4a6c158936c8fa365e7c63ca44145fc7b15f7748c7433a4d5ab4147",
+      "declared_duration_seconds": 0.8,
+      "media_info": {
+        "codec": "h264",
+        "width": 832,
+        "height": 480,
+        "fps": 15.0,
+        "duration_seconds": 0.8,
+        "frames": 12
+      }
+    }
+  ],
+  "playlist_revisions": [
+    {
+      "index": 0,
+      "elapsed_seconds": 6.777735,
+      "event": "generating",
+      "artifact": "raw/playlists/revision_000.m3u8",
+      "sha256": "4d5ecc8a57e3ddcc36221032a7dec2b57553ddfdf967e8de9adcf0ead1872149",
+      "segment_count": 1,
+      "declared_duration_seconds": 0.6,
+      "source_sequence": 1,
+      "remote_url": "https://multimodalart-self-forcing.hf.space/gradio_api/stream/0998e9ccf1d14c74ae21a1fae597acd4/139750125940944/19/playlist.m3u8"
+    },
+    {
+      "index": 1,
+      "elapsed_seconds": 8.82482,
+      "event": "generating",
+      "artifact": "raw/playlists/revision_001.m3u8",
+      "sha256": "38ec1784be3fc96987886247bfcde26e638a142b76e2461c2c2d069e1267d7a6",
+      "segment_count": 2,
+      "declared_duration_seconds": 1.4,
+      "source_sequence": 22,
+      "remote_url": "https://multimodalart-self-forcing.hf.space/gradio_api/stream/0998e9ccf1d14c74ae21a1fae597acd4/139750125940944/19/playlist.m3u8"
+    },
+    {
+      "index": 2,
+      "elapsed_seconds": 10.888119,
+      "event": "generating",
+      "artifact": "raw/playlists/revision_002.m3u8",
+      "sha256": "c54577c186d6b4cb77387227693a6d02fac6fe6e80f6e89755ba02811f9232ba",
+      "segment_count": 3,
+      "declared_duration_seconds": 2.2,
+      "source_sequence": 58,
+      "remote_url": "https://multimodalart-self-forcing.hf.space/gradio_api/stream/0998e9ccf1d14c74ae21a1fae597acd4/139750125940944/19/playlist.m3u8"
+    },
+    {
+      "index": 3,
+      "elapsed_seconds": 13.068547,
+      "event": "generating",
+      "artifact": "raw/playlists/revision_003.m3u8",
+      "sha256": "007542f2cba225ef26e7e1f08a3ef63c4c4a467bcae2beda90fda07b2598ea81",
+      "segment_count": 4,
+      "declared_duration_seconds": 3.0,
+      "source_sequence": 91,
+      "remote_url": "https://multimodalart-self-forcing.hf.space/gradio_api/stream/0998e9ccf1d14c74ae21a1fae597acd4/139750125940944/19/playlist.m3u8"
+    },
+    {
+      "index": 4,
+      "elapsed_seconds": 15.413284,
+      "event": "generating",
+      "artifact": "raw/playlists/revision_004.m3u8",
+      "sha256": "76c9a7ab6f545490361adf8a843e71d0984930451618d24aa4a966b253358d98",
+      "segment_count": 5,
+      "declared_duration_seconds": 3.8,
+      "source_sequence": 130,
+      "remote_url": "https://multimodalart-self-forcing.hf.space/gradio_api/stream/0998e9ccf1d14c74ae21a1fae597acd4/139750125940944/19/playlist.m3u8"
+    },
+    {
+      "index": 5,
+      "elapsed_seconds": 17.840957,
+      "event": "generating",
+      "artifact": "raw/playlists/revision_005.m3u8",
+      "sha256": "2abd10162438c3125ac3269843b6e8498f99002d1738a1d780b0bc053afd7380",
+      "segment_count": 6,
+      "declared_duration_seconds": 4.6,
+      "source_sequence": 163,
+      "remote_url": "https://multimodalart-self-forcing.hf.space/gradio_api/stream/0998e9ccf1d14c74ae21a1fae597acd4/139750125940944/19/playlist.m3u8"
+    },
+    {
+      "index": 6,
+      "elapsed_seconds": 20.168818,
+      "event": "generating",
+      "artifact": "raw/playlists/revision_006.m3u8",
+      "sha256": "d4961d53c211b85623bcc531d6b70ef103031c560040008244983d43aaf748e5",
+      "segment_count": 7,
+      "declared_duration_seconds": 5.4,
+      "source_sequence": 202,
+      "remote_url": "https://multimodalart-self-forcing.hf.space/gradio_api/stream/0998e9ccf1d14c74ae21a1fae597acd4/139750125940944/19/playlist.m3u8"
+    },
+    {
+      "index": 7,
+      "elapsed_seconds": 21.176674,
+      "event": "generating",
+      "artifact": "raw/playlists/revision_007.m3u8",
+      "sha256": "18940703487ff3ecbbd71a905a49d81de8baac9f07cde7afec302ec630084943",
+      "segment_count": 7,
+      "declared_duration_seconds": 5.4,
+      "source_sequence": 205,
+      "remote_url": "https://multimodalart-self-forcing.hf.space/gradio_api/stream/0998e9ccf1d14c74ae21a1fae597acd4/139750125940944/19/playlist.m3u8"
+    }
+  ]
+}

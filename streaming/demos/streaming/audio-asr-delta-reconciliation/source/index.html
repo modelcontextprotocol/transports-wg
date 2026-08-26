@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qwen3-Omni リアルタイム文字起こし</title>
+<style>
+  :root { color-scheme: light dark; --bg:#fff; --fg:#1a1a1a; --mut:#666; --line:#e3e3e3;
+          --card:#fafafa; --accent:#2563eb; --new:#fef3c7; --spk:#fde68a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161616; --fg:#e8e8e8; --mut:#999; --line:#333; --card:#1f1f1f;
+            --accent:#60a5fa; --new:#3f3410; --spk:#5c4a10; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:20px; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; line-height:1.7; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size:1.15rem; margin:0 0 4px; }
+  .sub { color:var(--mut); font-size:.8rem; margin-bottom:16px; }
+  .bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+  button { font:inherit; font-size:.9rem; padding:8px 18px; border-radius:8px; cursor:pointer;
+           border:1px solid var(--line); background:var(--card); color:var(--fg); }
+  button.primary { background:var(--accent); color:#fff; border-color:transparent; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .dot { width:9px; height:9px; border-radius:50%; background:#999; display:inline-block; }
+  .dot.rec { background:#dc2626; animation:pulse 1.2s infinite; }
+  .dot.infer { background:#f59e0b; animation:pulse .7s infinite; }
+  .dot.ready { background:#16a34a; }
+  @keyframes pulse { 50% { opacity:.25; } }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(105px,1fr));
+           gap:8px; margin-bottom:14px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  .stat .k { font-size:.68rem; color:var(--mut); }
+  .stat .v { font-size:1.05rem; font-variant-numeric:tabular-nums; }
+  #text { background:var(--card); border:1px solid var(--line); border-radius:10px;
+          padding:16px; min-height:220px; white-space:pre-wrap; word-break:break-word; font-size:1rem; }
+  #text .new { background:var(--new); border-radius:3px; }
+  #text .live { color:var(--mut); border-bottom:1px dashed var(--mut); }
+  #text .live::after { content:"▍"; animation:cursor 1s steps(2) infinite; }
+  @keyframes cursor { 50% { opacity:0; } }
+  #text .spk { background:var(--spk); border-radius:3px; padding:0 3px; font-weight:600; font-size:.85em; }
+  .empty { color:var(--mut); }
+  details { margin-top:14px; }
+  summary { cursor:pointer; color:var(--mut); font-size:.82rem; }
+  #log { font-family:ui-monospace,Menlo,monospace; font-size:.72rem; color:var(--mut);
+         background:var(--card); border:1px solid var(--line); border-radius:8px;
+         padding:10px; max-height:240px; overflow:auto; white-space:pre; margin-top:8px; }
+  .err { color:#dc2626; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Qwen3-Omni-30B (INT8) リアルタイム文字起こし</h1>
+  <div class="sub">
+    録音開始からの全音声を一定間隔で再推論します。推論中に次の更新が来たらスキップし、常に最新音声だけを処理。<br>
+    <span id="mode" style="color:var(--accent)">…</span>
+  </div>
+
+  <div class="bar">
+    <span class="dot" id="dot"></span>
+    <span id="state" style="font-size:.85rem; color:var(--mut)">接続中…</span>
+    <span style="flex:1"></span>
+    <button class="primary" id="rec" disabled>録音開始</button>
+    <button id="reset" disabled>リセット</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">録音時間</div><div class="v" id="s_rec">0.0s</div></div>
+    <div class="stat"><div class="k">音声長(推論)</div><div class="v" id="s_aud">–</div></div>
+    <div class="stat"><div class="k">推論時間</div><div class="v" id="s_lat">–</div></div>
+    <div class="stat"><div class="k">prompt tok</div><div class="v" id="s_ptok">–</div></div>
+    <div class="stat"><div class="k">生成 tok</div><div class="v" id="s_gtok">–</div></div>
+    <div class="stat"><div class="k">skip回数</div><div class="v" id="s_skip">0</div></div>
+  </div>
+
+  <div id="text"><span class="empty">録音を開始すると、5秒ごとに文字起こしが追記されます。</span></div>
+
+  <div style="margin-top:14px; background:var(--card); border:1px solid var(--line);
+              border-radius:10px; padding:12px 14px">
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px">
+      <strong style="font-size:.85rem">サーバが受け取った音声</strong>
+      <span id="micinfo" style="font-size:.75rem; color:var(--mut)">–</span>
+      <span style="flex:1"></span>
+      <button id="fetchwav" style="padding:5px 12px; font-size:.8rem">読み込む / 更新</button>
+      <a id="dl" download="mic_last.wav" style="font-size:.8rem; color:var(--accent)">ダウンロード</a>
+    </div>
+    <audio id="player" controls style="width:100%"></audio>
+    <div style="font-size:.72rem; color:var(--mut); margin-top:6px">
+      モデルに実際に届いている音声そのもの。自分の耳で聞き分けられないなら、モデルにも無理です。
+    </div>
+  </div>
+
+  <details>
+    <summary>ログ（生成の生データ・重複削除・finish_reason）</summary>
+    <div id="log"></div>
+  </details>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let ws, ctx, node, stream, recording = false, t0 = 0, timer = null, confirmed = "", streaming = "";
+let startAfter = 10;   // サーバの START_AFTER_SEC (最初に音声を貯める秒数)
+
+fetch("/health").then(r => r.json()).then(h => {
+  startAfter = h.start_after;
+  $("mode").textContent = h.use_prefix
+    ? `prefix continuation / 更新 ${h.interval}s / 蓄積 ${h.start_after}s`
+    : `★切り分けモード: prefix 無し (毎回まっさら全文書き起こし) / 更新 ${h.interval}s / 蓄積 ${h.start_after}s`;
+}).catch(() => {});
+
+function log(s, cls) {
+  const d = document.createElement("div");
+  if (cls) d.className = cls;
+  d.textContent = s;
+  $("log").appendChild(d);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+function setState(txt, cls) { $("state").textContent = txt; $("dot").className = "dot " + (cls||""); }
+
+// [spk_N] タグを強調 + 直近の新規部分をハイライト + streaming 中の暫定 text を live 表示
+function render(text, newPart, live) {
+  const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const mark = s => esc(s).replace(/\[spk_\d\]/g, m => `<span class="spk">${m}</span>`);
+  const head = text.slice(0, text.length - (newPart||"").length);
+  $("text").innerHTML =
+    mark(head)
+    + (newPart ? `<span class="new">${mark(newPart)}</span>` : "")
+    + (live ? `<span class="live">${mark(live)}</span>` : "");
+  $("text").scrollTop = $("text").scrollHeight;
+}
+
+function connect() {
+  ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws");
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => { setState("待機中", "ready"); $("rec").disabled = false; $("reset").disabled = false; };
+  ws.onclose = () => { setState("切断", ""); $("rec").disabled = true; };
+  ws.onerror = () => log("WebSocket error", "err");
+  ws.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === "status" && m.state === "infer") {
+      streaming = "";                          // 新しい round 開始
+      setState(`推論中 (${m.audio_sec}s)`, "infer");
+    } else if (m.type === "delta") {
+      // token が届くたびに追記。まだ確定ではない (overlap 除去は round 完了時に走る)。
+      streaming += m.delta;
+      render(confirmed, "", streaming);
+      $("s_gtok").textContent = m.n_gen;
+    } else if (m.type === "update") {
+      // round 完了。streaming 破棄、confirmed 側を overlap 除去後の確定版に差し替え。
+      streaming = "";
+      confirmed = m.confirmed;
+      render(confirmed, m.new);
+      $("s_aud").textContent  = m.audio_sec + "s";
+      $("s_lat").textContent  = m.latency + "s";
+      $("s_ptok").textContent = m.n_prompt;
+      $("s_gtok").textContent = m.n_gen;
+      $("s_skip").textContent = m.skipped;
+      setState(recording ? "録音中" : "待機中", recording ? "rec" : "ready");
+      loadWav();   // 受け取った音声を自動で最新に差し替え
+      log(`[${m.audio_sec}s] ${m.latency}s p=${m.n_prompt} g=${m.n_gen} `
+        + `ov=${m.overlap} ${m.finish}\n  RAW: ${JSON.stringify(m.raw)}\n  NEW: ${JSON.stringify(m.new)}`);
+      if (m.latency > 5) log(`  ※ 推論 ${m.latency}s > 更新間隔 5s`, "err");
+    } else if (m.type === "reset") {
+      confirmed = ""; streaming = ""; render("", "");
+      $("text").innerHTML = '<span class="empty">リセットしました。</span>';
+      ["s_aud","s_lat","s_ptok","s_gtok"].forEach(i => $(i).textContent = "–");
+      $("s_skip").textContent = "0"; $("s_rec").textContent = "0.0s";
+      $("log").innerHTML = "";
+    } else if (m.type === "error") {
+      log("ERROR: " + m.msg, "err"); setState("エラー", "");
+    }
+  };
+}
+
+// フォールバック用の線形補間リサンプラ。
+// 【注意】これはアンチエイリアスフィルタが無いので音質が落ちる (48k->16k で
+// 8kHz 以上が折り返して可聴帯域に混入し、句読点が消えたり繰り返しが出たりする)。
+// 通常は AudioContext に 16000Hz を要求してブラウザ側の正しいリサンプラを使う。
+function to16k(buf, srcRate) {
+  if (srcRate === 16000) return buf;
+  const ratio = srcRate / 16000, n = Math.floor(buf.length / ratio);
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = i * ratio, i0 = Math.floor(p), i1 = Math.min(i0 + 1, buf.length - 1);
+    out[i] = buf[i0] + (buf[i1] - buf[i0]) * (p - i0);
+  }
+  return out;
+}
+
+async function start() {
+  try {
+    // 【重要】ブラウザの音声加工は全て切る。
+    // これらは「人間同士の通話」向けの処理で、ASR には不利に働く:
+    //   echoCancellation  … 音を打ち消す
+    //   noiseSuppression  … ノイズと判定した帯域を削る (子音や語尾が消える)
+    //   autoGainControl   … 音量を動的に変える (無音区間のノイズを持ち上げる)
+    // 電話音声にはこの加工が掛かっておらず、そちらは完璧に認識できている。
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: false,
+               noiseSuppression: false, autoGainControl: false } });
+  } catch (e) { log("マイク取得失敗: " + e.message + " (HTTPS が必要です)", "err"); return; }
+  // ブラウザに 16kHz を直接要求する。ブラウザは適切なアンチエイリアスフィルタ付きで
+  // リサンプルしてくれるので、自前の線形補間より遥かに音質が良い。
+  try { ctx = new AudioContext({ sampleRate: 16000 }); }
+  catch (e) { ctx = new AudioContext(); }
+  const src = ctx.createMediaStreamSource(stream);
+  node = ctx.createScriptProcessor(4096, 1, 1);
+  node.onaudioprocess = e => {
+    if (!recording || ws.readyState !== 1) return;
+    ws.send(to16k(e.inputBuffer.getChannelData(0), ctx.sampleRate).buffer);
+  };
+  src.connect(node); node.connect(ctx.destination);
+  recording = true; t0 = Date.now();
+  timer = setInterval(() => {
+    const el = (Date.now() - t0) / 1000;
+    $("s_rec").textContent = el.toFixed(1) + "s";
+    // 最初の10秒は音声を貯めるだけ。無反応に見えないよう残りを出す
+    if (recording && el < startAfter) setState(`音声を蓄積中 (あと ${(startAfter-el).toFixed(1)}s)`, "rec");
+    else if (recording && $("state").textContent.startsWith("音声を蓄積")) setState("録音中", "rec");
+  }, 100);
+  $("rec").textContent = "停止"; setState("録音中", "rec");
+  log(ctx.sampleRate === 16000
+      ? `録音開始 (AudioContext 16000Hz: ブラウザの正しいリサンプラを使用)`
+      : `録音開始 (${ctx.sampleRate}Hz -> 16000Hz を自前の線形補間: ★音質が落ちます)`);
+  // 要求しても無視されることがあるので、実際に適用された設定を確認する
+  try {
+    const s = stream.getAudioTracks()[0].getSettings();
+    const on = [];
+    if (s.echoCancellation) on.push("echoCancellation");
+    if (s.noiseSuppression) on.push("noiseSuppression");
+    if (s.autoGainControl) on.push("autoGainControl");
+    log(`マイク実効設定: ${s.sampleRate||"?"}Hz  加工=${on.length ? "★"+on.join(",")+" が有効のまま" : "全てOFF"}`);
+  } catch (e) {}
+}
+
+function stop() {
+  recording = false;
+  clearInterval(timer);
+  if (node) node.disconnect();
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (ctx) ctx.close();
+  $("rec").textContent = "録音開始"; setState("待機中", "ready");
+  log("録音停止");
+}
+
+$("rec").onclick = () => recording ? stop() : start();
+$("reset").onclick = () => { if (recording) stop(); ws.send(JSON.stringify({cmd:"reset"})); };
+
+// サーバが実際に受け取った音声を取ってきて再生する
+async function loadWav() {
+  const bust = "?t=" + Date.now();          // キャッシュを避ける
+  try {
+    const info = await (await fetch("/mic_info" + bust)).json();
+    if (!info.exists) { $("micinfo").textContent = "まだ録音がありません"; return; }
+    const clip = info.clipped_pct > 0.1 ? `  ★音割れ ${info.clipped_pct}%` : "";
+    $("micinfo").textContent =
+      `${info.sec}s / ${info.sr}Hz / RMS ${info.rms} / ピーク ${info.peak}${clip}`;
+    $("player").src = "/mic_last.wav" + bust;
+    $("dl").href = "/mic_last.wav" + bust;
+    log(`受信音声: ${info.sec}s ${info.sr}Hz RMS=${info.rms} peak=${info.peak} clip=${info.clipped_pct}%`);
+  } catch (e) { $("micinfo").textContent = "取得失敗: " + e.message; }
+}
+$("fetchwav").onclick = loadWav;
+
+connect();
+</script>
+</body>
+</html>
