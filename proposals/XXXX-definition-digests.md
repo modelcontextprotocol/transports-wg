@@ -10,9 +10,9 @@
 
 ## Abstract
 
-This SEP lets MCP Servers supply a digest with their CacheableResults. 
+This SEP lets MCP Servers supply a digest with their CacheableResults.
 
-Clients can return digests to the MCP Server, which can choose to reject the call if the digest is not serviceable. 
+Clients can return digests to the MCP Server, which can serve the call, serve it and flag that definitions have changed, or reject it if the digest is not serviceable.
 
 The mechanism is advisory. Servers choose whether to supply digests and what to do with the ones they receive.
 
@@ -24,14 +24,15 @@ Hosts that cache Tool Lists can call tools after the Server has changed them. Th
 
 > Servers MAY change the underlying data before TTL expires.
 
-Tool definitions can change for may reasons; deployments, permissions, feature flags and user settings. Hosts can make tool call requests against stale schemas. Often standard validation will catch mismatches, but in pathological cases description and argument semantics may change and the model may issue tool calls that weren't intended.
+Tool definitions can change for many reasons; deployments, permissions, feature flags and user settings. Hosts can make tool call requests against stale schemas. Often standard validation will catch mismatches, but in pathological cases description and argument semantics may change and the model may issue tool calls that weren't intended.
 
-The digest mechanism provides three options for a Server:
-- **Ignore incoming digest:** Requests are handled using existing mechanisms as they are today.
-- **Handle Request:** The digest is used to select the appropriate response allowing graceful upgrades and task drains.
-- **Raise Error:** An error is returned indicating that the requested digest is not available.
+The digest mechanism gives a server four options:
+- **Ignore:** the request is handled exactly as today.
+- **Honor:** the request is served against the definitions the digest describes, so in-flight call sequences and tasks finish against the tool set they started with.
+- **Honor and signal:** as above, and the response tells the client to refresh when convenient.
+- **Reject:** an error says which definitions are stale, before anything runs.
 
-*Authors note: "Handle Request" may be difficult or SDK dependent due to the need to handle multiple Request shapes for the same tool, prompt identity and so on.* 
+*Authors note: "Honor" may be difficult or SDK dependent, since the server must hold more than one request shape for the same tool or prompt identity.*
 
 The mechanism works alongside the existing `ttlMs` hint. Clients may choose more aggressive caching strategies based on optimistic calling.
 
@@ -104,7 +105,7 @@ The [caching rules](https://modelcontextprotocol.io/specification/draft/server/u
 
 ### Sending known digests
 
-A client **MAY** tell the server which digests it is working from, in request `_meta`, as a map from the method that produced each digest to the digest:
+A client **MAY** tell the server which digests it is working from, in any request `_meta`, as a map from the method that produced each digest to the digest:
 
 ```ts
 export interface KnownDigests {
@@ -122,8 +123,6 @@ export interface RequestMetaObject extends MetaObject {
   "io.modelcontextprotocol/knownDigests"?: KnownDigests;
 }
 ```
-
-Any request can carry the map, with one entry per method the client wants checked. Methods are already unique, so extensions need no further naming rule. A client **SHOULD** only send digests it received from the same server in the same authorization context, and omit the field otherwise. Digests go on each request rather than being fixed for a session, because what the client is working from can change between calls.
 
 For example, the parameters of a `tools/call` request might look like this (other required `_meta` fields are omitted):
 
@@ -144,21 +143,31 @@ Known digests are hints, not preconditions. No capability flag is required. The 
 
 ### Handling known digests
 
-A server that receives known digests on `tools/call`, `prompts/get`, `resources/read`, or an extension's equivalent has three choices:
+A server that receives known digests on `tools/call`, `prompts/get`, `resources/read`, or an extension's equivalent has four choices:
 
 - **Ignore them.** The request is handled exactly as it would be without hints. This is the default and is always allowed, including after the server has supplied digests.
-- **Honor them.** If the server still holds the definitions a known digest describes, it **MAY** serve the request under those definitions. This is how a server drains an old definition set across a deployment, or lets a long-running task finish against the tools it started with. A successful response then means the old definitions ran, and the client should not assume otherwise until it refreshes and sends the new digest.
-- **Reject them.** If a known digest does not match and the server will not honor it, the server rejects the request as stale.
+- **Honor them.** If the server still holds the definitions a known digest describes, it **MAY** serve the request under those definitions. This lets call sequences and tasks finish against the tool set they started with.
+- **Honor and signal.** As above, but the server names the stale methods in result `_meta` so the client knows to refresh. The client **SHOULD** do so when convenient (for example after the model returns an `END_TURN` stop reason) and **MUST NOT** treat the result as an error or retry the request.
+- **Reject.** If a known digest does not match and the server will not honor it, the server rejects the request as stale.
 
-Whatever it does, a server **SHOULD NOT** reject a request because it names methods the server does not digest or carries values that are not strings; it ignores those. Any string that does not equal a digest the server recognizes is a mismatch.
+Signal and reject carry the same list, `staleDigests`: the methods whose digests did not match, never the current digests. In a result it goes in `_meta`; in a rejection it goes in error `data`.
 
-A server that rejects a request for a digest mismatch **MUST** do so before operation-specific validation and before execution. That way a changed schema is reported as a stale definition, not as invalid arguments, and no side effects occur.
-
-The rejection is a JSON-RPC error. Its `data` **SHOULD** list the stale methods, so the client knows what to re-fetch. It **MUST NOT** include the current digests:
+```ts
+export interface ResultMetaObject extends MetaObject {
+  // Existing fields unchanged.
+  "io.modelcontextprotocol/staleDigests"?: string[];
+}
+```
 
 ```json
-{ "stale": ["tools/list", "skills/list"] }
+{ "_meta": { "io.modelcontextprotocol/staleDigests": ["tools/list"] } }
 ```
+
+```json
+{ "staleDigests": ["tools/list", "skills/list"] }
+```
+
+A server **SHOULD NOT** reject a request because it names methods the server does not digest or carries values that are not strings; it ignores those. A rejection **MUST** happen before operation-specific validation and before execution, so a changed schema is reported as stale rather than as invalid arguments, and no side effects occur.
 
 A standard error code needs to be allocated before this SEP is finalized; this draft does not propose a numeric code or an HTTP status. `UnsupportedProtocolVersionError` in the draft schema is the nearest model.
 
@@ -174,9 +183,9 @@ The digest does not change TTL or cache scope. It is not part of the cache key a
 
 **A field on `CacheableResult`.** `ttlMs` says how long a result may be held and `cacheScope` says who may share it. The digest says what the result is, and is the thing a client checks when the TTL turns out not to have been a guarantee. Those three belong together, and every result that already carries the first two is one that this SEP wants to digest. The schema permits the field today: `Result` has an open index signature, and no result type forbids additional properties, so a server can emit `digest` now and a later schema change simply names it.
 
-**Keyed by method.** A result carries one digest and the method says what it covers, so there is nothing to negotiate about structure on the response side. `server/discover` digests what discovery returns; a client that wants to know whether tools changed asks `tools/list`, which it was going to do anyway. The method only appears as a key when the client sends digests back, where a single request can vouch for several things at once. Methods are already unique, so `skills/list` or any future extension list joins the map without a naming rule, and one `stale` list covers everything.
+**Keyed by method.** A result carries one digest and the method says what it covers, so there is nothing to negotiate about structure on the response side. `server/discover` digests what discovery returns; a client that wants to know whether tools changed asks `tools/list`, which it was going to do anyway. The method only appears as a key when the client sends digests back, where a single request can vouch for several things at once. Methods are already unique, so `skills/list` or any future extension list joins the map without a naming rule, and one `staleDigests` list covers everything.
 
-**Digest versus page.** The caching rules key the cache by cursor, so a collection is several cache entries; the digest describes the collection. The mismatch is deliberate. Per-page keys are what make pages independently cacheable, and a per-collection digest is what lets a client know whether the pages it holds still belong together. Trying to make the digest per-page would just reinvent the ETag, which the HTTP proposal already covers.
+**Digest versus page.** The caching rules key the cache by cursor, so a collection is several cache entries; the digest describes the collection. The mismatch is deliberate. Per-page keys are what make pages independently cacheable, and a per-collection digest is what lets a client know whether the pages it holds still belong together. Trying to make the digest per-page would just reinvent the ETag, which belongs to the HTTP layer.
 
 **Request side in `_meta`.** There is no request-side counterpart to `CacheableResult`, and digests are relevant to many request types, so `_meta` is the natural place. The draft schema already uses typed `io.modelcontextprotocol/` keys on `RequestMetaObject` for `protocolVersion`, `clientInfo`, and `logLevel`.
 
@@ -198,10 +207,10 @@ The same care applies to the cache scope of a result carrying a digest. A result
 
 ## Reference Implementation
 
-The [HF MCP server](https://github.com/huggingface/hf-mcp-server) implements this. `main` has an earlier shape that puts a keyed map in result `_meta` under application keys; the `definition-digest-cacheable-result` branch moves to the top-level `digest` field described here, with `huggingface.co/known-digests` on the request side. Moving between the two took under an hour and six files, most of them tests. No SDK change was needed: the SDK's handler return types accept the extra field without a cast, and its result schemas are loose objects, so `digest` passes validation on both sides and the TypeScript client sees it. The branch's request-side map is still keyed `tools` and `instructions` rather than by method. It rejects on mismatch and does not yet honor old digests. Listings are unpaginated.
+The [HF MCP server](https://github.com/huggingface/hf-mcp-server) implements the response field, the request map (under the application key `huggingface.co/known-digests`), and the rejection path as described here. It began with a keyed map in result `_meta`; moving to the top-level `digest` field took under an hour and six files, most of them tests. No SDK change was needed: the SDK's handler return types accept the extra field without a cast, and its result schemas are loose objects, so `digest` passes validation on both sides and the TypeScript client sees it. It does not yet honor or signal. Listings are unpaginated.
 
 - It digests `tools/list` and `server/discover` (instructions only, so far), and checks known digests on `tools/call` only.
-- A mismatch is rejected before tool lookup, argument validation, or execution, with the application error code `-32987` (outside JSON-RPC's reserved range) and `data: { "stale": [...] }`. Unknown keys and non-string hints are ignored.
+- A mismatch is rejected before tool lookup, argument validation, or execution, with the application error code `-32987` (outside JSON-RPC's reserved range) and `data: { "staleDigests": [...] }`. Unknown keys and non-string hints are ignored.
 - Digests are supplied only where the complete tool list is cheap to build: anonymous requests and requests for a named, fixed set of tools. Other requests get no digest, their hints are ignored, and they keep the existing single-tool fast path. Digested results also carry `private` TTL cache hints; anonymous lists are not `public`, because they omit tools that require sign-in.
 - Tools are sorted by name, each tool's own `_meta` is included, and canonicalized JSON is hashed with SHA-256. Result-envelope metadata is excluded. For testing, a deploy-wide or runtime salt changes every digest without changing definitions, forcing clients through the mismatch path.
 
@@ -221,6 +230,7 @@ Implementations should test:
 - Requests are handled normally when hints are absent or ignored.
 - When checking is enabled, stale requests are rejected before any side effect.
 - When honoring is enabled, a request carrying an old digest runs against the old definitions, and one carrying an unknown digest is rejected.
+- When signaling, the result names the stale methods and no digests; the client uses the result and refreshes before its next dependent call.
 - Methods the server does not digest, extension methods, and malformed hints do not cause a rejection.
 - After a mismatch, the client refreshes from the server rather than from a still-fresh cached list.
 
