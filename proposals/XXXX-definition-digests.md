@@ -68,17 +68,13 @@ A result carries at most one digest. It covers the result payload with the envel
 | `resources/read` | nothing; servers omit the field |
 | an extension list, e.g. `skills/list` | as the extension defines |
 
-The client files the digest keyed by method.
-
-For `server/discover`, absent and empty instructions have different digests. `resources/read` has no digest because the method name alone does not identify what was read; see [Open Questions](#open-questions).
-
 An extension that defines a list operation and mirrors `ttlMs` and `cacheScope`, as `skills/list` does, **SHOULD** mirror `digest` the same way. A skills digest covers the catalog entries, not the files they point to, which already carry their own digests.
 
-A digest **MUST** be deterministic and collision-resistant. Adding, removing, or changing a definition changes it. Ordering, page size, cursors, and TTL do not. An empty collection still has a digest. A digest **MAY** also change when the definitions have not, for example after a change to how it is computed; clients treat this like any other change.
+A digest **MUST** be deterministic and collision-resistant. Adding, removing, or changing a definition changes it. Ordering, page size, cursors, and TTL do not. An empty collection still has a digest.
 
 Clients **MUST** treat digests as opaque strings and compare them only for equality.
 
-A server **MUST** compute a digest using the same authorization and tool-selection context it uses to produce the result it sits on. The exact canonicalization and the definition fields a digest covers are not yet specified (see [Open Questions](#open-questions)).
+A server **MUST** compute a digest using the same authorization and tool-selection context it uses to produce the result it sits on.
 
 ```json
 {
@@ -90,10 +86,6 @@ A server **MUST** compute a digest using the same authorization and tool-selecti
 }
 ```
 
-### Holding digests on the client
-
-Clients **MUST** keep each digest with the definitions it came with. Fetching a list again and seeing a different digest does not relabel what is already cached; it says the cache is out of date. A `list_changed` notification says the same thing: a client that receives one **SHOULD** treat its digest for that collection as stale, and a server that sends one **SHOULD** have changed the digest.
-
 ### Pagination
 
 The [caching rules](https://modelcontextprotocol.io/specification/draft/server/utilities/caching) cache each page separately, keyed by cursor, with its own TTL and no cross-page consistency guarantee. The digest describes the *collection*, not the page.
@@ -101,7 +93,6 @@ The [caching rules](https://modelcontextprotocol.io/specification/draft/server/u
 - A server **SHOULD** return the same digest on every page. A server paging live data returns the digest as of each page, which may differ.
 - A client **MUST NOT** combine pages with different digests. On a mismatch, whether between pages or from the server, it discards every page for that collection and starts again without a cursor.
 - A re-fetched page whose digest matches the pages already held **MAY** be treated as re-validating them, including any whose TTL has lapsed.
-- A client may send a digest from any page, since the server verifies it, but holds no collection until every page agrees.
 
 ### Sending known digests
 
@@ -145,8 +136,8 @@ Known digests are hints, not preconditions. No capability flag is required. The 
 
 A server that receives known digests on `tools/call`, `prompts/get`, `resources/read`, or an extension's equivalent has four choices:
 
-- **Ignore them.** The request is handled exactly as it would be without hints. This is the default and is always allowed, including after the server has supplied digests.
-- **Honor them.** If the server still holds the definitions a known digest describes, it **MAY** serve the request under those definitions. This lets call sequences and tasks finish against the tool set they started with.
+- **Ignore.** The request is handled exactly as it would be without hints.
+- **Honor.** If the server still holds the definitions a known digest describes, it **MAY** serve the request under those definitions. This lets call sequences and tasks finish against the tool set they started with.
 - **Honor and signal.** As above, but the server names the stale methods in result `_meta` so the client knows to refresh. The client **SHOULD** do so when convenient (for example after the model returns an `END_TURN` stop reason) and **MUST NOT** treat the result as an error or retry the request.
 - **Reject.** If a known digest does not match and the server will not honor it, the server rejects the request as stale.
 
@@ -167,15 +158,11 @@ export interface ResultMetaObject extends MetaObject {
 { "staleDigests": ["tools/list", "skills/list"] }
 ```
 
-A server **SHOULD NOT** reject a request because it names methods the server does not digest or carries values that are not strings; it ignores those. A rejection **MUST** happen before operation-specific validation and before execution, so a changed schema is reported as stale rather than as invalid arguments, and no side effects occur.
+A server **SHOULD** validate the digest before operation-specific validation and execution so that a changed schema is reported as stale rather than invalid arguments.
 
-A standard error code needs to be allocated before this SEP is finalized; this draft does not propose a numeric code or an HTTP status. `UnsupportedProtocolVersionError` in the draft schema is the nearest model.
+A standard error code needs to be allocated before this SEP is finalized; this draft does not propose a numeric code or an HTTP status.
 
-A client receiving this error **SHOULD** refresh the affected definitions and then decide whether the operation still makes sense. Refreshing means fetching from the server: the client **MUST NOT** satisfy the refresh from a cached list, even one whose TTL has not expired. The client **SHOULD NOT** blindly retry writes, and it **MUST NOT** copy a new digest into its request without also fetching the definitions it describes.
-
-### TTL and cache scope
-
-The digest does not change TTL or cache scope. It is not part of the cache key and is not an HTTP ETag. An unexpired TTL still does not guarantee that definitions are unchanged; the digest is how a client finds out. The one place the digest touches freshness is pagination, above, where a re-fetched page that carries the digest the client already holds tells it the other pages are still good.
+A client receiving this error **SHOULD** refresh the affected definitions and then decide whether the operation still makes sense. Refreshing means fetching from the server: the client **MUST NOT** copy a new digest without also fetching the definitions.
 
 ## Rationale
 
@@ -185,15 +172,9 @@ The digest does not change TTL or cache scope. It is not part of the cache key a
 
 **Keyed by method.** A result carries one digest and the method says what it covers, so there is nothing to negotiate about structure on the response side. `server/discover` digests what discovery returns; a client that wants to know whether tools changed asks `tools/list`, which it was going to do anyway. The method only appears as a key when the client sends digests back, where a single request can vouch for several things at once. Methods are already unique, so `skills/list` or any future extension list joins the map without a naming rule, and one `staleDigests` list covers everything.
 
-**Digest versus page.** The caching rules key the cache by cursor, so a collection is several cache entries; the digest describes the collection. The mismatch is deliberate. Per-page keys are what make pages independently cacheable, and a per-collection digest is what lets a client know whether the pages it holds still belong together. Trying to make the digest per-page would just reinvent the ETag, which belongs to the HTTP layer.
-
-**Request side in `_meta`.** There is no request-side counterpart to `CacheableResult`, and digests are relevant to many request types, so `_meta` is the natural place. The draft schema already uses typed `io.modelcontextprotocol/` keys on `RequestMetaObject` for `protocolVersion`, `clientInfo`, and `logLevel`.
-
 **The cost of checking.** Checking a single request means computing the digest of the whole collection, which can cost more than serving the request itself: a server that normally builds only the one tool being called must now build them all. Servers can limit this by supplying digests only where the complete collection is cheap to build, and ignoring hints elsewhere. Clients help by sending digests only when they hold one, so unchecked requests keep their existing cost.
 
 **Independent of HTTP caching.** A digest identifies definitions, while an ETag identifies an HTTP representation of a particular page. Keeping them separate lets this SEP work over any transport, and lets a companion HTTP retrieval proposal define ETags on its own terms.
-
-**Discovery alongside lists.** Instructions and capabilities can change how a model uses otherwise unchanged tools, so `server/discover` gets a digest of its own rather than folding into the lists.
 
 ## Backward Compatibility
 
