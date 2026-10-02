@@ -68,7 +68,7 @@ A result carries at most one digest. It covers the result payload with the envel
 | `resources/read` | nothing; servers omit the field |
 | an extension list, e.g. `skills/list` | as the extension defines |
 
-The method is not repeated in the response. The client knows what it asked for, and files the digest under that method. Methods become keys when the client sends digests back, below.
+The client files the digest keyed by method.
 
 For `server/discover`, absent and empty instructions have different digests. `resources/read` has no digest because the method name alone does not identify what was read; see [Open Questions](#open-questions).
 
