@@ -188,7 +188,7 @@ The same care applies to the cache scope of a result carrying a digest. A result
 
 ## Reference Implementation
 
-The [HF MCP server](https://github.com/huggingface/hf-mcp-server) implements the response field, the request map (under the application key `huggingface.co/known-digests`), and the rejection path as described here. It began with a keyed map in result `_meta`; moving to the top-level `digest` field took under an hour and six files, most of them tests. No SDK change was needed: the SDK's handler return types accept the extra field without a cast, and its result schemas are loose objects, so `digest` passes validation on both sides and the TypeScript client sees it. It does not yet honor or signal. Listings are unpaginated.
+The [HF MCP server](https://github.com/huggingface/hf-mcp-server) implements the response field, the request map (under the application key `huggingface.co/known-digests`), and the rejection path as described here.
 
 - It digests `tools/list` and `server/discover` (instructions only, so far), and checks known digests on `tools/call` only.
 - A mismatch is rejected before tool lookup, argument validation, or execution, with the application error code `-32987` (outside JSON-RPC's reserved range) and `data: { "staleDigests": [...] }`. Unknown keys and non-string hints are ignored.
