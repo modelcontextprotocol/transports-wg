@@ -38,36 +38,29 @@ The mechanism works alongside the existing `ttlMs` hint. Clients may choose more
 
 ### Use Cases
 
-The below scenarios describe how this feature is expected to be used.
+The scenarios below describe how this feature is expected to be used.
 
-**Server:**
+**Server**
 
-- Deployments
-- Versioning
-- Task draining
+- **Deployments.** During a rolling deploy, successive requests from one client can land on new and old instances. With tags, an instance that receives a request built against the other version's definitions can honor it, flag it, or reject it before anything runs, instead of silently misinterpreting the arguments.
 
+- **Versioning.** A server that wants to evolve its tool surface can keep more than one definition set live and use the known tag to select the one a client is working from. Clients migrate to the new set when they refresh, rather than the moment it is deployed.
 
-**Client:**
+- **Task draining.** A long-running task or multi-step call sequence may span a definition change that would break it midway. Honoring the tag the sequence started with lets the server finish the work against the original definitions, then retire them once nothing depends on them.
 
-- Lazy initialization. 
-- Impoved error handling
+**Client**
 
-Server
+- **Lazy initialization.** A client can reconnect and start calling tools from its cached definitions immediately, without a `tools/list` round trip. If the definitions have moved on, the server says so and the client refreshes only then. Existing optimistic cache mechanisms risk tool definition drift.
 
-Deploys (all updates but especially rolling deploys)
-Versioning MCP surface whole exposing multiple versions
-Completing long running tasks before updating definition that would break (sub part of deploys arguably)
+- **On-demand refresh.** A client can use its cached definitions optimistically and let the server tell it when they are out of date. Staleness is caught at the point of use rather than at the end of the `ttlMs` window, with no polling or subscription needed.
 
-Client:
-Lazy initialization, lean on server to tell you a conflict exists before updating anything
-know concretely when the world has changed, no active use during staleness without awareness
-discover new capabilities are available lazily
-better understand the error case when tool arguments are invalid because a server changed
-keep sessions running for months against same MCP without having to subscribe to updates
+- **Clearer errors.** Without tags, a schema change surfaces as an argument validation failure that the model has no way to reason about. A tag rejection names the stale method instead, so the client refreshes and retries rather than treating it as a model error.
 
+- **Long-lived clients.** A client can keep using the same server for weeks or months without subscribing to change notifications. The tags it sends on each call are enough for the server to tell it when a refresh is needed.
 
+**Pattern: progressive disclosure via a search tool**
 
-
+- A server can expose a small initial tool set with a `search` (or similar discovery) tool, enabling further tools based on what the client searches for. The search result carries `staleTags: ["tools/list"]`, which tells the client the catalogue has grown; it refreshes and the newly unlocked tools become available to the model, with no extra protocol machinery.
 
 ## Specification
 
@@ -165,6 +158,8 @@ For example, the parameters of a `tools/call` request might look like this (othe
 
 Known tags are hints, not preconditions. No capability flag is required. The `server/discover` tag is relevant to any operation, since instructions shape how the model uses everything else.
 
+A client **MAY** send every tag it holds, and **SHOULD** send at least the `server/discover` tag and the tag for the list the operation depends on (see [Relevance](#relevance)). Sending all of them costs a few hundred bytes and lets the server tell the client about changes to lists the request did not use.
+
 ### Handling known tags
 
 A server that receives known tags on `tools/call`, `prompts/get`, `resources/read`, or an extension's equivalent has four choices:
@@ -191,6 +186,18 @@ export interface ResultMetaObject extends MetaObject {
 { "staleTags": ["tools/list", "skills/list"] }
 ```
 
+#### Relevance
+
+A server **MUST** only reject a request for a tag that is relevant to it. Stale tags that are not relevant **MAY** be named in `staleTags` on the result, but never cause a rejection. A stale `prompts/list` tag does not fail a `tools/call`.
+
+| Operation | Relevant tags |
+|---|---|
+| any | `server/discover` |
+| `tools/call` | `tools/list` |
+| `prompts/get` | `prompts/list` |
+| `resources/read` | `resources/list`, `resources/templates/list` |
+| an extension operation | as the extension defines |
+
 A server **SHOULD** validate the tag before operation-specific validation and execution so that a changed schema is reported as stale rather than invalid arguments.
 
 A standard error code needs to be allocated before this SEP is finalized; this draft does not propose a numeric code or an HTTP status.
@@ -200,6 +207,12 @@ A client receiving this error **SHOULD** refresh the affected definitions and th
 ## Rationale
 
 **One tag per collection, not per primitive.** An earlier draft attached a tag to every primitive and made the check mandatory. That design could not detect newly added primitives, and it required every replica behind an endpoint to honor any tag the server had advertised. One tag per collection is simpler to compute and compare, and covers additions and removals. The cost is coarseness: any change to a collection invalidates requests against it, even if the specific tool the client wants is unchanged. It is still enough for draining, because a server that honors an old tag holds the whole old snapshot; it does not need a history per tool.
+
+**The list is the definitions.** In MCP a list result does not point at tools, prompts, or templates to be fetched separately; it contains them in full. The complete definition a client will ever hold is the entry in the list. A tag on the list therefore covers exactly what the client works from, and a change to a tool's arguments is a change to the list because there is nowhere else for it to appear. There is no lower-level object to version, and nothing to re-fetch but the list itself.
+
+**Not one tag for the whole server, either.** A single tag over everything would be simpler still, but tools, prompts, and resources are separate capabilities, each with its own `list_changed` notification, its own `CacheableResult`, and its own fetch. A resource list that changes every few seconds would force a client to re-fetch a tool list that changes once a quarter, and an extension list would be folded into a value it does not control. Per-list tags sit where the protocol already notifies and caches.
+
+Resources are the exception that shows the rule. `resources/list` returns descriptors, and the content a client actually uses is fetched by URI and may be individually subscribed. The list is a set of references rather than the definitions themselves, which is why `resources/read` carries no tag and remains an open question below.
 
 **A field on `CacheableResult`.** `ttlMs` says how long a result may be held and `cacheScope` says who may share it. The tag says what the result is, and is the thing a client checks when the TTL turns out not to have been a guarantee. Those three belong together, and every result that already carries the first two is one that this SEP wants to tag. The schema permits the field today: `Result` has an open index signature, and no result type forbids additional properties, so a server can emit `tag` now and a later schema change simply names it.
 
@@ -248,6 +261,7 @@ Implementations should test:
 - When honoring is enabled, a request carrying an old tag runs against the old definitions, and one carrying an unknown tag is rejected.
 - When signaling, the result names the stale methods and no tags; the client uses the result and refreshes before its next dependent call.
 - Methods the server does not tag, extension methods, and malformed hints do not cause a rejection.
+- A stale tag that is not relevant to the operation is signaled, not rejected.
 - After a mismatch, the client refreshes from the server rather than from a still-fresh cached list.
 
 ## Open Questions
