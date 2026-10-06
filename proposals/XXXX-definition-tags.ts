@@ -49,7 +49,8 @@ export interface CacheableResult extends Result {
    * What it covers is fixed by the method that produced the result, so the
    * method is not repeated here. Servers omit it on resources/read.
    *
-   * Clients MUST treat it as opaque and compare only for equality.
+   * Clients MUST treat it as opaque and compare only for equality. It never
+   * extends `ttlMs`: a stale signal can only make a refresh happen sooner.
    */
   tag?: string;
 }
@@ -92,19 +93,30 @@ export interface RequestMetaObject extends MetaObject {
 
 /* ---- Addition 3: `staleTags` on result `_meta` ---- */
 
+/**
+ * Methods whose definitions have changed, each mapped to the tag the client
+ * sent for it that did not match, or null when the client sent no tag for
+ * that method (for example, a server reporting that a tool list has grown).
+ * MUST NOT contain a current tag.
+ *
+ * Echoing the client's own tag lets it resolve responses that cross a
+ * refresh: if the value differs from the tag the client now holds, it has
+ * already refreshed and ignores the entry. A null value always means refresh.
+ */
+export type StaleTags = { [method in TaggedMethod]?: string | null };
+
 export interface ResultMetaObject extends MetaObject {
   // Existing fields (serverInfo, ...) unchanged.
 
   /**
-   * Methods whose known tag did not match the current definitions. The
-   * request was still served; the client SHOULD re-fetch these before its
-   * next dependent operation but MUST NOT treat this result as an error or
-   * retry the request. MUST NOT include current tags.
+   * The request was still served; the client SHOULD re-fetch the named
+   * methods before its next dependent operation but MUST NOT treat this
+   * result as an error or retry the request.
    *
    * Servers that honor a stale tag SHOULD set this so that honoring is
    * distinguishable from ignoring.
    */
-  "io.modelcontextprotocol/staleTags"?: TaggedMethod[];
+  "io.modelcontextprotocol/staleTags"?: StaleTags;
 }
 
 /* ---- Error data on a tag mismatch ---- */
@@ -112,9 +124,9 @@ export interface ResultMetaObject extends MetaObject {
 /**
  * `data` for the tag-mismatch JSON-RPC error, used when the server will
  * not serve the request against the tags it was given. The numeric code
- * is not yet allocated. Same list and same rule as the result `_meta` key:
- * name the methods, never the current tags.
+ * is not yet allocated. Same map and same rule as the result `_meta` key:
+ * echo the client's stale tags, never the current ones.
  */
 export interface TagMismatchErrorData {
-  staleTags: TaggedMethod[];
+  staleTags: StaleTags;
 }

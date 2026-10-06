@@ -34,7 +34,7 @@ The tag mechanism gives a server four options:
 
 *Authors note: "Honor" may be difficult or SDK dependent, since the server must hold more than one request shape for the same tool or prompt identity.*
 
-The mechanism works alongside the existing `ttlMs` hint. Clients may choose more aggressive caching strategies based on optimistic calling.
+The mechanism works alongside the existing `ttlMs` hint. Clients can call optimistically within the TTL and let the server catch changes the TTL did not predict.
 
 ### Use Cases
 
@@ -60,7 +60,7 @@ The scenarios below describe how this feature is expected to be used.
 
 **Pattern: progressive disclosure via a search tool**
 
-- A server can expose a small initial tool set with a `search` (or similar discovery) tool, enabling further tools based on what the client searches for. The search result carries `staleTags: ["tools/list"]`, which tells the client the catalogue has grown; it refreshes and the newly unlocked tools become available to the model, with no extra protocol machinery.
+- A server can expose a small initial tool set with a `search` (or similar discovery) tool, enabling further tools based on what the client searches for. The search result carries `staleTags` naming `tools/list` (with the tag the client sent, or `null` if it sent none), which tells the client the catalogue has grown; it refreshes and the newly unlocked tools become available to the model, with no extra protocol machinery.
 
 ## Specification
 
@@ -100,6 +100,8 @@ A tag **MUST** be deterministic and collision-resistant. Adding, removing, or ch
 
 Clients **MUST** treat tags as opaque strings and compare them only for equality.
 
+Tags never extend a TTL. A client **MUST** still refresh when a TTL expires; a stale signal can only make a refresh happen sooner.
+
 A server **MUST** compute a tag using the same authorization and tool-selection context it uses to produce the result it sits on.
 
 ```json
@@ -118,7 +120,6 @@ The [caching rules](https://modelcontextprotocol.io/specification/draft/server/u
 
 - A server **SHOULD** return the same tag on every page. A server paging live data returns the tag as of each page, which may differ.
 - A client **MUST NOT** combine pages with different tags. On a mismatch, whether between pages or from the server, it discards every page for that collection and starts again without a cursor.
-- A re-fetched page whose tag matches the pages already held **MAY** be treated as re-validating them, including any whose TTL has lapsed.
 
 ### Sending known tags
 
@@ -158,7 +159,7 @@ For example, the parameters of a `tools/call` request might look like this (othe
 
 Known tags are hints, not preconditions. No capability flag is required. The `server/discover` tag is relevant to any operation, since instructions shape how the model uses everything else.
 
-A client **MAY** send every tag it holds, and **SHOULD** send at least the `server/discover` tag and the tag for the list the operation depends on (see [Relevance](#relevance)). Sending all of them costs a few hundred bytes and lets the server tell the client about changes to lists the request did not use.
+A client **MAY** send every tag it holds, and **SHOULD** send at least the `server/discover` tag and the tag for the list the operation depends on (see [Relevance](#relevance)).
 
 ### Handling known tags
 
@@ -166,25 +167,30 @@ A server that receives known tags on `tools/call`, `prompts/get`, `resources/rea
 
 - **Ignore.** The request is handled exactly as it would be without hints.
 - **Honor.** If the server still holds the definitions a known tag describes, it **MAY** serve the request under those definitions. This lets call sequences and tasks finish against the tool set they started with.
-- **Honor and signal.** As above, but the server names the stale methods in result `_meta` so the client knows to refresh. The client **SHOULD** do so when convenient (for example after the model returns an `END_TURN` stop reason) and **MUST NOT** treat the result as an error or retry the request.
+- **Honor and signal.** As above, but the server names the stale methods in result `_meta`, with the tags it found stale, so the client knows to refresh. The client **SHOULD** do so when convenient (for example after the model returns an `END_TURN` stop reason) and **MUST NOT** treat the result as an error or retry the request.
 - **Reject.** If a known tag does not match and the server will not honor it, the server rejects the request as stale.
 
-Signal and reject carry the same list, `staleTags`: the methods whose tags did not match, never the current tags. In a result it goes in `_meta`; in a rejection it goes in error `data`.
+Signal and reject carry the same map, `staleTags`, keyed by method. Each value is the tag the client sent for that method that did not match, or `null` when the server reports a change for a method the client sent no tag for. It **MUST NOT** contain a current tag. In a result it goes in `_meta`; in a rejection it goes in error `data`.
 
 ```ts
+/** Method -> the stale tag the client sent, or null if it sent none. */
+export type StaleTags = { [method: string]: string | null };
+
 export interface ResultMetaObject extends MetaObject {
   // Existing fields unchanged.
-  "io.modelcontextprotocol/staleTags"?: string[];
+  "io.modelcontextprotocol/staleTags"?: StaleTags;
 }
 ```
 
 ```json
-{ "_meta": { "io.modelcontextprotocol/staleTags": ["tools/list"] } }
+{ "_meta": { "io.modelcontextprotocol/staleTags": { "tools/list": "sha256:A..." } } }
 ```
 
 ```json
-{ "staleTags": ["tools/list", "skills/list"] }
+{ "staleTags": { "tools/list": "sha256:A...", "skills/list": "sha256:C..." } }
 ```
+
+Echoing the client's own tag lets it resolve responses that cross a refresh. A client compares each string value with the tag it now holds for that method: if they differ, it has already refreshed past that tag and ignores the entry; if they are equal, it refreshes. A `null` value always means refresh.
 
 #### Relevance
 
@@ -216,9 +222,11 @@ Resources are the exception that shows the rule. `resources/list` returns descri
 
 **A field on `CacheableResult`.** `ttlMs` says how long a result may be held and `cacheScope` says who may share it. The tag says what the result is, and is the thing a client checks when the TTL turns out not to have been a guarantee. Those three belong together, and every result that already carries the first two is one that this SEP wants to tag. The schema permits the field today: `Result` has an open index signature, and no result type forbids additional properties, so a server can emit `tag` now and a later schema change simply names it.
 
-**Keyed by method.** A result carries one tag and the method says what it covers, so there is nothing to negotiate about structure on the response side. `server/discover` tags what discovery returns; a client that wants to know whether tools changed asks `tools/list`, which it was going to do anyway. The method only appears as a key when the client sends tags back, where a single request can vouch for several things at once. Methods are already unique, so `skills/list` or any future extension list joins the map without a naming rule, and one `staleTags` list covers everything.
+**Keyed by method.** A result carries one tag and the method says what it covers, so there is nothing to negotiate about structure on the response side. `server/discover` tags what discovery returns; a client that wants to know whether tools changed asks `tools/list`, which it was going to do anyway. The method only appears as a key when the client sends tags back, where a single request can vouch for several things at once. Methods are already unique, so `skills/list` or any future extension list joins the map without a naming rule, and one `staleTags` map covers everything.
 
 **The cost of checking.** Checking a single request means computing the tag of the whole collection, which can cost more than serving the request itself: a server that normally builds only the one tool being called must now build them all. Servers can limit this by supplying tags only where the complete collection is cheap to build, and ignoring hints elsewhere. Clients help by sending tags only when they hold one, so unchecked requests keep their existing cost.
+
+**Echoing the stale tag.** `staleTags` could have been a plain list of methods, but a client with several requests in flight cannot tell from `["tools/list"]` alone whether a late response refers to the tag it has already replaced or to the one it holds now, and would refresh again for nothing or learn to ignore the signal. Echoing the tag the client sent makes each response self-describing without the client tracking which tag went with which request, which matters for tasks and other long-running calls. It reveals nothing the client did not already have, so it does not weaken the rule against returning current tags; that rule exists so a client cannot adopt a tag without fetching the definitions it describes.
 
 **Naming.** Earlier drafts called this a *digest*. The skills extension already uses `digest` for a verifiable content hash of a file, which a client may recompute and check; this value is the opposite, an opaque string compared only for equality, so it needs a different name. "Version" was avoided because the schema already uses it for `Implementation.version`, `supportedVersions`, and protocol revisions, and because it suggests an ordering that tags do not have. In prose it is a *definition tag*; on the wire it is just `tag`, `knownTags`, and `staleTags`, since the method that produced it already says what it covers.
 
@@ -236,7 +244,7 @@ The same care applies to the cache scope of a result carrying a tag. A result ma
 
 ## Reference Implementation
 
-The [HF MCP server](https://github.com/huggingface/hf-mcp-server) implements the response field, the request map (under the application key `huggingface.co/known-digests`), and the rejection path as described here. It predates the rename from "digest" to "tag" and still uses the earlier wire names (`digest`, `staleDigests`).
+The [HF MCP server](https://github.com/huggingface/hf-mcp-server) implements the response field, the request map (under the application key `huggingface.co/known-digests`), and the rejection path as described here. It predates the rename from "digest" to "tag" and still uses the earlier wire names (`digest`, `staleDigests`), and its stale list is a plain list of methods rather than a map.
 
 - It tags `tools/list` and `server/discover` (instructions only, so far), and checks known tags on `tools/call` only.
 - A mismatch is rejected before tool lookup, argument validation, or execution, with the application error code `-32987` (outside JSON-RPC's reserved range) and `data: { "staleDigests": [...] }`. Unknown keys and non-string hints are ignored.
@@ -259,7 +267,8 @@ Implementations should test:
 - Requests are handled normally when hints are absent or ignored.
 - When checking is enabled, stale requests are rejected before any side effect.
 - When honoring is enabled, a request carrying an old tag runs against the old definitions, and one carrying an unknown tag is rejected.
-- When signaling, the result names the stale methods and no tags; the client uses the result and refreshes before its next dependent call.
+- When signaling, the result names each stale method with the tag the client sent (or `null` if it sent none) and never a current tag; the client uses the result and refreshes before its next dependent call.
+- A client that has already refreshed ignores a `staleTags` entry whose value differs from the tag it now holds, and always refreshes on `null`.
 - Methods the server does not tag, extension methods, and malformed hints do not cause a rejection.
 - A stale tag that is not relevant to the operation is signaled, not rejected.
 - After a mismatch, the client refreshes from the server rather than from a still-fresh cached list.
@@ -267,7 +276,6 @@ Implementations should test:
 ## Open Questions
 
 - Whether `resources/read` should ever carry a tag (of its contents), and if so how a client would send it back, since its cache key includes the `uri` and `KnownTags` is keyed by method alone.
-- Whether a re-fetched page whose tag matches should be allowed to re-validate pages whose TTL has lapsed. This draft says **MAY**. It is the only place the tag affects freshness, and it is what makes per-page re-fetch useful; without it a client would re-fetch every expired page in turn to learn nothing new.
 - Whether `server/discover` should be able to carry the list tags as well as its own, so a client can learn that nothing changed without re-listing. This draft says no, to keep one tag per result; the cost is one extra round trip per collection after reconnect.
 - Whether the `server/discover` tag should cover `supportedVersions` and `capabilities` along with `instructions`. This draft says yes, on the rule that a tag covers the payload minus the envelope, so the same rule serves extension results.
 - How long a server that honors old tags should keep them, and whether it should say so. This draft leaves it to the server.
