@@ -1,7 +1,7 @@
 /**
- * Informative TypeScript reference for SEP-XXXX: Definition Digests.
+ * Informative TypeScript reference for SEP-XXXX: Definition Tags.
  *
- * XXXX-definition-digests.md is authoritative. This file shows the two
+ * XXXX-definition-tags.md is authoritative. This file shows the two
  * additions the SEP makes to the 2026-07-28 schema and nothing else. It
  * does not validate runtime behavior.
  *
@@ -24,12 +24,12 @@ interface Result {
 
 /* ResultMetaObject is extended below (Addition 3). */
 
-/* ---- Addition 1: `digest` on CacheableResult ---- */
+/* ---- Addition 1: `tag` on CacheableResult ---- */
 
 /**
  * A result that supports client-side caching hints.
  *
- * The SEP adds `digest`. Every result type that already extends
+ * The SEP adds `tag`. Every result type that already extends
  * CacheableResult (server/discover, the four list methods, resources/read,
  * and extension lists such as skills/list) inherits it with no further
  * schema change.
@@ -40,27 +40,27 @@ export interface CacheableResult extends Result {
   /** Who may share the cached response. */
   cacheScope: "public" | "private";
   /**
-   * An opaque, deterministic identifier for what this result describes,
-   * with the envelope removed (`resultType`, `_meta`, `ttlMs`, `cacheScope`,
-   * `digest`, `nextCursor`). For a list, it covers the complete collection
-   * the caller can see, not the page in hand. It changes whenever the
-   * definitions do.
+   * The definition tag: an opaque, deterministic identifier for what this
+   * result describes, with the envelope removed (`resultType`, `_meta`,
+   * `ttlMs`, `cacheScope`, `tag`, `nextCursor`). For a list, it covers the
+   * complete collection the caller can see, not the page in hand. It changes
+   * whenever the definitions do.
    *
    * What it covers is fixed by the method that produced the result, so the
    * method is not repeated here. Servers omit it on resources/read.
    *
    * Clients MUST treat it as opaque and compare only for equality.
    */
-  digest?: string;
+  tag?: string;
 }
 
-/* ---- Addition 2: `knownDigests` on request `_meta` ---- */
+/* ---- Addition 2: `knownTags` on request `_meta` ---- */
 
 /**
- * A method that produces a digest. Methods are unique, so extension list
+ * A method that produces a tag. Methods are unique, so extension list
  * methods (e.g. "skills/list") need no further naming rule.
  */
-export type DigestMethod =
+export type TaggedMethod =
   | "server/discover"
   | "tools/list"
   | "prompts/list"
@@ -69,52 +69,52 @@ export type DigestMethod =
   | (string & {});
 
 /**
- * Digests a client is working from, keyed by the method that produced each
+ * Tags a client is working from, keyed by the method that produced each
  * one. Any request may carry this.
  */
-export type KnownDigests = { [method in DigestMethod]?: string };
+export type KnownTags = { [method in TaggedMethod]?: string };
 
 export interface RequestMetaObject extends MetaObject {
   // Existing fields (progressToken, protocolVersion, clientInfo, ...) unchanged.
 
   /**
    * Hints, not preconditions. A server MAY ignore them, honor them by
-   * serving the request under the definitions a digest describes, or reject
+   * serving the request under the definitions a tag describes, or reject
    * the request as stale. A rejection MUST happen before operation-specific
    * validation and before any side effect.
    *
-   * Clients SHOULD only send digests received from the same server in the
+   * Clients SHOULD only send tags received from the same server in the
    * same authorization context. Key naming follows the `_meta` rules; the
    * `io.modelcontextprotocol/` prefix is proposed, not yet allocated.
    */
-  "io.modelcontextprotocol/knownDigests"?: KnownDigests;
+  "io.modelcontextprotocol/knownTags"?: KnownTags;
 }
 
-/* ---- Addition 3: `staleDigests` on result `_meta` ---- */
+/* ---- Addition 3: `staleTags` on result `_meta` ---- */
 
 export interface ResultMetaObject extends MetaObject {
   // Existing fields (serverInfo, ...) unchanged.
 
   /**
-   * Methods whose known digest did not match the current definitions. The
+   * Methods whose known tag did not match the current definitions. The
    * request was still served; the client SHOULD re-fetch these before its
    * next dependent operation but MUST NOT treat this result as an error or
-   * retry the request. MUST NOT include current digests.
+   * retry the request. MUST NOT include current tags.
    *
-   * Servers that honor a stale digest SHOULD set this so that honoring is
+   * Servers that honor a stale tag SHOULD set this so that honoring is
    * distinguishable from ignoring.
    */
-  "io.modelcontextprotocol/staleDigests"?: DigestMethod[];
+  "io.modelcontextprotocol/staleTags"?: TaggedMethod[];
 }
 
-/* ---- Error data on a digest mismatch ---- */
+/* ---- Error data on a tag mismatch ---- */
 
 /**
- * `data` for the digest-mismatch JSON-RPC error, used when the server will
- * not serve the request against the digests it was given. The numeric code
+ * `data` for the tag-mismatch JSON-RPC error, used when the server will
+ * not serve the request against the tags it was given. The numeric code
  * is not yet allocated. Same list and same rule as the result `_meta` key:
- * name the methods, never the current digests.
+ * name the methods, never the current tags.
  */
-export interface DigestMismatchErrorData {
-  staleDigests: DigestMethod[];
+export interface TagMismatchErrorData {
+  staleTags: TaggedMethod[];
 }
