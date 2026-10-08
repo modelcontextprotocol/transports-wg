@@ -1,0 +1,9 @@
+{
+  "prompt": "a tiny astronaut hatching from an egg on the moon, soft studio lighting",
+  "seed": 0,
+  "randomize_seed": true,
+  "width": 512,
+  "height": 512,
+  "num_inference_steps": 4,
+  "api_name": "/infer"
+}

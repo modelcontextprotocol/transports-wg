@@ -1,0 +1,89 @@
+{
+  "id": "huggingface-projects/gemma-4-12b-it",
+  "author": "huggingface-projects",
+  "card_data": {},
+  "created_at": "2026-06-02T05:33:29+00:00",
+  "disabled": false,
+  "gated": false,
+  "host": "https://huggingface-projects-gemma-4-12b-it.hf.space",
+  "last_modified": "2026-06-28T04:16:25+00:00",
+  "likes": 109,
+  "models": [
+    "google/gemma-4-12B-it"
+  ],
+  "private": false,
+  "runtime": {
+    "stage": "RUNNING",
+    "hardware": "zero-a10g",
+    "requested_hardware": "zero-a10g",
+    "sleep_time": 172800,
+    "dev_mode": false,
+    "raw": {
+      "stage": "RUNNING",
+      "hardware": {
+        "current": "zero-a10g",
+        "requested": "zero-a10g"
+      },
+      "gcTimeout": 172800,
+      "replicas": {
+        "current": 1,
+        "requested": 1
+      },
+      "devMode": false,
+      "domains": [
+        {
+          "domain": "huggingface-projects-gemma-4-12b-it.hf.space",
+          "stage": "READY"
+        }
+      ],
+      "sha": "c333a187214098d4cff64a44dcc55baf04470b48",
+      "pySpacesVersion": "0.50.4"
+    }
+  },
+  "sdk": "gradio",
+  "sha": "c333a187214098d4cff64a44dcc55baf04470b48",
+  "siblings": [
+    {
+      "rfilename": ".gitattributes"
+    },
+    {
+      "rfilename": ".gitignore"
+    },
+    {
+      "rfilename": ".python-version"
+    },
+    {
+      "rfilename": "README.md"
+    },
+    {
+      "rfilename": "app.py"
+    },
+    {
+      "rfilename": "params.py"
+    },
+    {
+      "rfilename": "pyproject.toml"
+    },
+    {
+      "rfilename": "requirements.txt"
+    },
+    {
+      "rfilename": "static/app.js"
+    },
+    {
+      "rfilename": "static/index.html"
+    },
+    {
+      "rfilename": "static/style.css"
+    },
+    {
+      "rfilename": "uv.lock"
+    }
+  ],
+  "subdomain": "huggingface-projects-gemma-4-12b-it",
+  "tags": [
+    "gradio",
+    "region:us"
+  ],
+  "used_storage": 12052166
+}

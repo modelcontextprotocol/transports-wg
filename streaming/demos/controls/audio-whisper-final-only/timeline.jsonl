@@ -1,0 +1,8 @@
+{"elapsed": 0.5, "code": "Status.STARTING", "progress": []}
+{"elapsed": 1.0, "code": "Status.STARTING", "progress": []}
+{"elapsed": 1.5, "code": "Status.PROCESSING", "progress": []}
+{"elapsed": 2.0, "code": "Status.PROCESSING", "progress": []}
+{"elapsed": 2.5, "code": "Status.PROCESSING", "progress": []}
+{"elapsed": 3.0, "code": "Status.PROCESSING", "progress": []}
+{"elapsed": 3.51, "code": "Status.PROCESSING", "progress": []}
+{"elapsed": 4.01, "code": "Status.FINISHED", "progress": []}

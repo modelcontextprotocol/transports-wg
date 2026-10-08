@@ -1,0 +1,10 @@
+{
+  "space": "evalstate/flux-streaming-denoising",
+  "api_name": "/infer_streaming",
+  "prompt": "a tiny astronaut hatching from a translucent blue egg on the moon, cinematic lighting",
+  "seed": 12345,
+  "randomize_seed": false,
+  "width": 768,
+  "height": 768,
+  "num_inference_steps": 4
+}

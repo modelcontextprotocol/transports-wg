@@ -1,0 +1,63 @@
+{
+  "type": "object",
+  "properties": {
+    "text_input": {
+      "type": "string",
+      "description": "The text to synthesize into speech (maximum 300 characters)"
+    },
+    "language_id": {
+      "type": "string",
+      "enum": [
+        "ar",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "fi",
+        "fr",
+        "he",
+        "hi",
+        "it",
+        "ja",
+        "ko",
+        "ms",
+        "nl",
+        "no",
+        "pl",
+        "pt",
+        "ru",
+        "sv",
+        "sw",
+        "tr",
+        "zh"
+      ],
+      "description": "The language code for synthesis (eg. en, fr, de, es, it, pt, hi)"
+    },
+    "audio_prompt_path_input": {
+      "required": [
+        "path"
+      ],
+      "title": "FileData",
+      "type": "string",
+      "description": "File path or URL to the reference audio file that defines the target voice style. Defaults to None.",
+      "format": "a http or https url to a file"
+    },
+    "exaggeration_input": {
+      "type": "number",
+      "description": "Controls speech expressiveness (0.25-2.0, neutral=0.5, extreme values may be unstable). Defaults to 0.5."
+    },
+    "temperature_input": {
+      "type": "number",
+      "description": "Controls randomness in generation (0.05-5.0, higher=more varied). Defaults to 0.8."
+    },
+    "seed_num_input": {
+      "type": "number",
+      "description": "Random seed for reproducible results (0 for random generation). Defaults to 0."
+    },
+    "cfgw_input": {
+      "type": "number",
+      "description": "CFG/Pace weight controlling generation guidance (0.2-1.0). Defaults to 0.5, 0 for language transfer."
+    }
+  }
+}

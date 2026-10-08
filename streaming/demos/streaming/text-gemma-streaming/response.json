@@ -1,0 +1,13 @@
+{
+  "event_id": "8da88848282b412ea22500e564b3b3be",
+  "terminal_event": "complete",
+  "elapsed_seconds": 7.074452,
+  "time_to_first_content_seconds": 4.141263,
+  "content_update_count": 44,
+  "reasoning_update_count": 0,
+  "final_content": "The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from a lost world waited in the shadows.",
+  "final_content_characters": 252,
+  "final_artifact": "artifacts/final.txt",
+  "final_content_sentences": 5,
+  "final_content_sha256": "d71fa08f055878b941d2c8c4b9f161527de79a7062f51f94f05dd78f5ee1c107"
+}

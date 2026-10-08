@@ -1,0 +1,20 @@
+{"elapsed_seconds": 1.863427, "message": {"type": "status", "state": "infer", "audio_sec": 1.5, "sent_sec": 1.5}}
+{"elapsed_seconds": 2.483585, "message": {"type": "delta", "delta": "[", "audio_sec": 1.5, "n_gen": 1}}
+{"elapsed_seconds": 2.532956, "message": {"type": "delta", "delta": "spk_0] Mister Qu", "audio_sec": 1.5, "n_gen": 8}}
+{"elapsed_seconds": 2.563281, "message": {"type": "delta", "delta": "ilter is the", "audio_sec": 1.5, "n_gen": 12}}
+{"elapsed_seconds": 2.56331, "message": {"type": "update", "new": "[spk_0] Mister Quilter is the", "confirmed": "[spk_0] Mister Quilter is the", "audio_sec": 1.5, "sent_sec": 1.5, "latency": 0.7, "n_prompt": 92, "n_gen": 12, "finish": "stop", "overlap": 0, "raw": "[spk_0] Mister Quilter is the", "skipped": 0}}
+{"elapsed_seconds": 3.42686, "message": {"type": "status", "state": "infer", "audio_sec": 3.1, "sent_sec": 3.1}}
+{"elapsed_seconds": 3.495965, "message": {"type": "delta", "delta": "[", "audio_sec": 3.1, "n_gen": 1}}
+{"elapsed_seconds": 3.550238, "message": {"type": "delta", "delta": "spk_0] Mr.", "audio_sec": 3.1, "n_gen": 8}}
+{"elapsed_seconds": 3.603771, "message": {"type": "delta", "delta": " Quilter is the apostle of", "audio_sec": 3.1, "n_gen": 15}}
+{"elapsed_seconds": 3.641508, "message": {"type": "delta", "delta": " the middle classes.", "audio_sec": 3.1, "n_gen": 20}}
+{"elapsed_seconds": 3.641558, "message": {"type": "update", "new": "[spk_0] Mr. Quilter is the apostle of the middle classes.", "confirmed": "[spk_0] Mr. Quilter is the apostle of the middle classes.", "audio_sec": 3.1, "sent_sec": 3.1, "latency": 0.22, "n_prompt": 112, "n_gen": 20, "finish": "stop", "overlap": 0, "raw": "[spk_0] Mr. Quilter is the apostle of the middle classes.", "skipped": 0}}
+{"elapsed_seconds": 4.982912, "message": {"type": "status", "state": "infer", "audio_sec": 4.6, "sent_sec": 4.6}}
+{"elapsed_seconds": 5.608445, "message": {"type": "delta", "delta": " And", "audio_sec": 4.6, "n_gen": 1}}
+{"elapsed_seconds": 5.659988, "message": {"type": "delta", "delta": " we are glad to welcome him.", "audio_sec": 4.6, "n_gen": 8}}
+{"elapsed_seconds": 5.667874, "message": {"type": "update", "new": " And we are glad to welcome him.", "confirmed": "[spk_0] Mr. Quilter is the apostle of the middle classes. And we are glad to welcome him.", "audio_sec": 4.6, "sent_sec": 4.6, "latency": 0.69, "n_prompt": 151, "n_gen": 9, "finish": "stop", "overlap": 0, "raw": " And we are glad to welcome him.", "skipped": 0}}
+{"elapsed_seconds": 6.522005, "message": {"type": "status", "state": "infer", "audio_sec": 6.1, "sent_sec": 6.1}}
+{"elapsed_seconds": 7.446912, "message": {"type": "delta", "delta": " And", "audio_sec": 6.1, "n_gen": 1}}
+{"elapsed_seconds": 7.500417, "message": {"type": "delta", "delta": " we are glad to welcome his gospel", "audio_sec": 6.1, "n_gen": 8}}
+{"elapsed_seconds": 7.515382, "message": {"type": "delta", "delta": ".", "audio_sec": 6.1, "n_gen": 10}}
+{"elapsed_seconds": 7.515415, "message": {"type": "update", "new": " And we are glad to welcome his gospel.", "confirmed": "[spk_0] Mr. Quilter is the apostle of the middle classes. And we are glad to welcome his gospel.", "audio_sec": 6.1, "sent_sec": 6.1, "latency": 1.0, "n_prompt": 171, "n_gen": 10, "finish": "stop", "overlap": 0, "raw": " And we are glad to welcome his gospel.", "skipped": 0}}
