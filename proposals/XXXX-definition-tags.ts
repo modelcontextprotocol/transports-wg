@@ -1,0 +1,132 @@
+/**
+ * Informative TypeScript reference for SEP-XXXX: Definition Tags.
+ *
+ * XXXX-definition-tags.md is authoritative. This file shows the two
+ * additions the SEP makes to the 2026-07-28 schema and nothing else. It
+ * does not validate runtime behavior.
+ *
+ * Base types are shown inline rather than imported, so the fragment reads
+ * standalone. They match schema/2026-07-28/schema.ts in
+ * modelcontextprotocol/modelcontextprotocol.
+ */
+
+/* ---- Base types, unchanged, for context ---- */
+
+interface MetaObject {
+  [key: string]: unknown;
+}
+
+interface Result {
+  _meta?: ResultMetaObject;
+  resultType: "complete" | "input_required";
+  [key: string]: unknown;
+}
+
+/* ResultMetaObject is extended below (Addition 3). */
+
+/* ---- Addition 1: `tag` on CacheableResult ---- */
+
+/**
+ * A result that supports client-side caching hints.
+ *
+ * The SEP adds `tag`. Every result type that already extends
+ * CacheableResult (server/discover, the four list methods, resources/read,
+ * and extension lists such as skills/list) inherits it with no further
+ * schema change.
+ */
+export interface CacheableResult extends Result {
+  /** Freshness hint in milliseconds, analogous to Cache-Control max-age. @minimum 0 */
+  ttlMs: number;
+  /** Who may share the cached response. */
+  cacheScope: "public" | "private";
+  /**
+   * The definition tag: an opaque, deterministic identifier for what this
+   * result describes, with the envelope removed (`resultType`, `_meta`,
+   * `ttlMs`, `cacheScope`, `tag`, `nextCursor`). For a list, it covers the
+   * complete collection the caller can see, not the page in hand. It changes
+   * whenever the definitions do.
+   *
+   * What it covers is fixed by the method that produced the result, so the
+   * method is not repeated here. Servers omit it on resources/read.
+   *
+   * Clients MUST treat it as opaque and compare only for equality. It never
+   * extends `ttlMs`: a stale signal can only make a refresh happen sooner.
+   */
+  tag?: string;
+}
+
+/* ---- Addition 2: `knownTags` on request `_meta` ---- */
+
+/**
+ * A method that produces a tag. Methods are unique, so extension list
+ * methods (e.g. "skills/list") need no further naming rule.
+ */
+export type TaggedMethod =
+  | "server/discover"
+  | "tools/list"
+  | "prompts/list"
+  | "resources/list"
+  | "resources/templates/list"
+  | (string & {});
+
+/**
+ * Tags a client is working from, keyed by the method that produced each
+ * one. Any request may carry this.
+ */
+export type KnownTags = { [method in TaggedMethod]?: string };
+
+export interface RequestMetaObject extends MetaObject {
+  // Existing fields (progressToken, protocolVersion, clientInfo, ...) unchanged.
+
+  /**
+   * Hints, not preconditions. A server MAY ignore them, honor them by
+   * serving the request under the definitions a tag describes, or reject
+   * the request as stale. A rejection MUST happen before operation-specific
+   * validation and before any side effect.
+   *
+   * Clients SHOULD only send tags received from the same server in the
+   * same authorization context. Key naming follows the `_meta` rules; the
+   * `io.modelcontextprotocol/` prefix is proposed, not yet allocated.
+   */
+  "io.modelcontextprotocol/knownTags"?: KnownTags;
+}
+
+/* ---- Addition 3: `staleTags` on result `_meta` ---- */
+
+/**
+ * Methods whose definitions have changed, each mapped to the tag the client
+ * sent for it that did not match, or null when the client sent no tag for
+ * that method (for example, a server reporting that a tool list has grown).
+ * MUST NOT contain a current tag.
+ *
+ * Echoing the client's own tag lets it resolve responses that cross a
+ * refresh: if the value differs from the tag the client now holds, it has
+ * already refreshed and ignores the entry. A null value always means refresh.
+ */
+export type StaleTags = { [method in TaggedMethod]?: string | null };
+
+export interface ResultMetaObject extends MetaObject {
+  // Existing fields (serverInfo, ...) unchanged.
+
+  /**
+   * The request was still served; the client SHOULD re-fetch the named
+   * methods before its next dependent operation but MUST NOT treat this
+   * result as an error or retry the request.
+   *
+   * Servers that honor a stale tag SHOULD set this so that honoring is
+   * distinguishable from ignoring.
+   */
+  "io.modelcontextprotocol/staleTags"?: StaleTags;
+}
+
+/* ---- Error data on a tag mismatch ---- */
+
+/**
+ * `data` for the tag-mismatch JSON-RPC error, used when the server will
+ * not serve the request against the tags it was given. The numeric code
+ * is not yet allocated. Same map and same rule as the result `_meta` key:
+ * echo the client's stale tags, never the current ones.
+ */
+export interface TagMismatchErrorData {
+  staleTags: StaleTags;
+}
