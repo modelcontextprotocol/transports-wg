@@ -1,0 +1,162 @@
+{"sequence": 0, "elapsed_seconds": 4.081485, "line": "event: generating"}
+{"sequence": 1, "elapsed_seconds": 4.081545, "line": "data: [{\"reasoning\": \"\", \"content\": \"\"}]"}
+{"sequence": 2, "elapsed_seconds": 4.081569, "line": ""}
+{"sequence": 3, "elapsed_seconds": 4.141163, "line": "event: generating"}
+{"sequence": 4, "elapsed_seconds": 4.141263, "line": "data: [{\"reasoning\": \"\", \"content\": \"The \"}]"}
+{"sequence": 5, "elapsed_seconds": 4.141382, "line": ""}
+{"sequence": 6, "elapsed_seconds": 4.199702, "line": "event: generating"}
+{"sequence": 7, "elapsed_seconds": 4.199806, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut \"}]"}
+{"sequence": 8, "elapsed_seconds": 4.199942, "line": ""}
+{"sequence": 9, "elapsed_seconds": 4.256927, "line": "event: generating"}
+{"sequence": 10, "elapsed_seconds": 4.257024, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped \"}]"}
+{"sequence": 11, "elapsed_seconds": 4.257133, "line": ""}
+{"sequence": 12, "elapsed_seconds": 4.329952, "line": "event: generating"}
+{"sequence": 13, "elapsed_seconds": 4.330054, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through \"}]"}
+{"sequence": 14, "elapsed_seconds": 4.330151, "line": ""}
+{"sequence": 15, "elapsed_seconds": 4.370197, "line": "event: generating"}
+{"sequence": 16, "elapsed_seconds": 4.370303, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a \"}]"}
+{"sequence": 17, "elapsed_seconds": 4.370414, "line": ""}
+{"sequence": 18, "elapsed_seconds": 4.429634, "line": "event: generating"}
+{"sequence": 19, "elapsed_seconds": 4.429741, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy \"}]"}
+{"sequence": 20, "elapsed_seconds": 4.429897, "line": ""}
+{"sequence": 21, "elapsed_seconds": 4.484491, "line": "event: generating"}
+{"sequence": 22, "elapsed_seconds": 4.484674, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone \"}]"}
+{"sequence": 23, "elapsed_seconds": 4.485084, "line": ""}
+{"sequence": 24, "elapsed_seconds": 4.538704, "line": "event: generating"}
+{"sequence": 25, "elapsed_seconds": 4.538761, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone \"}]"}
+{"sequence": 26, "elapsed_seconds": 4.538782, "line": ""}
+{"sequence": 27, "elapsed_seconds": 4.593569, "line": "event: generating"}
+{"sequence": 28, "elapsed_seconds": 4.593682, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone \"}]"}
+{"sequence": 29, "elapsed_seconds": 4.593746, "line": ""}
+{"sequence": 30, "elapsed_seconds": 4.650129, "line": "event: generating"}
+{"sequence": 31, "elapsed_seconds": 4.650248, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. \"}]"}
+{"sequence": 32, "elapsed_seconds": 4.650396, "line": ""}
+{"sequence": 33, "elapsed_seconds": 4.702882, "line": "event: generating"}
+{"sequence": 34, "elapsed_seconds": 4.702934, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows \"}]"}
+{"sequence": 35, "elapsed_seconds": 4.702988, "line": ""}
+{"sequence": 36, "elapsed_seconds": 4.757712, "line": "event: generating"}
+{"sequence": 37, "elapsed_seconds": 4.757858, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of \"}]"}
+{"sequence": 38, "elapsed_seconds": 4.757966, "line": ""}
+{"sequence": 39, "elapsed_seconds": 4.811412, "line": "event: generating"}
+{"sequence": 40, "elapsed_seconds": 4.811504, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient \"}]"}
+{"sequence": 41, "elapsed_seconds": 4.811595, "line": ""}
+{"sequence": 42, "elapsed_seconds": 4.864015, "line": "event: generating"}
+{"sequence": 43, "elapsed_seconds": 4.864059, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books \"}]"}
+{"sequence": 44, "elapsed_seconds": 4.864118, "line": ""}
+{"sequence": 45, "elapsed_seconds": 4.920178, "line": "event: generating"}
+{"sequence": 46, "elapsed_seconds": 4.920276, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined \"}]"}
+{"sequence": 47, "elapsed_seconds": 4.920378, "line": ""}
+{"sequence": 48, "elapsed_seconds": 4.972633, "line": "event: generating"}
+{"sequence": 49, "elapsed_seconds": 4.972685, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the \"}]"}
+{"sequence": 50, "elapsed_seconds": 4.972743, "line": ""}
+{"sequence": 51, "elapsed_seconds": 5.026367, "line": "event: generating"}
+{"sequence": 52, "elapsed_seconds": 5.026429, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent \"}]"}
+{"sequence": 53, "elapsed_seconds": 5.026532, "line": ""}
+{"sequence": 54, "elapsed_seconds": 5.079683, "line": "event: generating"}
+{"sequence": 55, "elapsed_seconds": 5.079735, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent \"}]"}
+{"sequence": 56, "elapsed_seconds": 5.079754, "line": ""}
+{"sequence": 57, "elapsed_seconds": 5.135416, "line": "event: generating"}
+{"sequence": 58, "elapsed_seconds": 5.135521, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. \"}]"}
+{"sequence": 59, "elapsed_seconds": 5.135625, "line": ""}
+{"sequence": 60, "elapsed_seconds": 5.188286, "line": "event: generating"}
+{"sequence": 61, "elapsed_seconds": 5.188337, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust \"}]"}
+{"sequence": 62, "elapsed_seconds": 5.188399, "line": ""}
+{"sequence": 63, "elapsed_seconds": 5.240637, "line": "event: generating"}
+{"sequence": 64, "elapsed_seconds": 5.2407, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust \"}]"}
+{"sequence": 65, "elapsed_seconds": 5.240725, "line": ""}
+{"sequence": 66, "elapsed_seconds": 5.295074, "line": "event: generating"}
+{"sequence": 67, "elapsed_seconds": 5.295176, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes \"}]"}
+{"sequence": 68, "elapsed_seconds": 5.29527, "line": ""}
+{"sequence": 69, "elapsed_seconds": 5.349496, "line": "event: generating"}
+{"sequence": 70, "elapsed_seconds": 5.349565, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced \"}]"}
+{"sequence": 71, "elapsed_seconds": 5.349633, "line": ""}
+{"sequence": 72, "elapsed_seconds": 5.406384, "line": "event: generating"}
+{"sequence": 73, "elapsed_seconds": 5.406491, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in \"}]"}
+{"sequence": 74, "elapsed_seconds": 5.406584, "line": ""}
+{"sequence": 75, "elapsed_seconds": 5.458537, "line": "event: generating"}
+{"sequence": 76, "elapsed_seconds": 5.458633, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the \"}]"}
+{"sequence": 77, "elapsed_seconds": 5.458719, "line": ""}
+{"sequence": 78, "elapsed_seconds": 5.512566, "line": "event: generating"}
+{"sequence": 79, "elapsed_seconds": 5.512658, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam \"}]"}
+{"sequence": 80, "elapsed_seconds": 5.512755, "line": ""}
+{"sequence": 81, "elapsed_seconds": 5.56699, "line": "event: generating"}
+{"sequence": 82, "elapsed_seconds": 5.567101, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of \"}]"}
+{"sequence": 83, "elapsed_seconds": 5.567199, "line": ""}
+{"sequence": 84, "elapsed_seconds": 5.621397, "line": "event: generating"}
+{"sequence": 85, "elapsed_seconds": 5.621483, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his \"}]"}
+{"sequence": 86, "elapsed_seconds": 5.62157, "line": ""}
+{"sequence": 87, "elapsed_seconds": 5.673337, "line": "event: generating"}
+{"sequence": 88, "elapsed_seconds": 5.673388, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his \"}]"}
+{"sequence": 89, "elapsed_seconds": 5.673408, "line": ""}
+{"sequence": 90, "elapsed_seconds": 5.728008, "line": "event: generating"}
+{"sequence": 91, "elapsed_seconds": 5.728088, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. \"}]"}
+{"sequence": 92, "elapsed_seconds": 5.728177, "line": ""}
+{"sequence": 93, "elapsed_seconds": 5.782821, "line": "event: generating"}
+{"sequence": 94, "elapsed_seconds": 5.782884, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He \"}]"}
+{"sequence": 95, "elapsed_seconds": 5.782974, "line": ""}
+{"sequence": 96, "elapsed_seconds": 5.836542, "line": "event: generating"}
+{"sequence": 97, "elapsed_seconds": 5.836631, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched \"}]"}
+{"sequence": 98, "elapsed_seconds": 5.836718, "line": ""}
+{"sequence": 99, "elapsed_seconds": 5.892233, "line": "event: generating"}
+{"sequence": 100, "elapsed_seconds": 5.892285, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a \"}]"}
+{"sequence": 101, "elapsed_seconds": 5.892351, "line": ""}
+{"sequence": 102, "elapsed_seconds": 5.945466, "line": "event: generating"}
+{"sequence": 103, "elapsed_seconds": 5.945566, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather \"}]"}
+{"sequence": 104, "elapsed_seconds": 5.945704, "line": ""}
+{"sequence": 105, "elapsed_seconds": 5.999428, "line": "event: generating"}
+{"sequence": 106, "elapsed_seconds": 5.999524, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine \"}]"}
+{"sequence": 107, "elapsed_seconds": 5.999617, "line": ""}
+{"sequence": 108, "elapsed_seconds": 6.053226, "line": "event: generating"}
+{"sequence": 109, "elapsed_seconds": 6.05328, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and \"}]"}
+{"sequence": 110, "elapsed_seconds": 6.053343, "line": ""}
+{"sequence": 111, "elapsed_seconds": 6.107119, "line": "event: generating"}
+{"sequence": 112, "elapsed_seconds": 6.107194, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt \"}]"}
+{"sequence": 113, "elapsed_seconds": 6.107263, "line": ""}
+{"sequence": 114, "elapsed_seconds": 6.161888, "line": "event: generating"}
+{"sequence": 115, "elapsed_seconds": 6.162031, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a \"}]"}
+{"sequence": 116, "elapsed_seconds": 6.162133, "line": ""}
+{"sequence": 117, "elapsed_seconds": 6.215933, "line": "event: generating"}
+{"sequence": 118, "elapsed_seconds": 6.216035, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange \"}]"}
+{"sequence": 119, "elapsed_seconds": 6.216156, "line": ""}
+{"sequence": 120, "elapsed_seconds": 6.269679, "line": "event: generating"}
+{"sequence": 121, "elapsed_seconds": 6.269788, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange \"}]"}
+{"sequence": 122, "elapsed_seconds": 6.269889, "line": ""}
+{"sequence": 123, "elapsed_seconds": 6.323827, "line": "event: generating"}
+{"sequence": 124, "elapsed_seconds": 6.324017, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. \"}]"}
+{"sequence": 125, "elapsed_seconds": 6.324195, "line": ""}
+{"sequence": 126, "elapsed_seconds": 6.379417, "line": "event: generating"}
+{"sequence": 127, "elapsed_seconds": 6.379541, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge \"}]"}
+{"sequence": 128, "elapsed_seconds": 6.379758, "line": ""}
+{"sequence": 129, "elapsed_seconds": 6.448981, "line": "event: generating"}
+{"sequence": 130, "elapsed_seconds": 6.449088, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from \"}]"}
+{"sequence": 131, "elapsed_seconds": 6.449233, "line": ""}
+{"sequence": 132, "elapsed_seconds": 6.508351, "line": "event: generating"}
+{"sequence": 133, "elapsed_seconds": 6.50849, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from a \"}]"}
+{"sequence": 134, "elapsed_seconds": 6.508727, "line": ""}
+{"sequence": 135, "elapsed_seconds": 6.567335, "line": "event: generating"}
+{"sequence": 136, "elapsed_seconds": 6.567484, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from a lost \"}]"}
+{"sequence": 137, "elapsed_seconds": 6.567678, "line": ""}
+{"sequence": 138, "elapsed_seconds": 6.628726, "line": "event: generating"}
+{"sequence": 139, "elapsed_seconds": 6.628824, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from a lost world \"}]"}
+{"sequence": 140, "elapsed_seconds": 6.628929, "line": ""}
+{"sequence": 141, "elapsed_seconds": 6.689642, "line": "event: generating"}
+{"sequence": 142, "elapsed_seconds": 6.689751, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from a lost world waited \"}]"}
+{"sequence": 143, "elapsed_seconds": 6.689909, "line": ""}
+{"sequence": 144, "elapsed_seconds": 6.750201, "line": "event: generating"}
+{"sequence": 145, "elapsed_seconds": 6.750257, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from a lost world waited in \"}]"}
+{"sequence": 146, "elapsed_seconds": 6.750336, "line": ""}
+{"sequence": 147, "elapsed_seconds": 6.818916, "line": "event: generating"}
+{"sequence": 148, "elapsed_seconds": 6.819012, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from a lost world waited in the \"}]"}
+{"sequence": 149, "elapsed_seconds": 6.819091, "line": ""}
+{"sequence": 150, "elapsed_seconds": 6.871964, "line": "event: generating"}
+{"sequence": 151, "elapsed_seconds": 6.872013, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from a lost world waited in the \"}]"}
+{"sequence": 152, "elapsed_seconds": 6.872035, "line": ""}
+{"sequence": 153, "elapsed_seconds": 6.925911, "line": "event: generating"}
+{"sequence": 154, "elapsed_seconds": 6.92598, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from a lost world waited in the \"}]"}
+{"sequence": 155, "elapsed_seconds": 6.926013, "line": ""}
+{"sequence": 156, "elapsed_seconds": 6.927743, "line": "event: generating"}
+{"sequence": 157, "elapsed_seconds": 6.927791, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from a lost world waited in the shadows.\"}]"}
+{"sequence": 158, "elapsed_seconds": 6.927882, "line": ""}
+{"sequence": 159, "elapsed_seconds": 7.073981, "line": "event: complete"}
+{"sequence": 160, "elapsed_seconds": 7.074104, "line": "data: [{\"reasoning\": \"\", \"content\": \"The astronaut stepped through a heavy stone archway. Rows of ancient books lined the silent walls. Dust motes danced in the beam of his flashlight. He touched a leather spine and felt a strange warmth. Knowledge from a lost world waited in the shadows.\"}]"}
+{"sequence": 161, "elapsed_seconds": 7.074138, "line": ""}

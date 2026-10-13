@@ -1,0 +1,16 @@
+{
+  "space": "evalstate/kokoro-tts-streaming-demo",
+  "endpoint": "/generate_all",
+  "transport": {
+    "submit": "POST /gradio_api/call/generate_all",
+    "stream": "GET /gradio_api/call/generate_all/{event_id}",
+    "media_type": "text/event-stream",
+    "media_delivery": "HLS playlist snapshots with AAC artifacts"
+  },
+  "payload": {
+    "text": "Streaming audio should become useful before a long tool call has finished. This first passage explains why early playback reduces perceived latency for a listener.\n\nThe second passage is deliberately longer, giving the speech pipeline enough material to produce another independently playable segment. A client can begin presenting it while later synthesis continues.\n\nThe third passage describes ordering. Every media segment needs a stable sequence number so the receiver can assemble the spoken result without gaps, duplication, or accidental reordering.\n\nThe fourth passage concerns supervision. If the voice, wording, or pronunciation is wrong, a user should be able to stop generation after hearing an early segment instead of waiting for the entire recording.\n\nThe fifth and final passage closes the demonstration. The completed artifact should match the ordered stream of earlier audio segments and remain independently playable after the remote job has ended.",
+    "voice": "af_heart",
+    "speed": 1,
+    "use_gpu": true
+  }
+}

@@ -1,0 +1,11 @@
+--- /tmp/moss-evidence-space/app.original.py	2026-07-21 13:20:18.385260853 +0100
++++ /tmp/moss-evidence-space/app.py	2026-07-21 13:20:18.386563978 +0100
+@@ -75,7 +75,7 @@
+ 
+ # --- Inference ---
+ 
+-@spaces.GPU(duration=180)
++@spaces.GPU(duration=80)
+ def analyze_video(
+     video=None,
+     prompt="",

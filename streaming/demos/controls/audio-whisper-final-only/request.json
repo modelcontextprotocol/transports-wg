@@ -1,0 +1,5 @@
+{
+  "inputs": "https://github.com/gradio-app/gradio/raw/main/test/test_files/audio_sample.wav",
+  "task": "transcribe",
+  "api_name": "/predict"
+}

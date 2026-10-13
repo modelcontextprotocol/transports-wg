@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/home/evalstate/.cache/uv/archive-v0/_lOqNVzop2J3N5dP/lib/python3.14/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2",
+    "-y",
+    "-loglevel",
+    "error",
+    "-allowed_extensions",
+    "ALL",
+    "-i",
+    "/home/evalstate/protocols/transports-wg/streaming/demos/audio-kokoro-streaming/artifacts/final_playlist.m3u8",
+    "-c:a",
+    "pcm_s16le",
+    "/home/evalstate/protocols/transports-wg/streaming/demos/audio-kokoro-streaming/artifacts/final_audio.wav"
+  ],
+  "returncode": 0,
+  "stdout": "",
+  "stderr": "",
+  "note": "The command array records the exact pre-reorganization execution path.",
+  "portable_command": "ffmpeg -y -loglevel error -allowed_extensions ALL -i artifacts/final_playlist.m3u8 -c:a pcm_s16le artifacts/final_audio.wav"
+}

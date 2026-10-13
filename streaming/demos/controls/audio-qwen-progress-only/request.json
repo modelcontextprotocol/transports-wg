@@ -1,0 +1,6 @@
+{
+  "text": "Hello! Welcome to the streaming TTS demo. This audio is generated in real time and should benefit from chunked playback.",
+  "language": "English",
+  "voice_description": "Speak in a warm, clear, and enthusiastic tone, slightly fast, like a helpful assistant.",
+  "api_name": "/generate_voice_design"
+}

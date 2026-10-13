@@ -1,0 +1,30 @@
+{
+  "producer": "gradio/stream_asr",
+  "endpoint": "/predict",
+  "interaction": "three sequential calls in one gradio_client queue session",
+  "session_hash": "3cb0f760-bea9-4217-b97c-c6b8bdd2224d",
+  "input_source": {
+    "dataset": "hf-internal-testing/librispeech_asr_demo",
+    "config": "clean",
+    "split": "validation",
+    "row": 0,
+    "original": "artifacts/input/1272-128104-0000.flac",
+    "pcm_copy": "artifacts/input/1272-128104-0000.wav"
+  },
+  "chunks": [
+    "artifacts/input/chunk-1.wav",
+    "artifacts/input/chunk-2.wav",
+    "artifacts/input/chunk-3.wav"
+  ],
+  "ground_truth": {
+    "file": "1272-128104-0000.flac",
+    "text": "MISTER QUILTER IS THE APOSTLE OF THE MIDDLE CLASSES AND WE ARE GLAD TO WELCOME HIS GOSPEL",
+    "speaker_id": 1272,
+    "chapter_id": 128104,
+    "id": "1272-128104-0000"
+  },
+  "client": {
+    "gradio_client_version": "2.5.0",
+    "compatibility_patch": "Map the already-defined process_streaming server message to Status.ITERATING; gradio_client 2.5.0 otherwise raises KeyError."
+  }
+}

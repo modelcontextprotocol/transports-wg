@@ -1,0 +1,20 @@
+{
+  "producer": "OpenMOSS-Team/openmoss-team-moss-vl-realtime",
+  "capture_space": "evalstate/moss-vl-realtime-evidence",
+  "capture_space_change": "Only @spaces.GPU(duration=180) was changed to duration=80 because the original deployment rejected its effective 270-second request.",
+  "endpoint": "/analyze",
+  "input": {
+    "path": "artifacts/input/51397874-651f-4c75-aa5c-5c61dceb1e3e.mp4",
+    "sha256": "1ab601ecd4a58ce101ccf4a2ba0c97d9efc47ca79dd8106a8b45299d67e24f1a",
+    "source_dataset": "zirui3/tiny-video-samples",
+    "dataset_license": "MIT",
+    "clip_duration_seconds": 5.088416667
+  },
+  "prompt": "Describe what becomes visible and what moves as this short video progresses. Answer in one concise sentence.",
+  "max_new_tokens": 128,
+  "temperature": 0.0,
+  "top_p": 1.0,
+  "repetition_penalty": 1.0,
+  "video_fps": 2.0,
+  "max_frames": 16
+}

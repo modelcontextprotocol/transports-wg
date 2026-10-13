@@ -1,0 +1,66 @@
+{
+  "id": "evalstate/flux-streaming-denoising",
+  "author": "evalstate",
+  "card_data": {},
+  "created_at": "2026-07-16T16:09:04+00:00",
+  "disabled": false,
+  "gated": false,
+  "host": "https://evalstate-flux-streaming-denoising.hf.space",
+  "last_modified": "2026-07-18T22:37:49+00:00",
+  "likes": 0,
+  "models": [
+    "black-forest-labs/FLUX.1-schnell"
+  ],
+  "private": false,
+  "runtime": {
+    "stage": "RUNNING",
+    "hardware": "a100-large",
+    "requested_hardware": "a100-large",
+    "sleep_time": 172800,
+    "dev_mode": false,
+    "raw": {
+      "stage": "RUNNING",
+      "hardware": {
+        "current": "a100-large",
+        "requested": "a100-large"
+      },
+      "gcTimeout": 172800,
+      "replicas": {
+        "current": 1,
+        "requested": 1
+      },
+      "devMode": false,
+      "domains": [
+        {
+          "domain": "evalstate-flux-streaming-denoising.hf.space",
+          "stage": "READY"
+        }
+      ],
+      "sha": "74dea4e1a93e10c1ba403a1cc20989b6675850f7",
+      "pySpacesVersion": "0.51.0"
+    }
+  },
+  "sdk": "gradio",
+  "sha": "74dea4e1a93e10c1ba403a1cc20989b6675850f7",
+  "siblings": [
+    {
+      "rfilename": ".gitattributes"
+    },
+    {
+      "rfilename": "README.md"
+    },
+    {
+      "rfilename": "app.py"
+    },
+    {
+      "rfilename": "requirements.txt"
+    }
+  ],
+  "subdomain": "evalstate-flux-streaming-denoising",
+  "tags": [
+    "gradio",
+    "mcp-server",
+    "region:us"
+  ],
+  "used_storage": 0
+}

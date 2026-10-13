@@ -1,0 +1,13 @@
+# 推論環境 (システム側)。vllm が torch 2.11.0+cu130 を持ち込むので torch は pin しない。
+#
+# 【重要】この環境の transformers は 5.x であること。
+#   vllm 0.25.1 は transformers>=5.5.3 を要求する。
+#   量子化は 4.57 が必要だが、それは venv_q 側で隔離する (setup.sh 参照)。
+#   両者を同居させようとしないこと。
+#
+# 検証済み: vllm 0.25.1 / torch 2.11.0+cu130 / transformers 5.14.1 / A100-SXM4-80GB
+vllm==0.25.1
+transformers==5.14.1
+qwen-omni-utils
+librosa
+soundfile

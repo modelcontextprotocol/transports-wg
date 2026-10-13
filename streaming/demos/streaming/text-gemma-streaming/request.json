@@ -1,0 +1,22 @@
+{
+  "space": "huggingface-projects/gemma-4-12b-it",
+  "endpoint": "/chat",
+  "transport": {
+    "submit": "POST /gradio_api/call/v2/chat",
+    "stream": "GET /gradio_api/call/chat/{event_id}",
+    "media_type": "text/event-stream"
+  },
+  "payload": {
+    "text": "Write exactly five short sentences describing an astronaut discovering a library on the moon. Answer directly.",
+    "files": null,
+    "history": null,
+    "thinking": false,
+    "max_new_tokens": 160,
+    "image_token_budget": 280,
+    "system_prompt": "Return only the five-sentence answer. Do not explain your work.",
+    "temperature": 0.2,
+    "top_p": 0.9,
+    "top_k": 40,
+    "repetition_penalty": 1.0
+  }
+}
