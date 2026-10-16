@@ -4,11 +4,14 @@ import type * as W from "../original.schema";
 
 type Assert<T extends true> = T;
 type Equivalent<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
+type RequestTarget<T extends M.MCPRequest> =
+  T["method"] extends "tools/call" | "prompts/get" ? { name: T["name"] } :
+  T["method"] extends "resources/read" ? { uri: T["name"] } : {};
 type RequestWire<T extends M.MCPRequest> = {
   jsonrpc: "2.0";
   id: W.RequestId;
   method: T["method"];
-  params: T["payload"] & {
+  params: T["payload"] & RequestTarget<T> & {
     _meta: T["metadata"]["meta"] & { "io.modelcontextprotocol/protocolVersion": string };
   };
 };
@@ -40,6 +43,15 @@ type CheckNoMetadataKind = Assert<Equivalent<Extract<"kind", keyof M.MessageMeta
 type CheckNoMetadataID = Assert<Equivalent<Extract<"requestId", keyof M.MessageMetadata>, never>>;
 type CheckNoEnvelopeKind = Assert<Equivalent<Extract<"kind", keyof M.MCPMessage>, never>>;
 type CheckNoEnvelopeID = Assert<Equivalent<Extract<"requestId", keyof M.MCPMessage>, never>>;
+type CheckNoEnvelopeName = Assert<Equivalent<Extract<"name", keyof M.MCPMessage>, never>>;
+type CheckNoResponseName = Assert<Equivalent<Extract<"name", keyof M.MCPResponse>, never>>;
+type CheckNoNotificationName = Assert<Equivalent<Extract<"name", keyof M.MCPNotification>, never>>;
+type CheckRequiredToolName = Assert<Equivalent<Pick<M.CallToolRequest, "name">, { name: string }>>;
+type CheckRequiredPromptName = Assert<Equivalent<Pick<M.GetPromptRequest, "name">, { name: string }>>;
+type CheckRequiredResourceName = Assert<Equivalent<Pick<M.ReadResourceRequest, "name">, { name: string }>>;
+type CheckNoToolPayloadName = Assert<Equivalent<Extract<"name", keyof M.CallToolRequest["payload"]>, never>>;
+type CheckNoPromptPayloadName = Assert<Equivalent<Extract<"name", keyof M.GetPromptRequest["payload"]>, never>>;
+type CheckNoResourcePayloadURI = Assert<Equivalent<Extract<"uri", keyof M.ReadResourceRequest["payload"]>, never>>;
 type CheckOptionalNotificationMetadata = Assert<{} extends M.MCPNotification["metadata"] ? true : false>;
 type CheckRequiredRequestMetadata = Assert<{} extends M.MCPRequest["metadata"] ? false : true>;
 type CheckRequiredCapabilities = Assert<

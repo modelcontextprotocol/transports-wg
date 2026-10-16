@@ -71,13 +71,28 @@ function requireContext(message: Model.MCPMessage): void {
   }
 }
 
+function targetField(method: string): "name" | "uri" | undefined {
+  if (method === "tools/call" || method === "prompts/get") return "name";
+  if (method === "resources/read") return "uri";
+  return undefined;
+}
+
 export function encodeRequest(message: Model.MCPRequest, context: BindingContext = {}): Wire.JSONRPCRequest {
   requireContext(message);
   if (has(message.metadata.meta, versionKey)) throw new Error("Duplicate protocol version");
+  const fields = payload(message.payload);
+  const target = targetField(message.method);
+  if (target !== undefined) {
+    if (typeof message.name !== "string") throw new Error("Request name required");
+    if (has(fields, target)) throw new Error("Request target belongs in name, not payload");
+  } else if (has(message, "name")) {
+    throw new Error("No name mapping defined for this method");
+  }
   return {
     jsonrpc: "2.0", id: id(context.requestId), method: message.method,
     params: {
-      ...payload(message.payload),
+      ...fields,
+      ...(target !== undefined ? { [target]: message.name } : {}),
       _meta: { ...message.metadata.meta, [versionKey]: message.protocolVersion },
     },
   };
@@ -137,8 +152,15 @@ export function decode<T>(wire: Wire.JSONRPCMessage, handlers: MessageHandlers<T
       const { _meta, ...fields } = object(wire.params);
       const { [versionKey]: protocolVersion, ...meta } = object(_meta);
       if (typeof protocolVersion !== "string") throw new Error("Missing protocol version");
+      const target = targetField(wire.method);
+      const name = target !== undefined ? fields[target] : undefined;
+      if (target !== undefined) {
+        if (typeof name !== "string") throw new Error("Request target required");
+        delete fields[target];
+      }
       return handlers.request({
         protocolVersion, method: wire.method,
+        ...(typeof name === "string" ? { name } : {}),
         metadata: { meta: meta as Model.RequestMetaObject }, payload: fields,
       }, { requestId: id(wire.id), protocolVersion, method: wire.method });
     }

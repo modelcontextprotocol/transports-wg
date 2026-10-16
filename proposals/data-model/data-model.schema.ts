@@ -1,7 +1,8 @@
 /**
  * Proposed MCP data model, modified from modelcontextprotocol/modelcontextprotocol
  * schema/draft/schema.ts at 046fa30efd374370afb87ef830bd788eac5f217e.
- * Changes: replace message envelopes; lift metadata; move request IDs to binding context.
+ * Changes: replace message envelopes; lift metadata and request targets;
+ * move request IDs to binding context.
  * This is a semantic model, not a wire format. See the accompanying SEP.
  * Copied @example references describe upstream wire examples, not this envelope.
  */
@@ -178,6 +179,8 @@ export interface RequestParams {
 export interface MCPRequest<P = unknown> extends MCPMessage<P, MessageMetadata> {
   protocolVersion: string;
   method: string;
+  /** Target identifier when defined by the method; a resource URI for resources/read. */
+  name?: string;
   /** Requests require per-request capabilities; notifications do not. */
   metadata: MessageMetadata & { meta: RequestMetaObject };
 }
@@ -1137,9 +1140,11 @@ export interface ReadResourceRequestParams
  *
  * @category `resources/read`
  */
-export interface ReadResourceRequest extends MCPRequest {
+export interface ReadResourceRequest
+  extends MCPRequest<Omit<ReadResourceRequestParams, "uri">> {
   method: "resources/read";
-  payload: ReadResourceRequestParams;
+  /** The resource URI, not its display name. */
+  name: string;
 }
 
 /**
@@ -1538,9 +1543,10 @@ export interface GetPromptRequestParams extends InputResponseRequestParams {
  *
  * @category `prompts/get`
  */
-export interface GetPromptRequest extends MCPRequest {
+export interface GetPromptRequest
+  extends MCPRequest<Omit<GetPromptRequestParams, "name">> {
   method: "prompts/get";
-  payload: GetPromptRequestParams;
+  name: string;
 }
 
 /**
@@ -1802,9 +1808,10 @@ export interface CallToolRequestParams extends InputResponseRequestParams {
  *
  * @category `tools/call`
  */
-export interface CallToolRequest extends MCPRequest {
+export interface CallToolRequest
+  extends MCPRequest<Omit<CallToolRequestParams, "name">> {
   method: "tools/call";
-  payload: CallToolRequestParams;
+  name: string;
 }
 
 /**

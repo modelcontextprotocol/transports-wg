@@ -10,9 +10,12 @@
 
 Separate MCP's data types from their transport representation. Requests,
 notifications, responses, and errors share four fields: `protocolVersion`,
-`method`, `metadata`, and `payload`. Each transport specification defines how
+`method`, `metadata`, and `payload`. Requests also have a `name` when the method
+identifies a tool, prompt, or resource. Each transport specification defines how
 these types translate to and from its wire format, including how request IDs
-are handled. Existing stdio and Streamable HTTP wire formats stay unchanged.
+are handled. This SEP does not change either transport's wire format: stdio and
+Streamable HTTP continue to use JSON-RPC. The new data model is not a new wire
+envelope.
 
 ## Motivation
 
@@ -28,15 +31,20 @@ Header: MCP-Protocol-Version: 2026-07-28
 Body:   params._meta["io.modelcontextprotocol/protocolVersion"] = "2026-07-28"
 ```
 
-HTTP over stdio could carry that value only in the header. But removing the body
-field would break `CallToolRequest` for SDKs that expose the current schema
-directly, even though the tool call itself has not changed.
+A future HTTP-over-stdio specification could carry that value only in the
+header. Removing the body field would break SDKs that expose the current
+`CallToolRequest` schema directly, even though the tool call has not changed.
 
-With a separate data model, both transports use `request.protocolVersion`.
-Each transport specification defines where that value appears on the wire;
-application types stay the same.
-This SEP creates that separation. It does not change either existing wire format
-or introduce HTTP over stdio.
+[PR #56](https://github.com/modelcontextprotocol/transports-wg/pull/56) shows a
+similar problem: it proposes moving trace context to HTTP headers while keeping
+it in `params._meta` for stdio. Code reading `params._meta.traceparent` would no
+longer find it in an HTTP request that uses only the header.
+
+Separating the data model lets applications use fields such as
+`request.protocolVersion` regardless of where a transport carries them. Each
+transport specification defines the translation to and from its wire format.
+This SEP leaves both existing JSON-RPC wire formats unchanged; HTTP over stdio
+and PR #56's trace propagation changes are separate proposals.
 
 ## Specification
 
@@ -64,6 +72,19 @@ interface MCPMessage<P = unknown, M extends Metadata = Metadata> {
 
 Requests, notifications, and successful responses require a version and method.
 Errors may leave either undefined when the original request cannot be identified.
+
+Requests add an optional `name` field, required for these methods:
+
+| Method | Meaning of `name` | Field removed from the request payload |
+| --- | --- | --- |
+| `tools/call` | Tool name | `name` |
+| `prompts/get` | Prompt name | `name` |
+| `resources/read` | Resource URI, not its display name | `uri` |
+
+Requests without a defined `name` mapping, such as `tools/list`, omit it.
+Other payload fields, including structured references in `completion/complete`
+and names inside tool arguments, stay in place. Responses and notifications
+do not add this field.
 
 The message types are `MCPRequest`, `MCPNotification`, `MCPResponse`, and
 `MCPErrorResponse`. The API operation MUST identify the message type;
@@ -101,7 +122,8 @@ interface CallToolRequest extends JSONRPCRequest {
 }
 ```
 
-After, metadata is separate from the payload, and the request has no transport ID:
+After, the target name and metadata are separate from the payload, and the
+request has no transport ID:
 
 ```typescript
 // data-model.schema.ts (selected declarations)
@@ -112,21 +134,24 @@ interface MessageMetadata {
 interface MCPRequest<P = unknown> extends MCPMessage<P, MessageMetadata> {
   protocolVersion: string;
   method: string;
+  name?: string;
   metadata: MessageMetadata & { meta: RequestMetaObject };
 }
 
 interface RequestParams {}
 
-interface CallToolRequest extends MCPRequest {
+interface CallToolRequest
+  extends MCPRequest<Omit<CallToolRequestParams, "name">> {
   method: "tools/call";
-  payload: CallToolRequestParams;
+  name: string;
 }
 ```
 
-`CallToolRequestParams` keeps `name`, `arguments`, `inputResponses`, and
-`requestState`. Its `_meta` moves to `metadata.meta`, and the version moves to
-`protocolVersion`. The transport implementation supplies `id` and rebuilds the
-original `params` according to its transport specification.
+The payload keeps `arguments`, `inputResponses`, and `requestState`.
+`Omit<CallToolRequestParams, "name">` removes the target from the payload;
+`request.name` holds it instead. `_meta` moves to `metadata.meta`, and the
+version moves to `protocolVersion`. The transport implementation supplies `id`
+and rebuilds the original `params` according to its transport specification.
 
 ### Transport Specifications
 
@@ -134,56 +159,75 @@ Each transport specification MUST define how the data model translates to and
 from its wire format, including body fields, headers, and routing state. A wire
 schema alone is not enough. The specifications below are independent: changing
 one transport's translation does not change the other transport's requirements.
+These translations preserve the existing JSON-RPC wire formats; they do not
+serialize `MCPMessage` directly.
 
 #### stdio
 
 The [stdio wire schema](./stdio.schema.ts) describes the JSON-RPC objects.
-Implementations MUST translate the data model as follows:
+
+##### Encoding
+
+Implementations MUST select the message type from the API operation, add
+`jsonrpc: "2.0"`, and apply this table. Copy the payload first, then add the
+target and metadata fields.
 
 | Data-model field | Request | Notification | Successful response | Error response |
 | --- | --- | --- | --- | --- |
 | `method` | `method` | `method` | Transport state only | Transport state, if known |
+| `name` | `params.name` for `tools/call` and `prompts/get`; `params.uri` for `resources/read` | Not present | Not present | Not present |
 | `payload` | `params` | `params`, if defined | `result` | `error` |
 | `metadata.meta` | `params._meta` | `params._meta`, if present | `result._meta`, if present | Not added |
 | `protocolVersion` | `params._meta["io.modelcontextprotocol/protocolVersion"]` | Transport state only | Transport state only | Transport state, if known |
 
-On receipt, extract the request version into `protocolVersion`, the remaining
-`params._meta` fields into `metadata.meta`, and the remaining `params` fields
-into `payload`. Do not retain a second copy of the version in metadata.
-Responses get their method and version from the stored request; notifications
-get their version from transport state and their method from the wire message.
-
-The stdio implementation MUST:
-
-1. Add `jsonrpc: "2.0"` when encoding and remove it when decoding. Select the wire
-   message type from the API operation. On receipt, use the wire envelope to
-   dispatch to the correct request, notification, response, or error path.
-2. Supply request and response IDs, omit notification IDs, and preserve absent
-   error IDs. Preserve the distinction between string and numeric IDs. Keep
-   cancellation targets and subscription IDs in transport state, restoring them
-   to `params.requestId` and `_meta["io.modelcontextprotocol/subscriptionId"]`
-   where required.
-3. Preserve absent versus empty `params` and `_meta`: missing parameters become
-   `payload: undefined`; `{}` stays `{}`. Omit absent fields rather than replacing
-   them with `null`. Preserve error data, allowed extension fields, and nested
-   metadata.
-4. Reject conflicting copies of moved fields and missing or mismatched required
-   routing state. Do not invent an ID, guess a method, default to the latest
-   version, or turn a failed decode into a valid request. Uncorrelated errors may
-   have unknown method/version; any received ID stays in transport state.
-
-Framing and exchange rules are:
-
-1. Encode each JSON-RPC object as one line followed by a newline. Escape newlines
+1. For `tools/call`, `prompts/get`, and `resources/read`, require a string `name`
+   and reject a duplicate target field in the payload. Other methods omit
+   `name` unless they define a mapping for it.
+2. Assign outgoing request IDs and echo them in responses. Omit notification
+   IDs and preserve absent error IDs. Preserve string versus numeric IDs.
+   Restore cancellation targets to `params.requestId` and subscription IDs to
+   `params._meta["io.modelcontextprotocol/subscriptionId"]` or
+   `result._meta["io.modelcontextprotocol/subscriptionId"]`, as required.
+3. Preserve absent versus empty parameters and metadata. Omit absent fields
+   rather than replacing them with `null`. Preserve error data, allowed
+   extension fields, and nested metadata. Reject conflicting copies of moved
+   fields and missing or mismatched required routing state.
+4. Serialize each object as one line followed by a newline. Escape newlines
    inside strings; pretty-printing MUST NOT add newlines within a message.
-2. Send client requests and notifications to `stdin`; receive server responses
-   and notifications from `stdout`. Diagnostics go to `stderr`. All metadata
-   stays in the JSON body; there are no headers.
-3. Decode one complete line at a time. Match responses by `id`, subscription
-   notifications by subscription ID, and progress by its token before dispatch.
-4. Cancel an exchange with `notifications/cancelled`, restoring its target ID to
-   `params.requestId`. Receiving it cancels that exchange. Cancelling one request
-   MUST NOT close the shared stdio channel.
+
+##### Decoding
+
+Implementations MUST:
+
+1. Parse one complete line at a time, validate `jsonrpc: "2.0"` and the message
+   schema, and identify the message type from the JSON-RPC envelope. Copy
+   `method` for requests and notifications; discard `jsonrpc`.
+2. For requests, extract
+   `params._meta["io.modelcontextprotocol/protocolVersion"]` into
+   `protocolVersion`. For `tools/call` and `prompts/get`, extract `params.name`
+   into `name`; for `resources/read`, extract `params.uri`. Require a string
+   target for these methods.
+3. Keep `id`, cancellation targets, and subscription IDs in transport state.
+   Match responses by request ID, subscription notifications by subscription
+   ID, and progress notifications by token before dispatch. Preserve string
+   versus numeric IDs and absent error IDs.
+4. Move the remaining message-level `_meta` into `metadata.meta` and the
+   remaining `params` or `result` fields into `payload`. For errors, use `error`
+   as the payload. Missing parameters become `payload: undefined`; empty objects
+   stay empty. Preserve error data, allowed extension fields, and nested metadata.
+5. Get response method/version from the stored request and notification version
+   from transport state. Reject missing or mismatched required routing state;
+   do not guess a request or default an unknown version to the latest.
+   Uncorrelated errors may have an unknown method or version.
+
+##### Exchange behavior
+
+Clients send requests and notifications to the server's `stdin`; servers send
+responses and notifications through `stdout`. Diagnostics go to `stderr`.
+
+Cancel an exchange with `notifications/cancelled`, using the target request ID
+in `params.requestId`. Receiving it cancels that exchange. Cancelling one request
+MUST NOT close the shared stdio channel.
 
 This revision has no server-initiated wire requests; MRTR input requests stay
 inside result payloads. The remaining lifecycle and security rules follow the
@@ -192,19 +236,28 @@ pinned [stdio specification][stdio-spec].
 #### Streamable HTTP
 
 The [Streamable HTTP wire schema](./streamable-http.schema.ts) describes the
-JSON-RPC objects carried in HTTP bodies and SSE events.
+JSON-RPC objects carried in HTTP bodies and SSE events. The HTTP exchange
+associates responses and notifications with their originating request. Existing
+JSON-RPC envelope requirements remain defined by the wire schema.
 
-##### JSON-RPC body fields
+##### Encoding
+
+Select the message type from the API operation. Send each request as a separate
+POST containing one JSON-RPC object.
+
+###### JSON-RPC body fields
 
 Implementations MUST set these fields from the data model, transport state, or
-the fixed values listed below. Nested fields are added to the copied payload.
+the fixed values listed below. Copy the payload first, then add the target and
+metadata fields.
 
 | JSON-RPC field | Source or fixed value | When to set |
 | --- | --- | --- |
 | `jsonrpc` | Fixed: `"2.0"` | Every message |
-| `id` | Request ID from transport state | Requests and responses; omit for notifications and errors without an ID |
 | `method` | `method` | Requests and notifications |
 | `params` | Copy of `payload` | Requests; notifications when payload is defined |
+| `params.name` | `name` | `tools/call`, `prompts/get` |
+| `params.uri` | `name` | `resources/read` |
 | `params._meta` | Copy of `metadata.meta` | Requests; notifications when metadata is present |
 | `params._meta["io.modelcontextprotocol/protocolVersion"]` | `protocolVersion` | Every request |
 | `params._meta["io.modelcontextprotocol/subscriptionId"]` | Subscription ID from transport state | Subscription notifications that require it |
@@ -213,36 +266,18 @@ the fixed values listed below. Nested fields are added to the copied payload.
 | `result._meta["io.modelcontextprotocol/subscriptionId"]` | Subscription ID from transport state | Subscription results that require it |
 | `error` | `payload` | Error responses |
 
-Method-specific fields keep their names within `params`. For example,
-`tools/call` copies `payload.name` to `params.name` and `payload.arguments` to
-`params.arguments` when present.
+1. For `tools/call`, `prompts/get`, and `resources/read`, require a string `name`
+   and reject a duplicate target field in the payload. Other methods omit
+   `name` unless they define a mapping for it. Other payload fields keep their
+   names: for example, `payload.arguments` becomes `params.arguments`.
+2. Restore subscription IDs from transport state at the locations in the table.
+3. Preserve absent versus empty parameters and metadata. Omit absent fields
+   rather than replacing them with `null`. Preserve error data, allowed
+   extension fields, and nested metadata. Reject conflicting copies of moved
+   fields and missing or mismatched required routing state.
 
-The Streamable HTTP implementation MUST:
+###### HTTP request headers
 
-1. Add `jsonrpc: "2.0"` when encoding and remove it when decoding. Select the wire
-   message type from the API operation. On receipt, use the wire envelope to
-   dispatch to the correct request, notification, response, or error path.
-2. Supply request and response IDs, omit notification IDs, and preserve absent
-   error IDs. Preserve the distinction between string and numeric IDs. Keep
-   subscription IDs in transport state, restoring them to
-   `_meta["io.modelcontextprotocol/subscriptionId"]` where required. Match
-   responses and subscription IDs against the POST's stored request, and
-   progress notifications by their token, before dispatch.
-3. Preserve absent versus empty `params` and `_meta`: missing parameters become
-   `payload: undefined`; `{}` stays `{}`. Omit absent fields rather than replacing
-   them with `null`. Preserve error data, allowed extension fields, and nested
-   metadata.
-4. Reject conflicting copies of moved fields and missing or mismatched required
-   routing state. Do not invent an ID, guess a method, default to the latest
-   version, or turn a failed decode into a valid request. Responses get their
-   method and version from the stored request; notifications get their version
-   from transport state and their method from the wire message. Uncorrelated
-   errors may have unknown method/version; any received ID stays in transport
-   state.
-
-##### HTTP request headers
-
-Send each request as a separate POST containing one JSON-RPC object.
 Implementations MUST set these headers from the data model or the fixed values
 listed below:
 
@@ -252,25 +287,44 @@ listed below:
 | `Accept` | Fixed: `application/json, text/event-stream` | Every request |
 | `MCP-Protocol-Version` | `protocolVersion` | Every request |
 | `Mcp-Method` | `method` | Every request |
-| `Mcp-Name` | `payload.name` | `tools/call`, `prompts/get` |
-| `Mcp-Name` | `payload.uri` | `resources/read` |
+| `Mcp-Name` | `name` | `tools/call`, `prompts/get`, `resources/read` |
 | `Mcp-Param-{Name}` | Value at the annotated property path in `payload.arguments`; `{Name}` comes from `x-mcp-header` in the tool's input schema | `tools/call`, when the annotated argument is present and non-null |
 
 Parameter extraction, omitted/null values, conversion to strings, and Base64
-encoding MUST follow the pinned [header rules][http-header-rules]. Decode and
-check headers against the body before dispatch. Missing, malformed, or mismatched
-required MCP headers produce HTTP 400 and `HeaderMismatch` (`-32020`); headers MUST
-NOT override body values. After validation, extract the request version from
-`params._meta["io.modelcontextprotocol/protocolVersion"]` into `protocolVersion`,
-the remaining `_meta` fields into `metadata.meta`, and the remaining `params`
-fields into `payload`. Do not retain a second copy of the version in metadata.
-The two wire copies become one data-model field. Capabilities and client
-identity map between `metadata.meta` and `params._meta`; they have no header
-mapping.
+encoding MUST follow the pinned [header rules][http-header-rules]. Capabilities
+and client identity are carried in `params._meta`; they have no header mapping.
 
-For `application/json`, decode one response object. For `text/event-stream`,
-encode and decode notifications and the final response as SSE event data. Ignore
-SSE comments and check response IDs against the POST's stored request.
+##### Decoding
+
+Implementations MUST:
+
+1. Parse the JSON-RPC object, validate `jsonrpc: "2.0"` and the message schema,
+   and identify the message type from the envelope. Copy `method` for requests
+   and notifications; discard `jsonrpc`. For an `application/json`
+   response, parse one object; for `text/event-stream`, parse each SSE event's
+   data as a message. Ignore SSE comments.
+2. For incoming requests, decode and check MCP headers against the body before
+   dispatch. Missing, malformed, or mismatched required MCP headers produce HTTP
+   400 and `HeaderMismatch` (`-32020`). Headers MUST NOT override body values.
+3. For requests, extract
+   `params._meta["io.modelcontextprotocol/protocolVersion"]` into
+   `protocolVersion`. For `tools/call` and `prompts/get`, extract `params.name`
+   into `name`; for `resources/read`, extract `params.uri`. Require a string
+   target for these methods. Each mirrored value becomes one data-model field.
+4. Associate responses and notifications with the request whose HTTP response
+   carries them. Extract subscription IDs into transport state.
+5. Move the remaining message-level `_meta` into `metadata.meta` and the
+   remaining `params` or `result` fields into `payload`. For errors, use `error`
+   as the payload. Missing parameters become `payload: undefined`; empty objects
+   stay empty. Preserve error data, allowed extension fields, and nested metadata.
+6. Get response method/version and notification version from the HTTP exchange.
+   Do not default an unknown version to the latest. Errors generated before a
+   valid request is available may have an unknown method or version.
+
+##### Exchange behavior
+
+A server returns one response as `application/json`, or sends notifications and
+its final response as SSE event data using `text/event-stream`.
 `subscriptions/listen` keeps its SSE response open for subscription notifications.
 
 Closing a request's SSE stream signals cancellation; implementations MUST NOT
@@ -278,10 +332,10 @@ also send `notifications/cancelled`. This revision defines no core
 client-to-server HTTP notifications. If an extension permits notification POSTs,
 acceptance returns HTTP 202 with no body, which MUST NOT create an `MCPResponse`.
 
-Other status, lifecycle, and security rules follow the pinned
-[Streamable HTTP specification][http-spec]. HTTP failures without a valid MCP
-error body remain transport failures. This revision has no server-initiated wire
-requests; MRTR input requests stay inside result payloads.
+HTTP failures without a valid MCP error body remain transport failures. This
+revision has no server-initiated wire requests; MRTR input requests stay inside
+result payloads. Other status, lifecycle, and security rules follow the pinned
+[Streamable HTTP specification][http-spec].
 
 [stdio-spec]: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/046fa30efd374370afb87ef830bd788eac5f217e/docs/specification/draft/basic/transports/stdio.mdx
 [http-spec]: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/046fa30efd374370afb87ef830bd788eac5f217e/docs/specification/draft/basic/transports/streamable-http.mdx
@@ -295,12 +349,19 @@ transport specification define their placement. Separate API operations
 distinguish requests from responses: both can refer to `tools/call`, so the method
 alone is not enough.
 
+Request-level `name` lets routing and logging code identify the target without
+inspecting the payload. Its meaning follows `Mcp-Name`, including a resource URI
+for `resources/read`. Keeping it on requests avoids adding it to every message;
+removing the payload copy avoids conflicting target values.
+
 ## Backward Compatibility
 
-Wire formats and version negotiation stay unchanged. Code using wire-shaped
-types can continue using the wire schemas. Code adopting the data model must
-translate messages according to the transport specification. No SDK tier
-requirements are added.
+Streamable HTTP and stdio continue to send and receive JSON-RPC messages with
+the same fields, headers, and framing. Version negotiation stays unchanged.
+Peers do not need to adopt the new data model to communicate. Code using
+wire-shaped types can continue using the wire schemas. Code adopting the data
+model must translate messages according to the transport specification.
+No SDK tier requirements are added.
 
 ## Security Implications
 

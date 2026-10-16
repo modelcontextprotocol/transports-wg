@@ -43,20 +43,50 @@ const request = {
   },
 };
 const semantic = {
-  protocolVersion: version, method: 'tools/call', metadata: {
+  protocolVersion: version, method: 'tools/call', name: 'weather', metadata: {
     meta: {
       'io.modelcontextprotocol/clientCapabilities': {},
       'io.modelcontextprotocol/clientInfo': {name: 'example', version: '1.0'},
       progressToken: 'weather-42',
     },
-  }, payload: {name: 'weather', arguments: {city: 'Seattle'}},
+  }, payload: {arguments: {city: 'Seattle'}},
 };
 assert.deepEqual(decode(request), {message: semantic, context, encode: encodeRequest});
 assert.deepEqual(encodeRequest(semantic, context), request);
 assert.deepEqual(decode({...request, id: 'different'}).message, semantic);
 assert.throws(() => encodeRequest(semantic), /context/);
+const targetCases = [
+  ['tools/call', 'name', 'weather', {arguments: {name: 'nested-tool-argument'}}],
+  ['prompts/get', 'name', 'review', {arguments: {name: 'nested-prompt-argument'}}],
+  ['resources/read', 'uri', 'file:///project/readme.md', {}],
+];
+const targetRequests = targetCases.map(([method, field, name, payload]) => {
+  const wire = {...request, method, params: {...payload, [field]: name, _meta: request.params._meta}};
+  const {message, context: ctx} = decode(wire);
+  assert.deepEqual(message, {...semantic, method, name, payload});
+  assert.deepEqual(encodeRequest(message, ctx), wire);
+  const {name: omitted, ...missingName} = message;
+  assert.throws(() => encodeRequest(missingName, ctx), /name required/);
+  assert.throws(() => encodeRequest({...message, name: 123}, ctx), /name required/);
+  for (const duplicate of [name, 'conflicting-target']) {
+    assert.throws(() => encodeRequest({...message, payload: {...payload, [field]: duplicate}}, ctx), /target belongs/);
+  }
+  const { [field]: removed, ...missingTarget } = wire.params;
+  assert.throws(() => decode({...wire, params: missingTarget}), /target required/);
+  assert.throws(() => decode({...wire, params: {...wire.params, [field]: 123}}), /target required/);
+  return [wire];
+});
+const listRequest = {...request, method: 'tools/list', params: {_meta: request.params._meta}};
+assert.equal('name' in decode(listRequest).message, false);
+assert.throws(() => encodeRequest({...decode(listRequest).message, name: 'unexpected'}, context), /No name mapping/);
 const cases = [
   [request],
+  ...targetRequests,
+  [listRequest],
+  [{...request, method: 'completion/complete', params: {
+    _meta: request.params._meta, ref: {type: 'ref/prompt', name: 'review'},
+    argument: {name: 'language', value: 'py'},
+  }}],
   [{...request, id: '42'}],
   [{...request, id: 0}],
   [{jsonrpc: '2.0', method: 'notifications/tools/list_changed'}, context],
@@ -86,6 +116,7 @@ for (const [wire, ctx] of cases) {
   assert.equal('requestId' in model, false);
   assert.equal('requestId' in model.metadata, false);
   assert.equal('kind' in model.metadata, false);
+  if (encode !== encodeRequest) assert.equal('name' in model, false);
   if (encode === encodeNotification || encode === encodeResponse) {
     assert.equal('io.modelcontextprotocol/subscriptionId' in (model.metadata.meta || {}), false);
   }
