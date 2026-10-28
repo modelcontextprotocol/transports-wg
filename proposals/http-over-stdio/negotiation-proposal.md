@@ -58,35 +58,44 @@ a shared revision within that group; otherwise the peers are incompatible.
 | STDIO | Incompatible | STDIO | STDIO |
 | Both | HTTP | STDIO | Prefer HTTP, otherwise STDIO |
 
-The discovery-based startup flow extends the [existing stateful/stateless negotiation][stdio]:
+The [existing compatibility flow][stdio] chooses between stateless discovery
+and stateful initialization. This proposal adds a transport choice after
+successful discovery; it does not change the initialization handshake.
 
 ```mermaid
 flowchart TD
-    Discover["server/discover over JSON-RPC"] --> Result{"Discovery outcome"}
-    Result -->|Success| Version{"Shared revision"}
-    Version -->|HTTP-only| HTTP["HTTP/2 handshake above"]
-    Version -->|Earlier stateless| STDIO["Continue JSON-RPC"]
-    Version -->|None| Fail["Report incompatibility"]
-    Result -->|"UnsupportedProtocolVersionError (-32022)"| Retry{"Shared stateless revision in error.data.supported?"}
-    Retry -->|Yes| Discover
-    Retry -->|No| Fail
-    Result -->|Other recognized stateless error| Error["Report error"]
-    Result -->|Unrecognized error or timeout| Legacy{"Client supports legacy initialization?"}
-    Legacy -->|No| Fail
-    Legacy -->|Yes| Init["initialize and receive result"]
-    Init --> Shared{"Shared legacy revision?"}
-    Shared -->|No| Fail
-    Shared -->|Yes| Ready["notifications/initialized"]
-    Ready --> Stateful["Stateful MCP over JSON-RPC"]
+    subgraph Existing["Existing: stateful/stateless compatibility"]
+        Discover["server/discover over JSON-RPC"] --> Result{"Discovery outcome"}
+        Result -->|Success| Shared{"Common version supporting discovery?"}
+        Shared -->|No| Fail["Report incompatibility"]
+        Result -->|"UnsupportedProtocolVersionError (-32022)"| Retry{"Can both peers use discovery at another version?"}
+        Retry -->|Yes, retry using that version| Discover
+        Retry -->|No| Fail
+        Result -->|Other recognized stateless error| Error["Report error"]
+        Result -->|Unrecognized error or timeout| Stateful{"Client supports stateful initialization?"}
+        Stateful -->|No| Fail
+        Stateful -->|Yes| Init["initialize and receive result"]
+        Init --> Compatible{"Common stateful version?"}
+        Compatible -->|No| Fail
+        Compatible -->|Yes| Ready["notifications/initialized"]
+        Ready --> Legacy["Stateful MCP over JSON-RPC"]
+    end
+    subgraph Transport["New: HTTP/2 negotiation"]
+        Select["Select a common version, preferring HTTP"] --> RequiresHTTP{"Selected version requires HTTP?"}
+        RequiresHTTP -->|Yes| HTTP["HTTP/2 handshake above"]
+        RequiresHTTP -->|No| STDIO["Continue stateless JSON-RPC"]
+    end
+    Shared -->|Yes| Select
 ```
 
 - **Unsupported revision:** [`UnsupportedProtocolVersionError`][version-error]
-  (`-32022`) means the MCP revision in the discovery request metadata is
-  unsupported. The response identifies it in `error.data.requested`. Retry with
-  a shared stateless revision from `error.data.supported`, or report
-  incompatibility. Recognized stateless-protocol errors never trigger stateful
-  fallback.
-- **Legacy fallback:** older servers may return errors other than `-32601`
+  (`-32022`) means the server does not support the requested MCP version.
+  `error.data.supported` lists the server's supported versions. The client
+  retries discovery using a listed version that it also supports and that
+  supports discovery, or reports incompatibility if none exists. This is version
+  selection within the stateless protocol, not a fallback to `initialize`.
+  Other recognized stateless-protocol errors also do not trigger that fallback.
+- **Stateful fallback:** older servers may return errors other than `-32601`
   (Method not found), or stay silent. Fallback must account for both.
 - **Initialization:** legacy clients may send `initialize` directly. A server
   supporting a shared legacy revision accepts it; an HTTP-only server rejects
