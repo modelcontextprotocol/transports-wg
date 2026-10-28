@@ -5,14 +5,31 @@
 
 ## Proposal
 
-The new MCP revision requires HTTP, using HTTP/2 over STDIO locally. Advertising
-it in `supportedVersions` lets the client switch directly to HTTP/2 without a
-separate capability or upgrade RPC.
+The proposed 2027-03 revision requires HTTP, using HTTP/2 over STDIO locally.
+Advertising it in `supportedVersions` lets the client switch directly to HTTP/2
+without a separate capability or upgrade RPC.
 
 **Compatible peers negotiate without restarting the server**, retaining existing
 `stdio` configuration and avoiding repeated startup effects. The new revision
 must allow JSON-RPC `server/discover` as a bootstrap exception; ordinary requests
 require HTTP. The full HTTP/2 binding is separate work.
+
+## Version key
+
+| Version | Behavior on STDIO |
+| --- | --- |
+| **2025-11 — stateful** | JSON-RPC with `initialize` and `notifications/initialized`. |
+| **2026-07 — stateless** | JSON-RPC with discovery and per-request metadata. |
+| **2027-03 — HTTP/2** | Stateless MCP over HTTP/2, with JSON-RPC discovery available during migration. |
+
+These are shorthand labels for `2025-11-25`, `2026-07-28`, and a proposed future
+revision. **2027-03 is a placeholder, not an assigned specification version.**
+Wire messages use full revision identifiers.
+
+**Clients always prefer the newest mutually supported version:** 2027-03, then
+2026-07, then 2025-11. Start discovery with the newest version the client supports;
+a 2025-11-only client starts with `initialize`. Supporting a newer version does
+not imply support for older versions.
 
 ## Handshake
 
@@ -20,104 +37,98 @@ require HTTP. The full HTTP/2 binding is separate work.
 sequenceDiagram
     participant C as Client
     participant S as Server
-    C->>S: server/discover over JSON-RPC
-    S->>C: result with supportedVersions
-    Note over C,S: Client selects a shared HTTP-only revision
+    C->>S: server/discover using 2027-03 over JSON-RPC
+    S->>C: supportedVersions includes 2027-03
+    Note over C,S: Client selects 2027-03
     C->>S: HTTP/2 client preface and SETTINGS
     S->>C: HTTP/2 SETTINGS
     Note over C,S: Acknowledge SETTINGS and continue MCP over HTTP/2
 ```
 
-After receiving the complete discovery result, the client sends the standard
+After receiving discovery's complete result, the client sends the standard
 [HTTP/2 preface][http2] and SETTINGS. The preface selects framing; subsequent
-requests declare the chosen MCP revision through [per-request metadata][versions].
+requests declare 2027-03 through [per-request metadata][versions].
 
-HTTP-capable servers recognize either JSON-RPC or the HTTP/2 preface at startup.
-When discovery is used, the server flushes its response and terminating LF
-before accepting the preface. It validates the preface before sending
-SETTINGS. Advertising a revision alone never switches framing.
+HTTP-capable servers recognize JSON-RPC or the HTTP/2 preface at startup.
+When discovery is used, flush its response and terminating LF before accepting
+the preface. Validate the preface before sending SETTINGS. Advertising 2027-03
+alone never switches framing.
 
 Switch only before initialization or application requests, with no pending
 exchanges. Preserve partial reads and buffered bytes when handing the preface
-to HTTP/2; it is a byte sequence, not a JSON line. During bootstrap, the server
-sends no unsolicited stdout messages. Diagnostics stay on stderr.
+to HTTP/2. During bootstrap, send no unsolicited stdout messages; diagnostics
+stay on stderr.
 
 ## Backward compatibility
 
-Describe peers by their supported revisions: **HTTP** supports HTTP-only
-revisions, **STDIO** supports older JSON-RPC revisions, and **Both** supports
-both groups. These are descriptions, not wire fields. HTTP also uses stdin and
-stdout and still implements discovery during migration.
+**HTTP** means only 2027-03, **STDIO** means only 2026-07 and/or 2025-11,
+and **Both** means 2027-03 plus at least one older version. For example:
 
-Prefer HTTP when a shared HTTP revision exists. Each matrix outcome requires
-a shared revision within that group; otherwise the peers are incompatible.
-
-| Client / Server | HTTP | STDIO | Both |
+| Client supports | Server supports | Selected version | Result |
 | --- | --- | --- | --- |
-| HTTP | HTTP | Incompatible | HTTP |
-| STDIO | Incompatible | STDIO | STDIO |
-| Both | HTTP | STDIO | Prefer HTTP, otherwise STDIO |
+| 2027-03, 2026-07, 2025-11 | 2027-03, 2026-07, 2025-11 | 2027-03 | Switch to HTTP/2. |
+| 2027-03, 2026-07, 2025-11 | 2026-07, 2025-11 | 2026-07 | Continue stateless JSON-RPC. |
+| 2026-07, 2025-11 | 2027-03, 2026-07, 2025-11 | 2026-07 | Continue stateless JSON-RPC. |
+| 2027-03, 2026-07, 2025-11 | 2025-11 | 2025-11 | Fall back to stateful initialization. |
+| 2025-11 | 2027-03, 2026-07, 2025-11 | 2025-11 | Initialize directly. |
+| 2027-03 | 2026-07, 2025-11 | None | Report incompatibility. |
 
-The [existing compatibility flow][stdio] chooses between stateless discovery
-and stateful initialization. This proposal adds a transport choice after
-successful discovery; it does not change the initialization handshake.
+The [existing compatibility flow][stdio] distinguishes 2026-07 discovery from
+2025-11 initialization. This proposal adds the 2027-03 HTTP/2 path:
 
 ```mermaid
 flowchart TD
-    subgraph Existing["Existing: stateful/stateless compatibility"]
-        Discover["server/discover over JSON-RPC"] --> Result{"Discovery outcome"}
-        Result -->|Success| Shared{"Common version supporting discovery?"}
-        Shared -->|No| Fail["Report incompatibility"]
-        Result -->|"UnsupportedProtocolVersionError (-32022)"| Retry{"Can both peers use discovery at another version?"}
-        Retry -->|Yes, retry using that version| Discover
+    subgraph Existing["Existing: 2025-11 stateful and 2026-07 stateless"]
+        Start["Select newest client-supported discovery version"] --> Discover["server/discover using selected version"]
+        Discover --> Result{"Discovery outcome"}
+        Result -->|Success| Shared{"Newest shared discovery version?"}
+        Shared -->|2026-07| STDIO["Stateless JSON-RPC using 2026-07"]
+        Shared -->|None| Fail["Report incompatibility"]
+        Result -->|"UnsupportedProtocolVersionError (-32022)"| Retry{"Both support 2027-03 or 2026-07 from the error list?"}
+        Retry -->|Yes, retry discovery using the newest| Discover
         Retry -->|No| Fail
         Result -->|Other recognized stateless error| Error["Report error"]
-        Result -->|Unrecognized error or timeout| Stateful{"Client supports stateful initialization?"}
+        Result -->|Unrecognized error or timeout| Stateful{"Client supports 2025-11?"}
         Stateful -->|No| Fail
-        Stateful -->|Yes| Init["initialize and receive result"]
-        Init --> Compatible{"Common stateful version?"}
+        Stateful -->|Yes| Init["initialize requesting 2025-11"]
+        Older["2025-11-only client"] --> Init
+        Init --> Compatible{"Server accepts 2025-11?"}
         Compatible -->|No| Fail
         Compatible -->|Yes| Ready["notifications/initialized"]
-        Ready --> Legacy["Stateful MCP over JSON-RPC"]
+        Ready --> Legacy["Stateful JSON-RPC using 2025-11"]
     end
-    subgraph Transport["New: HTTP/2 negotiation"]
-        Select["Select a common version, preferring HTTP"] --> RequiresHTTP{"Selected version requires HTTP?"}
-        RequiresHTTP -->|Yes| HTTP["HTTP/2 handshake above"]
-        RequiresHTTP -->|No| STDIO["Continue stateless JSON-RPC"]
+    subgraph Transport["New: 2027-03 HTTP/2"]
+        HTTP["HTTP/2 preface and SETTINGS"] --> New["Stateless MCP using 2027-03 over HTTP/2"]
     end
-    Shared -->|Yes| Select
+    Shared -->|2027-03| HTTP
 ```
 
-- **Unsupported revision:** [`UnsupportedProtocolVersionError`][version-error]
-  (`-32022`) means the server does not support the requested MCP version.
-  `error.data.supported` lists the server's supported versions. The client
-  retries discovery using a listed version that it also supports and that
-  supports discovery, or reports incompatibility if none exists. This is version
-  selection within the stateless protocol, not a fallback to `initialize`.
-  Other recognized stateless-protocol errors also do not trigger that fallback.
-- **Stateful fallback:** older servers may return errors other than `-32601`
-  (Method not found), or stay silent. Fallback must account for both.
-- **Initialization:** legacy clients may send `initialize` directly. A server
-  supporting a shared legacy revision accepts it; an HTTP-only server rejects
-  it. On failure, stop without sending `notifications/initialized`. Established
-  sessions are not migrated.
-- **Process reuse:** fallback reuses the process when possible. Some older
-  servers exit on discovery, so retain an explicit legacy startup option.
+- **Version error:** [`UnsupportedProtocolVersionError`][version-error] (`-32022`)
+  includes the server's versions in `error.data.supported`. If a client requests
+  2027-03 and the server lists 2026-07, retry discovery using 2026-07 if the client
+  supports it. Choose the newest shared discovery version; if none exists,
+  report incompatibility. This error does not trigger `initialize`.
+- **Stateful fallback:** a discovery error unrecognized by the stateless protocol,
+  or a timeout, can trigger 2025-11 initialization. This is not limited to
+  `-32601` (Method not found). On initialization failure, stop without sending
+  `notifications/initialized`. Established sessions are not migrated.
+- **Process reuse:** fallback reuses the process when possible. Some 2025-11
+  servers exit on discovery, so retain an explicit initialization-first option.
 
 ## Failure rules
 
-- When using discovery, query the running process rather than a cache. Ignore
-  late discovery responses after legacy fallback begins.
+- Query the running process rather than cached discovery. Ignore late discovery
+  responses after stateful fallback begins.
 - Once the client sends any preface bytes, it cannot return to JSON-RPC on those
   pipes. Invalid or truncated prefaces, EOF, or HTTP/2 startup failure close the
   connection. Bound discovery and HTTP/2 startup waits.
 
 ## Removing negotiation later
 
-When a client supports only HTTP revisions, it can skip JSON-RPC discovery and
-send the HTTP/2 preface and SETTINGS immediately. HTTP and Both servers must
-accept this at startup. A STDIO-only server will fail or time out, but the peers
-have no shared revision anyway. MCP version selection still happens over HTTP.
+A client supporting only 2027-03 can skip JSON-RPC discovery and send the HTTP/2
+preface and SETTINGS immediately. Servers supporting 2027-03 must accept this.
+An older-only server will fail or time out, but the peers have no shared version
+anyway. MCP version selection still happens over HTTP.
 
 Before adoption, validate same-process switching, older-version fallback,
 fragmented prefaces, combined reads, and failures in two SDKs.
