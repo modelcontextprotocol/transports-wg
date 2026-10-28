@@ -10,9 +10,10 @@ Advertising it in `supportedVersions` lets the client switch directly to HTTP/2
 without a separate capability or upgrade RPC.
 
 **Compatible peers negotiate without restarting the server**, retaining existing
-`stdio` configuration and avoiding repeated startup effects. The new revision
-must allow JSON-RPC `server/discover` as a bootstrap exception; ordinary requests
-require HTTP. The full HTTP/2 binding is separate work.
+`stdio` configuration and avoiding repeated startup effects. Servers supporting
+2027-03 must accept JSON-RPC `server/discover` using `2026-07-28` as a bootstrap
+exception, even if they do not serve ordinary requests at that older version.
+The full HTTP/2 binding is separate work.
 
 ## Version key
 
@@ -27,9 +28,9 @@ revision. **2027-03 is a placeholder, not an assigned specification version.**
 Wire messages use full revision identifiers.
 
 **Clients always prefer the newest mutually supported version:** 2027-03, then
-2026-07, then 2025-11. Start discovery with the newest version the client supports;
-a 2025-11-only client starts with `initialize`. Supporting a newer version does
-not imply support for older versions.
+2026-07, then 2025-11. JSON-RPC bootstrap discovery uses `2026-07-28`; its result
+selects the version for subsequent requests. A 2025-11-only client starts with
+`initialize`.
 
 ## Handshake
 
@@ -37,7 +38,7 @@ not imply support for older versions.
 sequenceDiagram
     participant C as Client
     participant S as Server
-    C->>S: server/discover using 2027-03 over JSON-RPC
+    C->>S: server/discover using 2026-07-28 over JSON-RPC
     S->>C: supportedVersions includes 2027-03
     Note over C,S: Client selects 2027-03
     C->>S: HTTP/2 client preface and SETTINGS
@@ -45,7 +46,7 @@ sequenceDiagram
     Note over C,S: Acknowledge SETTINGS and continue MCP over HTTP/2
 ```
 
-After receiving discovery's complete result, the client sends the standard
+After discovery selects 2027-03, the client sends the standard
 [HTTP/2 preface][http2] and SETTINGS. The preface selects framing; subsequent
 requests declare 2027-03 through [per-request metadata][versions].
 
@@ -73,47 +74,42 @@ and **Both** means 2027-03 plus at least one older version. For example:
 | 2025-11 | 2027-03, 2026-07, 2025-11 | 2025-11 | Initialize directly. |
 | 2027-03 | 2026-07, 2025-11 | None | Report incompatibility. |
 
-The [existing compatibility flow][stdio] distinguishes 2026-07 discovery from
-2025-11 initialization. This proposal adds the 2027-03 HTTP/2 path:
+The [existing handshake][stdio] selects stateless JSON-RPC or stateful
+initialization. The new handshake adds HTTP/2 after discovery. Choose the newest
+version both peers support; no shared version means incompatibility.
 
 ```mermaid
 flowchart TD
-    subgraph Existing["Existing: 2025-11 stateful and 2026-07 stateless"]
-        Start["Select newest client-supported discovery version"] --> Discover["server/discover using selected version"]
-        Discover --> Result{"Discovery outcome"}
-        Result -->|Success| Shared{"Newest shared discovery version?"}
-        Shared -->|2026-07| STDIO["Stateless JSON-RPC using 2026-07"]
-        Shared -->|None| Fail["Report incompatibility"]
-        Result -->|"UnsupportedProtocolVersionError (-32022)"| Retry{"Both support 2027-03 or 2026-07 from the error list?"}
-        Retry -->|Yes, retry discovery using the newest| Discover
-        Retry -->|No| Fail
-        Result -->|Other recognized stateless error| Error["Report error"]
-        Result -->|Unrecognized error or timeout| Stateful{"Client supports 2025-11?"}
-        Stateful -->|No| Fail
-        Stateful -->|Yes| Init["initialize requesting 2025-11"]
-        Older["2025-11-only client"] --> Init
-        Init --> Compatible{"Server accepts 2025-11?"}
-        Compatible -->|No| Fail
-        Compatible -->|Yes| Ready["notifications/initialized"]
-        Ready --> Legacy["Stateful JSON-RPC using 2025-11"]
+    subgraph Existing["Existing: stateless/stateful handshake"]
+        Discover["server/discover using 2026-07-28"] --> Result{"Discovery outcome"}
+        Result -->|Supports 2026-07-28| STDIO["Continue stateless JSON-RPC"]
+        Result -->|Other error or timeout| Fallback{"Eligible for stateful fallback?"}
+        Fallback -->|Yes| Init["Restart if needed, then initialize using 2025-11"]
+        Fallback -->|No| Fail["Report error or incompatibility"]
+        Init --> Ready["On success send notifications/initialized"]
+        Ready --> Stateful["Continue stateful JSON-RPC"]
     end
-    subgraph Transport["New: 2027-03 HTTP/2"]
-        HTTP["HTTP/2 preface and SETTINGS"] --> New["Stateless MCP using 2027-03 over HTTP/2"]
+    subgraph HTTP2["New: HTTP/2 handshake"]
+        Preface["Client sends HTTP/2 preface and SETTINGS"] --> Settings["Server sends SETTINGS, both acknowledge"]
+        Settings --> HTTP["Continue using 2027-03 over HTTP/2"]
     end
-    Shared -->|2027-03| HTTP
+    Result -->|Supports 2027-03| Preface
 ```
 
 - **Version error:** [`UnsupportedProtocolVersionError`][version-error] (`-32022`)
-  includes the server's versions in `error.data.supported`. If a client requests
-  2027-03 and the server lists 2026-07, retry discovery using 2026-07 if the client
-  supports it. Choose the newest shared discovery version; if none exists,
-  report incompatibility. This error does not trigger `initialize`.
-- **Stateful fallback:** a discovery error unrecognized by the stateless protocol,
-  or a timeout, can trigger 2025-11 initialization. This is not limited to
-  `-32601` (Method not found). On initialization failure, stop without sending
-  `notifications/initialized`. Established sessions are not migrated.
-- **Process reuse:** fallback reuses the process when possible. Some 2025-11
-  servers exit on discovery, so retain an explicit initialization-first option.
+  lists the server's versions in `error.data.supported`. Rejecting the fixed
+  `2026-07-28` discovery probe is a bootstrap incompatibility, not evidence of
+  a stateful server. Report it without falling back to `initialize`. Other
+  recognized stateless-protocol errors also do not trigger stateful fallback.
+- **Stateful fallback:** an unrecognized discovery error or timeout can trigger
+  initialization if the client supports 2025-11. Some stateful servers exit or
+  cannot initialize after a discovery probe; restart them and send `initialize`
+  first. Reuse the process when it remains usable. On initialization failure,
+  stop without sending `notifications/initialized`.
+- **Restart scope:** HTTP/2 negotiation does not require a restart. Restarting
+  for stateful compatibility may repeat process startup effects; bound retries
+  and retain an explicit initialization-first option. Existing sessions are
+  not migrated.
 
 ## Failure rules
 
