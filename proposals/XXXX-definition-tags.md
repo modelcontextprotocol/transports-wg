@@ -50,13 +50,13 @@ The scenarios below describe how this feature is expected to be used.
 
 **Client**
 
-- **Lazy initialization.** A client can reconnect and start calling tools from its cached definitions immediately, without a `tools/list` round trip. If the definitions have moved on, the server says so and the client refreshes only then. Existing optimistic cache mechanisms risk tool definition drift.
+- **Optimistic Caching.** A client can call tools from cached definitions immediately, without requiring a `tools/list` round trip. If the definitions are stale, the server says so when a tool is called, and only then does the client refresh. There's no waiting for `ttlMs` to run out, no need for poll/subscribe and no risk of silent definition drift. 
 
-- **On-demand refresh.** A client can use its cached definitions optimistically and let the server tell it when they are out of date. Staleness is caught at the point of use rather than at the end of the `ttlMs` window, with no polling or subscription needed.
-
-- **Clearer errors.** Without tags, a schema change surfaces as an argument validation failure that the model has no way to reason about. A tag rejection names the stale method instead, so the client refreshes and retries rather than treating it as a model error.
+- **Specific errors.** Without tags, a schema change surfaces as an argument validation failure that the model has no way to reason about. A tag rejection names the stale method instead, so the client refreshes and retries rather than treating it as a model error.
 
 - **Long-lived clients.** A client can keep using the same server for weeks or months without subscribing to change notifications. The tags it sends on each call are enough for the server to tell it when a refresh is needed.
+
+- **Continuous Deployment.** A server can offer new definitions to a cohort of clients through "honor and signal", while honouring existing tags. This allows the server to widen the rollout based on live success criteria.
 
 **Pattern: progressive disclosure via a search tool**
 
