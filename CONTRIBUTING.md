@@ -6,7 +6,8 @@ We welcome contributions from anyone interested in improving MCP transports!
 
 1. **Join the community** — Connect on the `#transports-wg` channel in [MCP
    Discord](https://discord.com/invite/6CSzBmMkjX)
-2. **Understand the scope** — Review the [CHARTER](./CHARTER.md) and
+2. **Understand the scope** — Review the
+   [charter](https://modelcontextprotocol.io/community/working-groups/transports) and
    [README](./README.md)
 3. **Start contributing** — Attend meetings (find the next meeting at
    [https://meet.modelcontextprotocol.io/](https://meet.modelcontextprotocol.io/)),

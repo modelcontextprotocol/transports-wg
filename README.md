@@ -18,7 +18,7 @@ The Transports Working Group coordinates community stakeholders to:
   state management
 - **Drive interoperability** across platforms and implementations
 
-> **See the [CHARTER](./CHARTER.md) for detailed scope and processes.**
+> **See the [charter](https://modelcontextprotocol.io/community/working-groups/transports) for detailed scope and processes.**
 
 See our [current roadmap](./roadmaps/2026-12-15.md) for priorities and planned work.
 
@@ -52,6 +52,5 @@ _See [GOVERNANCE.md](./GOVERNANCE.md) for current members and governance roles._
 | [proposals/](./proposals/) | Problem statements, transport proposals, and design discussions. |
 | [docs/](./docs/) | Technical investigations, decision records, and supporting documentation. |
 | [meetings/](./meetings/) | Summaries and action items from past working group meetings. |
-| [CHARTER.md](./CHARTER.md) | Mission, scope, and proposal strategy. |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Guidelines for participating and proposing changes. |
 | [GOVERNANCE.md](./GOVERNANCE.md) | Governance model, roles, and current members and maintainers. |
