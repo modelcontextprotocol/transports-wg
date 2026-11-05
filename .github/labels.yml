@@ -1,0 +1,31 @@
+# Roadmap topic labels indicate related work, not release commitments or priority.
+# WG leads apply them during triage; a PR can have more than one topic label.
+# The workflow previews changes on PRs and syncs on main or manual dispatch.
+# Labels omitted from this file are preserved; removing an entry does not delete it.
+- name: 'roadmap:primitive-versioning'
+  color: '5319e7'
+  description: 'Primitive definition versions, validators, and compatibility with cached definitions.'
+
+- name: 'roadmap:http-over-stdio'
+  color: '1d76db'
+  description: 'HTTP transport semantics over subprocess stdin/stdout, including startup and migration.'
+
+- name: 'roadmap:pluggable-transports'
+  color: '006b75'
+  description: 'Custom transport interfaces, data-model separation, and transport metadata mappings.'
+
+- name: 'roadmap:error-standardization'
+  color: 'b45309'
+  description: 'Protocol error registry, HTTP status mappings, and retry guidance.'
+
+- name: 'roadmap:incremental-results'
+  color: '0e8a16'
+  description: 'Incremental tool results, chunk delivery, and interaction with Tasks.'
+
+- name: 'roadmap:language-negotiation'
+  color: 'd876e3'
+  description: 'Per-request language negotiation and content-language metadata.'
+
+- name: 'roadmap:tool-capabilities'
+  color: 'fbca04'
+  description: 'Tool capability requirements, client filtering, and server validation.'
