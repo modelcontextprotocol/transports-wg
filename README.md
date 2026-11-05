@@ -7,6 +7,8 @@ semantics.
 
 ## Mission
 
+See our [current roadmap](./roadmaps/2027-March.md) for priorities and planned work.
+
 The Transports Working Group coordinates community stakeholders to:
 
 - **Improve transport usability** across MCP implementations
@@ -20,7 +22,6 @@ The Transports Working Group coordinates community stakeholders to:
 
 > **See the [charter](https://modelcontextprotocol.io/community/working-groups/transports) for detailed scope and processes.**
 
-See our [current roadmap](./roadmaps/2026-12-15.md) for priorities and planned work.
 
 ## Getting Involved
 
@@ -34,8 +35,12 @@ you can get involved:
    No approval needed!
 3. **Contribute** — Open issues to propose ideas or submit PRs for improvements.
 
-Please review our **[CONTRIBUTING.md](./CONTRIBUTING.md)** guide for detailed
-guidelines on how to participate.
+Start with an issue describing the problem and concrete use cases. Keep related
+material together under `proposals/<project>/`, using descriptive filenames and
+`XXXX-` prefixes for draft SEPs. Include authors, status, and discussion links.
+When work moves upstream, link to the official SEP and mark the local draft as
+historical. Follow the [MCP SEP guidelines](https://modelcontextprotocol.io/community/sep-guidelines)
+for the formal proposal process.
 
 All participants must abide by the **[MCP Code of
 Conduct](https://github.com/modelcontextprotocol/.github/blob/main/CODE_OF_CONDUCT.md)**
@@ -49,8 +54,6 @@ _See [GOVERNANCE.md](./GOVERNANCE.md) for current members and governance roles._
 | Location | Contents |
 | --- | --- |
 | [roadmaps/](./roadmaps/) | Priorities and planned work for specification releases. |
-| [proposals/](./proposals/) | Problem statements, transport proposals, and design discussions. |
-| [docs/](./docs/) | Technical investigations, decision records, and supporting documentation. |
+| [proposals/](./proposals/) | Material grouped by project, including problem statements, proposals, and decision records. |
 | [meetings/](./meetings/) | Summaries and action items from past working group meetings. |
-| [CONTRIBUTING.md](./CONTRIBUTING.md) | Guidelines for participating and proposing changes. |
-| [GOVERNANCE.md](./GOVERNANCE.md) | Governance model, roles, and current members and maintainers. |
+| [GOVERNANCE.md](./GOVERNANCE.md) | Governance model, roles, and current members and working group leads. |

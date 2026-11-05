@@ -1,10 +1,10 @@
-# SEP-0000: Separating Data Model from Transport Representation
+# SEP-3498: Separating Data Model from Transport Representation
 
-- **Status**: Unsubmitted draft
+- **Status**: Historical WG draft; [SEP-3498 is under review upstream](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/3498) (not yet merged).
 - **Type**: Standards Track
 - **Created**: 2026-09-30
 - **Author**: TBD
-- **Sponsor / PR**: Not yet assigned
+- **PR**: https://github.com/modelcontextprotocol/modelcontextprotocol/pull/3498
 
 ## Abstract
 

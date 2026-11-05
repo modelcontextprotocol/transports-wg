@@ -1,7 +1,7 @@
 # Investigation: Generalized Payload-to-Header Mapping for MCP
 
 **Contributors:** @kurtisvg 
-**Status:** 🚧 WIP   
+**Status:** Historical investigation; see the [official SEP-2243 (Final)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/seps/2243-http-standardization.md) for the accepted HTTP standardization design.
 **Last Updated:  Mar 3, 2026**
 
 ## Problem Statement

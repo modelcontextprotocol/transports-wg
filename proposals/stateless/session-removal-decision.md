@@ -1,5 +1,7 @@
 # **Decision Document: To App Session, or Not to App Session?** 
 
+> Historical WG decision. The accepted designs are recorded in [SEP-2567: Sessionless MCP (Final)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/seps/2567-sessionless-mcp.md) and [SEP-2575: Make MCP Stateless (Final)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/seps/2575-stateless-mcp.md).
+
 ## **Background**
 
 ### **Sessions in MCP**

@@ -1,5 +1,7 @@
 # Multi Round-Trip Requests: Brief
 
+> Historical WG brief. See the [official SEP-2322 (Final)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/seps/2322-MRTR.md) for the accepted design.
+
 **Background:** There are two main types of tool implementations that may
 need multi round-trip requests (e.g., elicitation within the context of a
 tool call):

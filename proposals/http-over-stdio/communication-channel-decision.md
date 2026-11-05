@@ -20,9 +20,7 @@ one subprocess connection. It must also define process lifecycle and framing
 selection, and remain practical for small servers and SDKs across languages.
 
 The options below compare both the communication channel and the protocol
-carried over it. The separate
-[negotiation decision](negotiation-decision.md) covers
-explicit `stdio-v2` selection and migration.
+carried over it. Startup selection and migration require a separate proposal.
 
 ## Background
 
