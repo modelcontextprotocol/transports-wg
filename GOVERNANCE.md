@@ -50,6 +50,6 @@ We recognize the contributions of these former members and working group leads.
 | ---------------- | ------------ | ------------------ | ---------------------------------------------------- |
 | Basil Hosmer     | Anthropic    | Working Group Lead | [@bhosmer-ant](https://github.com/bhosmer-ant)       |
 | Peter Alexander  | Anthropic    | Working Group Lead | [@pja-ant](https://github.com/pja-ant)               |
-| Caitie McCaffrey | Microsoft    | Member             | [@CatieM20](https://github.com/CatieM20)             |
+| Caitie McCaffrey | Microsoft    | Member             | [@CaitieM20](https://github.com/CaitieM20)           |
 | Jonathan Hefner  | -            | Member             | [@jonathanhefner](https://github.com/jonathanhefner) |
 | Mike Kistler     | Microsoft    | Member             | [@mikekistler](https://github.com/mikekistler)       |
