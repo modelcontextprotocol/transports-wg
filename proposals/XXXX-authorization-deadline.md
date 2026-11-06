@@ -6,7 +6,7 @@
 - **Author(s)**: Ramjot Singh (@RamjotSingh)
 - **Sponsor**: None (seeking sponsor)
 - **PR**: TBD
-- **Requires**: [#67][sep-ending] (Ending Subscription Streams When Authorization Ends)
+- **Requires**: [#67][sep-ending] (Ending Subscription Streams with an Authorization Reason)
 - **Related**: [transports-wg#62][issue-62] (discussion); split from [#63][pr-63]
 
 ## Abstract
@@ -27,14 +27,14 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 This specification applies where [Ending Streams][sep-ending] applies, and uses its definitions of server, stream authorization, and authorization expiry. `authorizedUntil` is a field of the acknowledgment, a JSON-RPC message; its meaning does not depend on the transport.
 
-- **Authorization deadline**: the time until which the stream authorization lets the server deliver notifications: the authorization expiry, or earlier when a new requirement takes effect ([Ending Streams, section 3][sep-ending-3], rule 3). The server reports it as `authorizedUntil`.
+- **Authorization deadline**: the time until which the stream authorization lets the server deliver notifications: the authorization expiry, or earlier when a new requirement takes effect ([Ending Streams, section 5][sep-ending-5], rule 3). The server reports it as `authorizedUntil`.
 
 ### 2. The deadline in the acknowledgment
 
 1. The acknowledgment MUST include `authorizedUntil`, the authorization deadline, when the server knows it. The field is part of the acknowledgment every client receives; it is not gated by the filter.
 2. `authorizedUntil` MUST NOT be later than the authorization expiry.
 3. A server ends a stream with `token_expiry` at its `authorizedUntil`, not earlier, and does not add jitter to the deadline. Revocation can still end a stream before its deadline ([Ending Streams, section 4][sep-ending-4]).
-4. The acknowledgment reports the deadline known when it was sent. A new requirement that takes effect later can make the deadline earlier ([Ending Streams, section 3][sep-ending-3], rule 3); the stream then ends at the new deadline with `insufficient_authorization`.
+4. The acknowledgment reports the deadline known when it was sent. A new requirement that takes effect later can make the deadline earlier ([Ending Streams, section 5][sep-ending-5], rule 3); the stream then ends at the new deadline with `insufficient_authorization`.
 
 Client and server clocks can disagree. A client that schedules from `authorizedUntil` SHOULD leave a margin. On Streamable HTTP, it MAY also estimate the server's clock from the `Date` header of the response that carried the acknowledgment ([RFC 9110, section 6.6.1][rfc9110-date]).
 
@@ -176,8 +176,8 @@ Conformance scenarios, for the [conformance repository][conformance]:
 [issue-62]: https://github.com/modelcontextprotocol/transports-wg/issues/62
 [pr-63]: https://github.com/modelcontextprotocol/transports-wg/pull/63
 [sep-ending]: https://github.com/modelcontextprotocol/transports-wg/pull/67
-[sep-ending-3]: https://github.com/RamjotSingh/transports-wg/blob/sep/ending-streams-when-authorization-ends/proposals/XXXX-ending-streams-when-authorization-ends.md#3-stream-lifetime
-[sep-ending-4]: https://github.com/RamjotSingh/transports-wg/blob/sep/ending-streams-when-authorization-ends/proposals/XXXX-ending-streams-when-authorization-ends.md#4-revocation
+[sep-ending-4]: https://github.com/RamjotSingh/transports-wg/blob/sep/ending-streams-when-authorization-ends/proposals/XXXX-ending-streams-when-authorization-ends.md#revocation
+[sep-ending-5]: https://github.com/RamjotSingh/transports-wg/blob/sep/ending-streams-when-authorization-ends/proposals/XXXX-ending-streams-when-authorization-ends.md#5-when-to-end-a-stream
 [sep-ending-6]: https://github.com/RamjotSingh/transports-wg/blob/sep/ending-streams-when-authorization-ends/proposals/XXXX-ending-streams-when-authorization-ends.md#6-re-establishing-a-stream
 [cancel-transport]: https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#transport-specific-cancellation
 [sep-3415]: https://github.com/modelcontextprotocol/modelcontextprotocol/pull/3415
