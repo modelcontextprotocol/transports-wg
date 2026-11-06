@@ -52,7 +52,7 @@ The scenarios below describe how this feature is expected to be used.
 
 - **Optimistic Caching.** A client can call tools from cached definitions immediately, without requiring a `tools/list` round trip. If the definitions are stale, the server says so when a tool is called, and only then does the client refresh. There's no waiting for `ttlMs` to run out, no need for poll/subscribe and no risk of silent definition drift. 
 
-- **Specific errors.** Without tags, a schema change surfaces as an argument validation failure that the model has no way to reason about. A tag rejection names the stale method instead, so the client refreshes and retries rather than treating it as a model error.
+- **Specific errors.** Without tags, a schema change surfaces as an argument validation failure. A tag rejection names the stale method instead, so the client can tell a changed definition from a bad call and refresh.
 
 - **Long-lived clients.** A client can keep using the same server for weeks or months without subscribing to change notifications. The tags it sends on each call are enough for the server to tell it when a refresh is needed.
 
@@ -60,7 +60,7 @@ The scenarios below describe how this feature is expected to be used.
 
 **Pattern: progressive disclosure via a search tool**
 
-- A server can expose a small initial tool set with a `search` (or similar discovery) tool, enabling further tools based on what the client searches for. The search result carries `staleTags` naming `tools/list` (with the tag the client sent, or `null` if it sent none), which tells the client the catalogue has grown; it refreshes and the newly unlocked tools become available to the model, with no extra protocol machinery.
+- A server can expose a small initial tool set with a `search` (or similar discovery) tool, enabling further tools based on what the client searches for. The search result carries `staleTags` naming `tools/list` (with the tag the client sent, or `null` if it sent none), which tells the client the catalogue has grown; it refreshes and updates the tool list it presents to the model.
 
 ## Specification
 
@@ -274,3 +274,86 @@ Implementations should test:
 - The canonicalization, and which definition fields a tag covers (for example, whether a tool's own `_meta` is included).
 - Whether servers must provide a consistent snapshot across pages or may require clients to restart.
 - The standard error code for a tag mismatch.
+
+## Appendix: Scenarios
+
+Each scenario describes behavior without tags, then with tags. Tags are written `A` (before the change) and `B` (after). Notifications are via `subscriptions/listen`.
+
+### Adding a tool
+
+Without tags, the client learns of the new tool when its `tools/list` TTL expires or, if subscribed, on `notifications/tools/list_changed`.
+
+With tags, the next request carrying `tools/list: A` reaches a server whose tag is `B`. The call to `search` is unaffected by the change, so the server honors and signals: it serves the call and names `tools/list: A` in `staleTags`. The client refreshes when convenient and updates the tool list it presents to the model.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+
+    C->>S: tools/list
+    S-->>C: { tools: [search], tag: A }
+    Note over S: Server adds "fetch"
+    C->>S: tools/call search, knownTags { tools/list: A }
+    Note over S: Honor and signal
+    S-->>C: result, staleTags { tools/list: A }
+    Note over C: Use result. Refresh when convenient.
+    C->>S: tools/list
+    S-->>C: { tools: [search, fetch], tag: B }
+```
+
+### Removing a tool
+
+Without tags, a call to the removed tool fails with `-32602` "Unknown tool". The client cannot tell whether the tool was removed or the model named it wrongly.
+
+With tags, the server rejects the call as stale with `staleTags { tools/list: A }`. The client refreshes and updates the tool list it presents to the model. Calls to tools that still exist can be served and signaled, as for an added tool. A server still draining work against `A` may honor the call instead.
+
+A renamed tool is a removal and an addition.
+
+### Updating a tool definition
+
+Without tags, a changed `inputSchema` surfaces as an input validation error (`isError: true`), not as a changed definition. If only the description or the meaning of an argument changed, the call passes validation and runs under the new meaning.
+
+With tags, the server checks the tag before validating arguments and rejects with `staleTags { tools/list: A }`. The client refreshes and updates the tool list it presents to the model. Whether the call is retried is up to the client. A server that still holds `A` may honor the call against the old definition instead.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+
+    Note over C: Holds tools/list A
+    Note over S: "search" gains required argument "scope", tag is now B
+    C->>S: tools/call search { query }, knownTags { tools/list: A }
+    Note over S: Reject
+    S-->>C: error, data { staleTags { tools/list: A } }
+    C->>S: tools/list
+    S-->>C: { tools: [search(query, scope)], tag: B }
+    Note over C: Update tool list
+    C->>S: tools/call search { query, scope }, knownTags { tools/list: B }
+    S-->>C: result
+```
+
+Changes to `outputSchema` or annotations are handled the same way. Whether a tool's `_meta` is covered is an open question.
+
+### Changing a prompt
+
+Without tags, a changed or removed argument fails `prompts/get` with `-32602`. A changed description is not detected.
+
+With tags, `prompts/get` carries `prompts/list: A`. The server rejects or honors as for tools. On rejection the client refreshes and updates the prompts it presents.
+
+### Changing instructions
+
+Without tags, the client sees new instructions when its `server/discover` TTL expires and it calls again.
+
+With tags, any request carrying `server/discover: A` may be signaled or rejected. The client calls `server/discover` and updates the instructions it presents to the model.
+
+### Starting from a cached list
+
+Without tags, a client with lists still within their TTL uses them and finds changes by request failure, TTL expiry, or notification.
+
+With tags, the client sends all held tags on `server/discover`. The server names any stale lists in `staleTags`, and the client refreshes only those. An empty `staleTags` does not extend a TTL.
+
+### Rolling deployment
+
+Without tags, a client's requests can reach old and new instances, and requests built against one version are validated or interpreted by the other.
+
+With tags, an instance that holds the other version's definitions honors and signals. An instance that does not should ignore the tag rather than reject, unless the deployment is being rolled back, to avoid repeated refreshes as requests alternate between instances.
