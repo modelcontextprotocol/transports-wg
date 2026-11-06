@@ -42,7 +42,7 @@ The scenarios below describe how this feature is expected to be used.
 
 **Server**
 
-- **Deployments.** During a rolling deploy, successive requests from one client can land on new and old instances. With tags, an instance that receives a request built against the other version's definitions can honor it, flag it, or reject it before anything runs, instead of silently misinterpreting the arguments.
+- **Deployments.** During a rolling deploy, successive requests from one client can land on new and old instances. With tags, an instance that receives a request built against the other version's definitions can honor it, flag it, or reject it before anything runs, instead of silently misinterpreting the arguments. Rejecting is best avoided here: if a client's refresh and its retry reach instances on different versions, it can be rejected repeatedly and fall into a retry storm. During deployment, servers should prefer honor or honor-and-signal, or use the tags to route clients to an appropriate instance.
 
 - **Versioning.** A server that wants to evolve its tool surface can keep more than one definition set live and use the known tag to select the one a client is working from. Clients migrate to the new set when they refresh, rather than the moment it is deployed.
 
@@ -123,7 +123,7 @@ The [caching rules](https://modelcontextprotocol.io/specification/draft/server/u
 
 ### Sending known tags
 
-A client **MAY** tell the server which tags it is working from, in any request `_meta`, as a map from the method that produced each tag to the tag:
+A client **SHOULD** tell the server which tags it is working from, in the request `_meta`, as a map from the method that produced each tag to the tag:
 
 ```ts
 export interface KnownTags {
@@ -157,9 +157,9 @@ For example, the parameters of a `tools/call` request might look like this (othe
 }
 ```
 
-Known tags are hints, not preconditions. No capability flag is required. The `server/discover` tag is relevant to any operation, since instructions shape how the model uses everything else.
+Known tags are hints, not preconditions. No capability flag is required.
 
-A client **MAY** send every tag it holds, and **SHOULD** send at least the `server/discover` tag and the tag for the list the operation depends on (see [Relevance](#relevance)).
+On `tools/call`, `prompts/get`, `server/discover`, and an extension's equivalent operations, a client **SHOULD** send every tag it holds. This is the simplest rule for clients: they do not need to work out which collections an operation depends on, and the server sees every tag it might want to check or signal.
 
 ### Handling known tags
 
@@ -192,17 +192,7 @@ export interface ResultMetaObject extends MetaObject {
 
 Echoing the client's own tag lets it resolve responses that cross a refresh. A client compares each string value with the tag it now holds for that method: if they differ, it has already refreshed past that tag and ignores the entry; if they are equal, it refreshes. A `null` value always means refresh.
 
-#### Relevance
-
-A server **MUST** only reject a request for a tag that is relevant to it. Stale tags that are not relevant **MAY** be named in `staleTags` on the result, but never cause a rejection. A stale `prompts/list` tag does not fail a `tools/call`.
-
-| Operation | Relevant tags |
-|---|---|
-| any | `server/discover` |
-| `tools/call` | `tools/list` |
-| `prompts/get` | `prompts/list` |
-| `resources/read` | `resources/list`, `resources/templates/list` |
-| an extension operation | as the extension defines |
+Because clients send all known tags, a request will often carry tags for collections the operation does not use. A server **MUST NOT** reject a request for a stale tag unless the operation depends on that collection; it **MAY** name the tag in `staleTags` on the result instead. A stale `prompts/list` tag does not fail a `tools/call`. The `server/discover` tag counts for every operation, since instructions shape how the model uses everything else.
 
 A server **SHOULD** validate the tag before operation-specific validation and execution so that a changed schema is reported as stale rather than invalid arguments.
 
@@ -270,7 +260,7 @@ Implementations should test:
 - When signaling, the result names each stale method with the tag the client sent (or `null` if it sent none) and never a current tag; the client uses the result and refreshes before its next dependent call.
 - A client that has already refreshed ignores a `staleTags` entry whose value differs from the tag it now holds, and always refreshes on `null`.
 - Methods the server does not tag, extension methods, and malformed hints do not cause a rejection.
-- A stale tag that is not relevant to the operation is signaled, not rejected.
+- A stale tag for a collection the operation does not depend on is signaled, not rejected.
 - After a mismatch, the client refreshes from the server rather than from a still-fresh cached list.
 
 ## Open Questions
