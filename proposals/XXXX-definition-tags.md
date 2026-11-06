@@ -159,7 +159,7 @@ For example, the parameters of a `tools/call` request might look like this (othe
 
 Known tags are hints, not preconditions. No capability flag is required.
 
-On `tools/call`, `prompts/get`, `server/discover`, and an extension's equivalent operations, a client **SHOULD** send every tag it holds. This is the simplest rule for clients: they do not need to work out which collections an operation depends on, and the server sees every tag it might want to check or signal.
+On `tools/call`, `prompts/get`, `resources/read`, `server/discover`, and an extension's equivalent operations, a client **SHOULD** send every tag it holds. This is the simplest rule for clients: they do not need to work out which collections an operation depends on, and the server sees every tag it might want to check or signal.
 
 ### Handling known tags
 
@@ -192,7 +192,9 @@ export interface ResultMetaObject extends MetaObject {
 
 Echoing the client's own tag lets it resolve responses that cross a refresh. A client compares each string value with the tag it now holds for that method: if they differ, it has already refreshed past that tag and ignores the entry; if they are equal, it refreshes. A `null` value always means refresh.
 
-Because clients send all known tags, a request will often carry tags for collections the operation does not use. A server **MUST NOT** reject a request for a stale tag unless the operation depends on that collection; it **MAY** name the tag in `staleTags` on the result instead. A stale `prompts/list` tag does not fail a `tools/call`. The `server/discover` tag counts for every operation, since instructions shape how the model uses everything else.
+Because clients send all known tags, a request will often carry tags for collections the operation does not use. A server **MUST NOT** reject a request for a stale tag unless the operation depends on that collection; it **MAY** name the tag in `staleTags` on the result instead. A stale `prompts/list` tag does not fail a `tools/call`. The `server/discover` tag counts for every operation, since instructions shape how the model uses everything else. `resources/read` depends on both `resources/list` and `resources/templates/list`, since the URI may have been built from a template.
+
+A server **MUST NOT** reject `server/discover` for a stale tag. It **MAY** name stale list tags in `staleTags` on the result.
 
 A server **SHOULD** validate the tag before operation-specific validation and execution so that a changed schema is reported as stale rather than invalid arguments.
 
@@ -202,25 +204,25 @@ A client receiving this error **SHOULD** refresh the affected definitions and th
 
 ## Rationale
 
-**One tag per collection, not per primitive.** An earlier draft attached a tag to every primitive and made the check mandatory. That design could not detect newly added primitives, and it required every replica behind an endpoint to honor any tag the server had advertised. One tag per collection is simpler to compute and compare, and covers additions and removals. The cost is coarseness: any change to a collection invalidates requests against it, even if the specific tool the client wants is unchanged. It is still enough for draining, because a server that honors an old tag holds the whole old snapshot; it does not need a history per tool.
+**Per collection, not per primitive.** An earlier draft tagged each primitive and made the check mandatory. It could not detect added primitives, and every replica had to honor every advertised tag. A collection tag covers additions and removals and is cheaper to compute. Any change to a collection invalidates requests against it, even when the tool being called is unchanged. Draining still works: a server honoring an old tag holds the whole old collection.
 
-**The list is the definitions.** In MCP a list result does not point at tools, prompts, or templates to be fetched separately; it contains them in full. The complete definition a client will ever hold is the entry in the list. A tag on the list therefore covers exactly what the client works from, and a change to a tool's arguments is a change to the list because there is nowhere else for it to appear. There is no lower-level object to version, and nothing to re-fetch but the list itself.
+**Tags on lists.** List results contain the full definitions of tools, prompts, and templates. There is no separate per-primitive fetch, so the list is the only thing to tag.
 
-**Not one tag for the whole server, either.** A single tag over everything would be simpler still, but tools, prompts, and resources are separate capabilities, each with its own `list_changed` notification, its own `CacheableResult`, and its own fetch. A resource list that changes every few seconds would force a client to re-fetch a tool list that changes once a quarter, and an extension list would be folded into a value it does not control. Per-list tags sit where the protocol already notifies and caches.
+**Per collection, not per server.** Tools, prompts, and resources each have their own `list_changed` notification, `CacheableResult`, and fetch. A single server-wide tag would make a client re-fetch every list when any one changes, and would fold extension lists into a value they do not control.
 
-Resources are the exception that shows the rule. `resources/list` returns descriptors, and the content a client actually uses is fetched by URI and may be individually subscribed. The list is a set of references rather than the definitions themselves, which is why `resources/read` carries no tag and remains an open question below.
+**No tag on `resources/read`.** `resources/list` returns descriptors; contents are fetched by URI. Contents are data, not definitions, and their freshness is covered by `ttlMs`, per-URI subscriptions, and HTTP ETags. A content tag would also need a per-URI key in `KnownTags`, and a client sending all its tags would send one per resource read. `resources/read` sends known tags but does not carry one.
 
-**A field on `CacheableResult`.** `ttlMs` says how long a result may be held and `cacheScope` says who may share it. The tag says what the result is, and is the thing a client checks when the TTL turns out not to have been a guarantee. Those three belong together, and every result that already carries the first two is one that this SEP wants to tag. The schema permits the field today: `Result` has an open index signature, and no result type forbids additional properties, so a server can emit `tag` now and a later schema change simply names it.
+**A field on `CacheableResult`.** Results that carry `ttlMs` and `cacheScope` are the results this SEP tags, so `tag` sits alongside them. `Result` already allows additional properties, so servers can send `tag` before the schema names it.
 
-**Keyed by method.** A result carries one tag and the method says what it covers, so there is nothing to negotiate about structure on the response side. `server/discover` tags what discovery returns; a client that wants to know whether tools changed asks `tools/list`, which it was going to do anyway. The method only appears as a key when the client sends tags back, where a single request can vouch for several things at once. Methods are already unique, so `skills/list` or any future extension list joins the map without a naming rule, and one `staleTags` map covers everything.
+**Keyed by method.** The method identifies what a tag covers, so the tag itself needs no structure. `server/discover` tags only what discovery returns. A client that sends its list tags on `server/discover` learns which lists are stale; an empty `staleTags` does not confirm the rest, since servers may ignore hints. Extension methods such as `skills/list` use the same map without a naming rule.
 
-**The cost of checking.** Checking a single request means computing the tag of the whole collection, which can cost more than serving the request itself: a server that normally builds only the one tool being called must now build them all. Servers can limit this by supplying tags only where the complete collection is cheap to build, and ignoring hints elsewhere. Clients help by sending tags only when they hold one, so unchecked requests keep their existing cost.
+**Cost of checking.** Checking a request requires the tag of the whole collection, which may cost more than the request itself. A server can supply tags only where the collection is cheap to build and ignore hints elsewhere.
 
-**Echoing the stale tag.** `staleTags` could have been a plain list of methods, but a client with several requests in flight cannot tell from `["tools/list"]` alone whether a late response refers to the tag it has already replaced or to the one it holds now, and would refresh again for nothing or learn to ignore the signal. Echoing the tag the client sent makes each response self-describing without the client tracking which tag went with which request, which matters for tasks and other long-running calls. It reveals nothing the client did not already have, so it does not weaken the rule against returning current tags; that rule exists so a client cannot adopt a tag without fetching the definitions it describes.
+**Echoing the stale tag.** With a plain list of methods, a client with requests in flight cannot tell whether a late `staleTags` refers to a tag it has already replaced. Echoing the tag the client sent resolves this without per-request tracking. It returns nothing the client did not send, so it does not conflict with the rule against returning current tags, which exists so that a client cannot adopt a tag without fetching its definitions.
 
-**Naming.** Earlier drafts called this a *digest*. The skills extension already uses `digest` for a verifiable content hash of a file, which a client may recompute and check; this value is the opposite, an opaque string compared only for equality, so it needs a different name. "Version" was avoided because the schema already uses it for `Implementation.version`, `supportedVersions`, and protocol revisions, and because it suggests an ordering that tags do not have. In prose it is a *definition tag*; on the wire it is just `tag`, `knownTags`, and `staleTags`, since the method that produced it already says what it covers.
+**Naming.** Earlier drafts used *digest*. The skills extension uses `digest` for a verifiable content hash; a tag is opaque and compared only for equality. *Version* is already used for `Implementation.version`, `supportedVersions`, and protocol revisions, and implies an ordering. The wire names are `tag`, `knownTags`, and `staleTags`.
 
-**Independent of HTTP caching.** A tag identifies definitions, while an ETag identifies an HTTP representation of a particular page. Keeping them separate lets this SEP work over any transport, and lets a companion HTTP retrieval proposal define ETags on its own terms.
+**Separate from HTTP caching.** A tag identifies definitions; an ETag identifies an HTTP representation of a page. Keeping them separate keeps this SEP transport-independent and leaves ETags to the HTTP retrieval proposal.
 
 ## Backward Compatibility
 
@@ -261,12 +263,11 @@ Implementations should test:
 - A client that has already refreshed ignores a `staleTags` entry whose value differs from the tag it now holds, and always refreshes on `null`.
 - Methods the server does not tag, extension methods, and malformed hints do not cause a rejection.
 - A stale tag for a collection the operation does not depend on is signaled, not rejected.
+- `server/discover` with stale tags is signaled, never rejected.
 - After a mismatch, the client refreshes from the server rather than from a still-fresh cached list.
 
 ## Open Questions
 
-- Whether `resources/read` should ever carry a tag (of its contents), and if so how a client would send it back, since its cache key includes the `uri` and `KnownTags` is keyed by method alone.
-- Whether `server/discover` should be able to carry the list tags as well as its own, so a client can learn that nothing changed without re-listing. This draft says no, to keep one tag per result; the cost is one extra round trip per collection after reconnect.
 - Whether the `server/discover` tag should cover `supportedVersions` and `capabilities` along with `instructions`. This draft says yes, on the rule that a tag covers the payload minus the envelope, so the same rule serves extension results.
 - How long a server that honors old tags should keep them, and whether it should say so. This draft leaves it to the server.
 - How the skills extension (or any extension whose listing may be deliberately partial) should define its tag, given that "the complete set the caller can see" is then the set the server chooses to enumerate.
