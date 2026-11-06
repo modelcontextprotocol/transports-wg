@@ -1,7 +1,7 @@
-# Transports WG: 2026-12-15 Roadmap
+# Transports WG: March 2027 Roadmap
 
 This document is a high-level outline of the tracks the Transports Working Group
-is taking up for the **2026-12-15** specification release. Each track gets a
+is taking up for the **March 2027** specification release. Each track gets a
 short brief: the goal (what problem it solves), the core idea of the solution,
 key requirements, and the open questions we still need to answer. As tracks
 mature, each brief should graduate into a full problem statement or proposal
@@ -21,7 +21,7 @@ are marked below as "MCP priority".
 
 # Priority
 
-Targeted for the 2026-12-15 release.
+Targeted for the March 2027 release.
 
 ## 1. Tool/Primitive Versioning
 
@@ -157,7 +157,7 @@ extensions for specialized environments.
 # Best Effort
 
 Lower priority. We will advance these if capacity allows, but they are not
-commitments for the 2026-12-15 release.
+commitments for the March 2027 release.
 
 ## 4. Error Standardization
 
@@ -329,15 +329,14 @@ Tools that can operate without a capability do not declare it as required.
 
 ## 8. Sessions / Conversation IDs
 
-> **Note — not planned for the 2026-12-15 release.** Protocol-level sessions and
+> **Note — not planned for the March 2027 release.** Protocol-level sessions and
 > the initialization handshake were removed in 2026-07-28. The WG will only
 > reconsider something session-shaped if compelling, concrete use cases cannot
 > be addressed by narrower mechanisms. Until that bar is met, this track remains
 > problem-definition work rather than protocol design.
 
-**References** - [Sessions Reintroduction Problem
-Statement](../docs/sessions-reintroduction-problem-statement.md) and [Sessions
-vs. Sessionless Decision](../docs/sessions-vs-sessionless-decision.md)
+**References** - [Sessions vs. Sessionless
+Decision](../proposals/stateless/session-removal-decision.md)
 
 **Outcome:** Determine whether documented needs for correlation, routing, and
 cross-request state require any new protocol primitives.

@@ -1,5 +1,7 @@
 # 2322-MRTR Design Question Overview
 
+> Historical WG decision. See the [official SEP-2322 (Final)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/seps/2322-MRTR.md) for the accepted design.
+
 This document provides an design decision that has come up as part of implementing [SEP 2322-MRTR](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2322) that the Transport-WG is split on. 
 
 ## Question

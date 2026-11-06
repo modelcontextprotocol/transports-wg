@@ -1,12 +1,12 @@
-# SEP-XXXX: Multi Round-Trip Requests
+# SEP-2322: Multi Round-Trip Requests
 
-- **Status**: Draft (superceded by [SEP-2322](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2322)
+- **Status**: Historical WG draft, superseded by the [official SEP-2322 (Final)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/seps/2322-MRTR.md).
 - **Type**: Standards Track
 - **Created**: 2026-02-03
 - **Author(s)**: Mark D. Roth (@markdroth), Caitie McCaffrey (@CaitieM20),
   Gabriel Zimmerman (@gjz22)
 - **Sponsor**: None
-- **PR**: https://github.com/modelcontextprotocol/specification/pull/{NUMBER}
+- **PR**: https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2322
 
 ## Abstract
 
