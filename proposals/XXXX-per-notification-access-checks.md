@@ -6,7 +6,7 @@
 - **Author(s)**: Ramjot Singh (@RamjotSingh)
 - **Sponsor**: None (seeking sponsor)
 - **PR**: TBD
-- **Requires**: [#67][sep-ending] (Ending Subscription Streams When Authorization Ends)
+- **Requires**: [#67][sep-ending] (Ending Subscription Streams with an Authorization Reason)
 - **Related**: [transports-wg#62][issue-62] (discussion); split from [#63][pr-63]
 
 ## Abstract
@@ -37,7 +37,7 @@ This specification applies where [Ending Streams][sep-ending] applies, and uses 
 ### 3. Losing access to entries
 
 1. When the stream authorization no longer permits some of the stream's acknowledged entries, the server stops writing notifications for those entries, and the stream continues. A server MUST NOT end a stream because its authorization no longer permits part of what the stream carries.
-2. When the stream authorization no longer permits any of the stream's acknowledged entries, the server MUST end the stream with `AuthorizationEnded` and reason `revoked` ([Ending Streams, section 5][sep-ending-5]). The meaning of `revoked` extends to this case: no acknowledged entry remains, and new credentials from the same grant are not expected to help.
+2. When the stream authorization no longer permits any of the stream's acknowledged entries, the server MUST end the stream with `AuthorizationEnded` and reason `revoked` ([Ending Streams, section 3][sep-ending-3]). The meaning of `revoked` extends to this case: no acknowledged entry remains, and new credentials from the same grant are not expected to help.
 3. A server that learns that no entry remains while processing a change to one of them SHOULD NOT end the stream at that moment, because the end would tell the client that a resource it can no longer read has just changed. It can instead end the stream when the stream would otherwise end for authorization reasons, such as at its authorization expiry, or at an earlier moment unrelated to the change. A server that learns of the loss from an access-change signal, rather than from a change to the resource, MAY end the stream at once.
 
 ### 4. Guidance for extensions (non-normative)
@@ -115,7 +115,7 @@ Conformance scenarios, for the [conformance repository][conformance]:
 [issue-62]: https://github.com/modelcontextprotocol/transports-wg/issues/62
 [pr-63]: https://github.com/modelcontextprotocol/transports-wg/pull/63
 [sep-ending]: https://github.com/modelcontextprotocol/transports-wg/pull/67
-[sep-ending-5]: https://github.com/RamjotSingh/transports-wg/blob/sep/ending-streams-when-authorization-ends/proposals/XXXX-ending-streams-when-authorization-ends.md#5-ending-a-stream-for-authorization-reasons
+[sep-ending-3]: https://github.com/RamjotSingh/transports-wg/blob/sep/ending-streams-when-authorization-ends/proposals/XXXX-ending-streams-when-authorization-ends.md#3-ending-a-stream-for-authorization-reasons
 [sep-3415]: https://github.com/modelcontextprotocol/modelcontextprotocol/pull/3415
 [conformance]: https://github.com/modelcontextprotocol/conformance
 [rfc2119]: https://www.rfc-editor.org/rfc/rfc2119
