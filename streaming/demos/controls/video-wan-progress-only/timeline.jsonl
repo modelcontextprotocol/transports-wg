@@ -1,0 +1,20 @@
+{"elapsed": 1.0, "code": "Status.STARTING", "log": null, "progress": [], "queue_size": null, "eta": null}
+{"elapsed": 2.0, "code": "Status.LOG", "log": ["Waiting for a GPU to become available", "info"], "progress": [], "queue_size": null, "eta": null}
+{"elapsed": 3.0, "code": "Status.LOG", "log": ["Waiting for a GPU to become available", "info"], "progress": [], "queue_size": null, "eta": null}
+{"elapsed": 4.0, "code": "Status.LOG", "log": ["Waiting for a GPU to become available", "info"], "progress": [], "queue_size": null, "eta": null}
+{"elapsed": 5.0, "code": "Status.LOG", "log": ["Waiting for a GPU to become available", "info"], "progress": [], "queue_size": null, "eta": null}
+{"elapsed": 6.0, "code": "Status.LOG", "log": ["Waiting for a GPU to become available", "info"], "progress": [], "queue_size": null, "eta": null}
+{"elapsed": 7.0, "code": "Status.LOG", "log": ["Waiting for a GPU to become available", "info"], "progress": [], "queue_size": null, "eta": null}
+{"elapsed": 8.0, "code": "Status.LOG", "log": ["Waiting for a GPU to become available", "info"], "progress": [], "queue_size": null, "eta": null}
+{"elapsed": 9.0, "code": "Status.LOG", "log": ["Successfully acquired a GPU", "success"], "progress": [], "queue_size": null, "eta": null}
+{"elapsed": 10.0, "code": "Status.PROGRESS", "log": null, "progress": [{"index": 0, "length": 4, "unit": "steps", "progress": null, "desc": null}], "queue_size": null, "eta": null}
+{"elapsed": 11.01, "code": "Status.PROGRESS", "log": null, "progress": [{"index": 0, "length": 4, "unit": "steps", "progress": null, "desc": null}], "queue_size": null, "eta": null}
+{"elapsed": 12.01, "code": "Status.PROGRESS", "log": null, "progress": [{"index": 1, "length": 4, "unit": "steps", "progress": null, "desc": null}], "queue_size": null, "eta": null}
+{"elapsed": 13.01, "code": "Status.PROGRESS", "log": null, "progress": [{"index": 2, "length": 4, "unit": "steps", "progress": null, "desc": null}], "queue_size": null, "eta": null}
+{"elapsed": 14.01, "code": "Status.PROGRESS", "log": null, "progress": [{"index": 2, "length": 4, "unit": "steps", "progress": null, "desc": null}], "queue_size": null, "eta": null}
+{"elapsed": 15.01, "code": "Status.PROGRESS", "log": null, "progress": [{"index": 3, "length": 4, "unit": "steps", "progress": null, "desc": null}], "queue_size": null, "eta": null}
+{"elapsed": 16.01, "code": "Status.PROGRESS", "log": null, "progress": [{"index": 3, "length": 4, "unit": "steps", "progress": null, "desc": null}], "queue_size": null, "eta": null}
+{"elapsed": 17.01, "code": "Status.PROGRESS", "log": null, "progress": [], "queue_size": null, "eta": null}
+{"elapsed": 18.01, "code": "Status.PROGRESS", "log": null, "progress": [{"index": 2, "length": 3, "unit": "clip", "progress": null, "desc": "Rendering Media"}], "queue_size": null, "eta": null}
+{"elapsed": 19.01, "code": "Status.FINISHED", "log": null, "progress": [], "queue_size": null, "eta": null}
+{"elapsed": 20.01, "code": "Status.FINISHED", "log": null, "progress": [], "queue_size": null, "eta": null}

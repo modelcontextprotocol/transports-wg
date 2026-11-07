@@ -1,0 +1,48 @@
+{
+  "terminal_seconds": 94.260788,
+  "session_hash": "3cb0f760-bea9-4217-b97c-c6b8bdd2224d",
+  "content_updates": 3,
+  "snapshots": [
+    {
+      "chunk": 1,
+      "input_path": "artifacts/input/chunk-1.wav",
+      "input_sha256": "8411b136ae7d4c9d039d5bf5136fed8a4f52ff4f6eb6efae6f17e4edffbc2881",
+      "call_seconds": 31.374563,
+      "elapsed_seconds": 31.365641,
+      "transcript_snapshot": " Mr. Quilter is the apostle.",
+      "extends_previous_snapshot": true,
+      "locally_derived_suffix": " Mr. Quilter is the apostle.",
+      "common_prefix_characters": 0,
+      "replaced_previous_tail": "",
+      "replacement_and_append": " Mr. Quilter is the apostle."
+    },
+    {
+      "chunk": 2,
+      "input_path": "artifacts/input/chunk-2.wav",
+      "input_sha256": "228740af919ecf80e3f141919df9a499e779726e201fc43c218ae739effb03e2",
+      "call_seconds": 31.586145,
+      "elapsed_seconds": 62.960516,
+      "transcript_snapshot": " Mr. Quilter is the apostle of the middle classes, and we are glad",
+      "extends_previous_snapshot": false,
+      "locally_derived_suffix": null,
+      "common_prefix_characters": 27,
+      "replaced_previous_tail": ".",
+      "replacement_and_append": " of the middle classes, and we are glad"
+    },
+    {
+      "chunk": 3,
+      "input_path": "artifacts/input/chunk-3.wav",
+      "input_sha256": "e924b677e35006d8c4e242a31b3244bd5caa31a307f6f6e9f256aa4b1bcf29c7",
+      "call_seconds": 31.289007,
+      "elapsed_seconds": 94.249655,
+      "transcript_snapshot": " Mr. Quilter is the apostle of the middle classes, and we are glad to welcome his gospel.",
+      "extends_previous_snapshot": true,
+      "locally_derived_suffix": " to welcome his gospel.",
+      "common_prefix_characters": 66,
+      "replaced_previous_tail": "",
+      "replacement_and_append": " to welcome his gospel."
+    }
+  ],
+  "final_transcript": " Mr. Quilter is the apostle of the middle classes, and we are glad to welcome his gospel.",
+  "all_snapshots_extend_previous": false
+}

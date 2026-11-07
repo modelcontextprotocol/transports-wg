@@ -1,0 +1,214 @@
+{
+  "terminal_seconds": 15.80484,
+  "websocket_messages": 20,
+  "status_messages": 4,
+  "delta_messages": 12,
+  "update_messages": 4,
+  "first_delta_seconds": 2.483585,
+  "first_update_seconds": 2.56331,
+  "updates": [
+    {
+      "type": "update",
+      "new": "[spk_0] Mister Quilter is the",
+      "confirmed": "[spk_0] Mister Quilter is the",
+      "audio_sec": 1.5,
+      "sent_sec": 1.5,
+      "latency": 0.7,
+      "n_prompt": 92,
+      "n_gen": 12,
+      "finish": "stop",
+      "overlap": 0,
+      "raw": "[spk_0] Mister Quilter is the",
+      "skipped": 0
+    },
+    {
+      "type": "update",
+      "new": "[spk_0] Mr. Quilter is the apostle of the middle classes.",
+      "confirmed": "[spk_0] Mr. Quilter is the apostle of the middle classes.",
+      "audio_sec": 3.1,
+      "sent_sec": 3.1,
+      "latency": 0.22,
+      "n_prompt": 112,
+      "n_gen": 20,
+      "finish": "stop",
+      "overlap": 0,
+      "raw": "[spk_0] Mr. Quilter is the apostle of the middle classes.",
+      "skipped": 0
+    },
+    {
+      "type": "update",
+      "new": " And we are glad to welcome him.",
+      "confirmed": "[spk_0] Mr. Quilter is the apostle of the middle classes. And we are glad to welcome him.",
+      "audio_sec": 4.6,
+      "sent_sec": 4.6,
+      "latency": 0.69,
+      "n_prompt": 151,
+      "n_gen": 9,
+      "finish": "stop",
+      "overlap": 0,
+      "raw": " And we are glad to welcome him.",
+      "skipped": 0
+    },
+    {
+      "type": "update",
+      "new": " And we are glad to welcome his gospel.",
+      "confirmed": "[spk_0] Mr. Quilter is the apostle of the middle classes. And we are glad to welcome his gospel.",
+      "audio_sec": 6.1,
+      "sent_sec": 6.1,
+      "latency": 1.0,
+      "n_prompt": 171,
+      "n_gen": 10,
+      "finish": "stop",
+      "overlap": 0,
+      "raw": " And we are glad to welcome his gospel.",
+      "skipped": 0
+    }
+  ],
+  "final_confirmed": "[spk_0] Mr. Quilter is the apostle of the middle classes. And we are glad to welcome his gospel.",
+  "server_received_audio": {
+    "exists": true,
+    "sec": 6.14,
+    "sr": 16000,
+    "rms": 0.06046,
+    "peak": 0.3879,
+    "clipped_pct": 0.0
+  },
+  "rounds": [
+    {
+      "audio_seconds": 1.5,
+      "status_seconds": 1.863427,
+      "deltas": [
+        {
+          "elapsed_seconds": 2.483585,
+          "text": "["
+        },
+        {
+          "elapsed_seconds": 2.532956,
+          "text": "spk_0] Mister Qu"
+        },
+        {
+          "elapsed_seconds": 2.563281,
+          "text": "ilter is the"
+        }
+      ],
+      "delta_text": "[spk_0] Mister Quilter is the",
+      "update_seconds": 2.56331,
+      "update": {
+        "type": "update",
+        "new": "[spk_0] Mister Quilter is the",
+        "confirmed": "[spk_0] Mister Quilter is the",
+        "audio_sec": 1.5,
+        "sent_sec": 1.5,
+        "latency": 0.7,
+        "n_prompt": 92,
+        "n_gen": 12,
+        "finish": "stop",
+        "overlap": 0,
+        "raw": "[spk_0] Mister Quilter is the",
+        "skipped": 0
+      }
+    },
+    {
+      "audio_seconds": 3.1,
+      "status_seconds": 3.42686,
+      "deltas": [
+        {
+          "elapsed_seconds": 3.495965,
+          "text": "["
+        },
+        {
+          "elapsed_seconds": 3.550238,
+          "text": "spk_0] Mr."
+        },
+        {
+          "elapsed_seconds": 3.603771,
+          "text": " Quilter is the apostle of"
+        },
+        {
+          "elapsed_seconds": 3.641508,
+          "text": " the middle classes."
+        }
+      ],
+      "delta_text": "[spk_0] Mr. Quilter is the apostle of the middle classes.",
+      "update_seconds": 3.641558,
+      "update": {
+        "type": "update",
+        "new": "[spk_0] Mr. Quilter is the apostle of the middle classes.",
+        "confirmed": "[spk_0] Mr. Quilter is the apostle of the middle classes.",
+        "audio_sec": 3.1,
+        "sent_sec": 3.1,
+        "latency": 0.22,
+        "n_prompt": 112,
+        "n_gen": 20,
+        "finish": "stop",
+        "overlap": 0,
+        "raw": "[spk_0] Mr. Quilter is the apostle of the middle classes.",
+        "skipped": 0
+      }
+    },
+    {
+      "audio_seconds": 4.6,
+      "status_seconds": 4.982912,
+      "deltas": [
+        {
+          "elapsed_seconds": 5.608445,
+          "text": " And"
+        },
+        {
+          "elapsed_seconds": 5.659988,
+          "text": " we are glad to welcome him."
+        }
+      ],
+      "delta_text": " And we are glad to welcome him.",
+      "update_seconds": 5.667874,
+      "update": {
+        "type": "update",
+        "new": " And we are glad to welcome him.",
+        "confirmed": "[spk_0] Mr. Quilter is the apostle of the middle classes. And we are glad to welcome him.",
+        "audio_sec": 4.6,
+        "sent_sec": 4.6,
+        "latency": 0.69,
+        "n_prompt": 151,
+        "n_gen": 9,
+        "finish": "stop",
+        "overlap": 0,
+        "raw": " And we are glad to welcome him.",
+        "skipped": 0
+      }
+    },
+    {
+      "audio_seconds": 6.1,
+      "status_seconds": 6.522005,
+      "deltas": [
+        {
+          "elapsed_seconds": 7.446912,
+          "text": " And"
+        },
+        {
+          "elapsed_seconds": 7.500417,
+          "text": " we are glad to welcome his gospel"
+        },
+        {
+          "elapsed_seconds": 7.515382,
+          "text": "."
+        }
+      ],
+      "delta_text": " And we are glad to welcome his gospel.",
+      "update_seconds": 7.515415,
+      "update": {
+        "type": "update",
+        "new": " And we are glad to welcome his gospel.",
+        "confirmed": "[spk_0] Mr. Quilter is the apostle of the middle classes. And we are glad to welcome his gospel.",
+        "audio_sec": 6.1,
+        "sent_sec": 6.1,
+        "latency": 1.0,
+        "n_prompt": 171,
+        "n_gen": 10,
+        "finish": "stop",
+        "overlap": 0,
+        "raw": " And we are glad to welcome his gospel.",
+        "skipped": 0
+      }
+    }
+  ]
+}

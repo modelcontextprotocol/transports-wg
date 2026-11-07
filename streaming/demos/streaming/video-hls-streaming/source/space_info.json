@@ -1,0 +1,312 @@
+{
+  "id": "multimodalart/self-forcing",
+  "author": "multimodalart",
+  "card_data": {},
+  "created_at": "2025-06-18T14:52:02+00:00",
+  "disabled": false,
+  "gated": false,
+  "host": "https://multimodalart-self-forcing.hf.space",
+  "last_modified": "2025-06-26T19:39:05+00:00",
+  "likes": 326,
+  "models": [
+    "gdhe17/Self-Forcing",
+    "google/umt5-xxl",
+    "Qwen/Qwen2.5-14B-Instruct",
+    "Qwen/Qwen2.5-3B-Instruct",
+    "Qwen/Qwen2.5-7B-Instruct",
+    "Qwen/Qwen2.5-VL-3B-Instruct",
+    "Qwen/Qwen2.5-VL-7B-Instruct",
+    "Qwen/Qwen3-8B",
+    "Wan-AI/Wan2.1-T2V-1.3B",
+    "FacebookAI/xlm-roberta-large"
+  ],
+  "private": false,
+  "runtime": {
+    "stage": "RUNNING",
+    "hardware": "zero-a10g",
+    "requested_hardware": "zero-a10g",
+    "sleep_time": 172800,
+    "dev_mode": false,
+    "raw": {
+      "stage": "RUNNING",
+      "hardware": {
+        "current": "zero-a10g",
+        "requested": "zero-a10g"
+      },
+      "gcTimeout": 172800,
+      "replicas": {
+        "current": 1,
+        "requested": 1
+      },
+      "devMode": false,
+      "domains": [
+        {
+          "domain": "multimodalart-self-forcing.hf.space",
+          "stage": "READY"
+        }
+      ],
+      "sha": "c462c959e135ab4831b8d24df6cf1d807c0eacd5",
+      "pySpacesVersion": "0.49.3"
+    }
+  },
+  "sdk": "gradio",
+  "sha": "c462c959e135ab4831b8d24df6cf1d807c0eacd5",
+  "siblings": [
+    {
+      "rfilename": ".gitattributes"
+    },
+    {
+      "rfilename": "LICENSE.md"
+    },
+    {
+      "rfilename": "README.md"
+    },
+    {
+      "rfilename": "app.py"
+    },
+    {
+      "rfilename": "configs/default_config.yaml"
+    },
+    {
+      "rfilename": "configs/self_forcing_dmd.yaml"
+    },
+    {
+      "rfilename": "configs/self_forcing_sid.yaml"
+    },
+    {
+      "rfilename": "demo.py"
+    },
+    {
+      "rfilename": "demo_utils/constant.py"
+    },
+    {
+      "rfilename": "demo_utils/memory.py"
+    },
+    {
+      "rfilename": "demo_utils/taehv.py"
+    },
+    {
+      "rfilename": "demo_utils/utils.py"
+    },
+    {
+      "rfilename": "demo_utils/vae.py"
+    },
+    {
+      "rfilename": "demo_utils/vae_block3.py"
+    },
+    {
+      "rfilename": "demo_utils/vae_torch2trt.py"
+    },
+    {
+      "rfilename": "images/.gitkeep"
+    },
+    {
+      "rfilename": "inference.py"
+    },
+    {
+      "rfilename": "model/__init__.py"
+    },
+    {
+      "rfilename": "model/base.py"
+    },
+    {
+      "rfilename": "model/causvid.py"
+    },
+    {
+      "rfilename": "model/diffusion.py"
+    },
+    {
+      "rfilename": "model/dmd.py"
+    },
+    {
+      "rfilename": "model/gan.py"
+    },
+    {
+      "rfilename": "model/ode_regression.py"
+    },
+    {
+      "rfilename": "model/sid.py"
+    },
+    {
+      "rfilename": "pipeline/__init__.py"
+    },
+    {
+      "rfilename": "pipeline/bidirectional_diffusion_inference.py"
+    },
+    {
+      "rfilename": "pipeline/bidirectional_inference.py"
+    },
+    {
+      "rfilename": "pipeline/causal_diffusion_inference.py"
+    },
+    {
+      "rfilename": "pipeline/causal_inference.py"
+    },
+    {
+      "rfilename": "pipeline/self_forcing_training.py"
+    },
+    {
+      "rfilename": "pre-requirements.txt"
+    },
+    {
+      "rfilename": "prompts/MovieGenVideoBench.txt"
+    },
+    {
+      "rfilename": "prompts/MovieGenVideoBench_extended.txt"
+    },
+    {
+      "rfilename": "prompts/vbench/all_dimension.txt"
+    },
+    {
+      "rfilename": "prompts/vbench/all_dimension_extended.txt"
+    },
+    {
+      "rfilename": "requirements.txt"
+    },
+    {
+      "rfilename": "scripts/create_lmdb_14b_shards.py"
+    },
+    {
+      "rfilename": "scripts/create_lmdb_iterative.py"
+    },
+    {
+      "rfilename": "scripts/generate_ode_pairs.py"
+    },
+    {
+      "rfilename": "setup.py"
+    },
+    {
+      "rfilename": "templates/demo.html"
+    },
+    {
+      "rfilename": "train.py"
+    },
+    {
+      "rfilename": "trainer/__init__.py"
+    },
+    {
+      "rfilename": "trainer/diffusion.py"
+    },
+    {
+      "rfilename": "trainer/distillation.py"
+    },
+    {
+      "rfilename": "trainer/gan.py"
+    },
+    {
+      "rfilename": "trainer/ode.py"
+    },
+    {
+      "rfilename": "utils/dataset.py"
+    },
+    {
+      "rfilename": "utils/distributed.py"
+    },
+    {
+      "rfilename": "utils/lmdb.py"
+    },
+    {
+      "rfilename": "utils/loss.py"
+    },
+    {
+      "rfilename": "utils/misc.py"
+    },
+    {
+      "rfilename": "utils/scheduler.py"
+    },
+    {
+      "rfilename": "utils/wan_wrapper.py"
+    },
+    {
+      "rfilename": "videos/.gitkeep"
+    },
+    {
+      "rfilename": "wan/README.md"
+    },
+    {
+      "rfilename": "wan/__init__.py"
+    },
+    {
+      "rfilename": "wan/configs/__init__.py"
+    },
+    {
+      "rfilename": "wan/configs/shared_config.py"
+    },
+    {
+      "rfilename": "wan/configs/wan_i2v_14B.py"
+    },
+    {
+      "rfilename": "wan/configs/wan_t2v_14B.py"
+    },
+    {
+      "rfilename": "wan/configs/wan_t2v_1_3B.py"
+    },
+    {
+      "rfilename": "wan/distributed/__init__.py"
+    },
+    {
+      "rfilename": "wan/distributed/fsdp.py"
+    },
+    {
+      "rfilename": "wan/distributed/xdit_context_parallel.py"
+    },
+    {
+      "rfilename": "wan/image2video.py"
+    },
+    {
+      "rfilename": "wan/modules/__init__.py"
+    },
+    {
+      "rfilename": "wan/modules/attention.py"
+    },
+    {
+      "rfilename": "wan/modules/causal_model.py"
+    },
+    {
+      "rfilename": "wan/modules/clip.py"
+    },
+    {
+      "rfilename": "wan/modules/model.py"
+    },
+    {
+      "rfilename": "wan/modules/t5.py"
+    },
+    {
+      "rfilename": "wan/modules/tokenizers.py"
+    },
+    {
+      "rfilename": "wan/modules/vae.py"
+    },
+    {
+      "rfilename": "wan/modules/xlm_roberta.py"
+    },
+    {
+      "rfilename": "wan/text2video.py"
+    },
+    {
+      "rfilename": "wan/utils/__init__.py"
+    },
+    {
+      "rfilename": "wan/utils/fm_solvers.py"
+    },
+    {
+      "rfilename": "wan/utils/fm_solvers_unipc.py"
+    },
+    {
+      "rfilename": "wan/utils/prompt_extend.py"
+    },
+    {
+      "rfilename": "wan/utils/qwen_vl_utils.py"
+    },
+    {
+      "rfilename": "wan/utils/utils.py"
+    }
+  ],
+  "subdomain": "multimodalart-self-forcing",
+  "tags": [
+    "gradio",
+    "mcp-server",
+    "region:us"
+  ],
+  "used_storage": 0
+}

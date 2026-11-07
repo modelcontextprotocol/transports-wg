@@ -1,0 +1,75 @@
+===== Application Startup at 2026-07-18 22:51:42 =====
+
+model_index.json:   0%|          | 0.00/536 [00:00<?, ?B/s][Amodel_index.json: 100%|██████████| 536/536 [00:00<00:00, 4.23MB/s]
+
+scheduler_config.json:   0%|          | 0.00/274 [00:00<?, ?B/s][Ascheduler_config.json: 100%|██████████| 274/274 [00:00<00:00, 2.80MB/s]
+
+config.json:   0%|          | 0.00/613 [00:00<?, ?B/s][Aconfig.json: 100%|██████████| 613/613 [00:00<00:00, 7.01MB/s]
+
+text_encoder/model.safetensors:   0%|          | 0.00/246M [00:00<?, ?B/s][Atext_encoder/model.safetensors: 100%|██████████| 246M/246M [00:00<00:00, 295MB/s]
+
+config.json:   0%|          | 0.00/782 [00:00<?, ?B/s][Aconfig.json: 100%|██████████| 782/782 [00:00<00:00, 7.61MB/s]
+
+text_encoder_2/model-00001-of-00002.safe(…):   0%|          | 0.00/4.99G [00:00<?, ?B/s][A
+text_encoder_2/model-00001-of-00002.safe(…):   8%|▊         | 402M/4.99G [00:01<00:11, 399MB/s][A
+text_encoder_2/model-00001-of-00002.safe(…):  53%|█████▎    | 2.65G/4.99G [00:02<00:01, 1.48GB/s][Atext_encoder_2/model-00001-of-00002.safe(…): 100%|██████████| 4.99G/4.99G [00:02<00:00, 1.77GB/s]
+
+text_encoder_2/model-00002-of-00002.safe(…):   0%|          | 0.00/4.53G [00:00<?, ?B/s][A
+text_encoder_2/model-00002-of-00002.safe(…):  22%|██▏       | 1.01G/4.53G [00:01<00:03, 998MB/s][A
+text_encoder_2/model-00002-of-00002.safe(…):  65%|██████▌   | 2.95G/4.53G [00:02<00:01, 1.55GB/s][Atext_encoder_2/model-00002-of-00002.safe(…): 100%|██████████| 4.53G/4.53G [00:02<00:00, 1.94GB/s]
+
+model.safetensors.index.json:   0%|          | 0.00/19.9k [00:00<?, ?B/s][Amodel.safetensors.index.json: 100%|██████████| 19.9k/19.9k [00:00<00:00, 84.3MB/s]
+
+merges.txt:   0%|          | 0.00/525k [00:00<?, ?B/s][Amerges.txt: 100%|██████████| 525k/525k [00:00<00:00, 51.3MB/s]
+
+special_tokens_map.json:   0%|          | 0.00/588 [00:00<?, ?B/s][Aspecial_tokens_map.json: 100%|██████████| 588/588 [00:00<00:00, 5.71MB/s]
+
+tokenizer_config.json:   0%|          | 0.00/705 [00:00<?, ?B/s][Atokenizer_config.json: 100%|██████████| 705/705 [00:00<00:00, 5.66MB/s]
+
+vocab.json:   0%|          | 0.00/1.06M [00:00<?, ?B/s][Avocab.json: 100%|██████████| 1.06M/1.06M [00:00<00:00, 42.8MB/s]
+
+special_tokens_map.json:   0%|          | 0.00/2.54k [00:00<?, ?B/s][Aspecial_tokens_map.json: 100%|██████████| 2.54k/2.54k [00:00<00:00, 19.6MB/s]
+
+tokenizer_2/spiece.model:   0%|          | 0.00/792k [00:00<?, ?B/s][Atokenizer_2/spiece.model: 100%|██████████| 792k/792k [00:00<00:00, 4.75MB/s]
+
+tokenizer.json:   0%|          | 0.00/2.42M [00:00<?, ?B/s][Atokenizer.json: 100%|██████████| 2.42M/2.42M [00:00<00:00, 25.2MB/s]
+
+tokenizer_config.json:   0%|          | 0.00/20.8k [00:00<?, ?B/s][Atokenizer_config.json: 100%|██████████| 20.8k/20.8k [00:00<00:00, 116MB/s]
+
+config.json:   0%|          | 0.00/321 [00:00<?, ?B/s][Aconfig.json: 100%|██████████| 321/321 [00:00<00:00, 3.78MB/s]
+
+transformer/diffusion_pytorch_model-0000(…):   0%|          | 0.00/9.96G [00:00<?, ?B/s][A
+transformer/diffusion_pytorch_model-0000(…):   3%|▎         | 279M/9.96G [00:01<00:35, 277MB/s][A
+transformer/diffusion_pytorch_model-0000(…):  21%|██        | 2.11G/9.96G [00:02<00:06, 1.17GB/s][A
+transformer/diffusion_pytorch_model-0000(…):  60%|█████▉    | 5.97G/9.96G [00:03<00:01, 2.16GB/s][Atransformer/diffusion_pytorch_model-0000(…): 100%|██████████| 9.96G/9.96G [00:04<00:00, 2.36GB/s]
+
+transformer/diffusion_pytorch_model-0000(…):   0%|          | 0.00/9.95G [00:00<?, ?B/s][A
+transformer/diffusion_pytorch_model-0000(…):   4%|▍         | 433M/9.95G [00:01<00:22, 429MB/s][A
+transformer/diffusion_pytorch_model-0000(…):  28%|██▊       | 2.78G/9.95G [00:02<00:05, 1.36GB/s][A
+transformer/diffusion_pytorch_model-0000(…):  76%|███████▌  | 7.54G/9.95G [00:03<00:00, 2.51GB/s][Atransformer/diffusion_pytorch_model-0000(…): 100%|██████████| 9.95G/9.95G [00:04<00:00, 2.37GB/s]
+
+transformer/diffusion_pytorch_model-0000(…):   0%|          | 0.00/3.87G [00:00<?, ?B/s][A
+transformer/diffusion_pytorch_model-0000(…):  19%|█▉        | 744M/3.87G [00:01<00:05, 592MB/s][Atransformer/diffusion_pytorch_model-0000(…): 100%|██████████| 3.87G/3.87G [00:02<00:00, 1.76GB/s]
+
+(…)ion_pytorch_model.safetensors.index.json:   0%|          | 0.00/121k [00:00<?, ?B/s][A(…)ion_pytorch_model.safetensors.index.json: 100%|██████████| 121k/121k [00:00<00:00, 117MB/s]
+
+config.json:   0%|          | 0.00/774 [00:00<?, ?B/s][Aconfig.json: 100%|██████████| 774/774 [00:00<00:00, 6.69MB/s]
+
+vae/diffusion_pytorch_model.safetensors:   0%|          | 0.00/168M [00:00<?, ?B/s][Avae/diffusion_pytorch_model.safetensors: 100%|██████████| 168M/168M [00:00<00:00, 214MB/s]
+
+Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s][A
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 3/3 [00:00<00:00, 34.86it/s]
+You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
+
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 78.07it/s]
+
+Loading pipeline components...:  71%|███████▏  | 5/7 [00:01<00:00,  4.81it/s][ALoading pipeline components...: 100%|██████████| 7/7 [00:01<00:00,  6.50it/s]
+* Running on local URL:  http://0.0.0.0:7860, with SSR ⚡ (experimental, to disable set `ssr_mode=False` in `launch()`)
+* To create a public link, set `share=True` in `launch()`.
+
+🔨 Launching MCP server:
+** Streamable HTTP URL: http://localhost:7860/gradio_api/mcp/
+* [Deprecated] SSE URL: http://localhost:7860/gradio_api/mcp/sse
+
+0%|          | 0/4 [00:00<?, ?it/s][A
+75%|███████▌  | 3/4 [00:01<00:00,  2.41it/s][A100%|██████████| 4/4 [00:01<00:00,  2.50it/s]

@@ -1,0 +1,21 @@
+{"sequence": 0, "elapsed_seconds": 3.726045, "line": "event: generating"}
+{"sequence": 1, "elapsed_seconds": 3.72611, "line": "data: [{\"path\": \"16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"url\": \"https://evalstate-kokoro-tts-streaming-demo.hf.space/gradio_api/stream/16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"size\": null, \"orig_name\": \"audio.wav\", \"mime_type\": null, \"is_stream\": true, \"meta\": {\"_type\": \"gradio.FileData\"}}]"}
+{"sequence": 2, "elapsed_seconds": 4.822935, "line": ""}
+{"sequence": 3, "elapsed_seconds": 4.823072, "line": "event: generating"}
+{"sequence": 4, "elapsed_seconds": 4.823099, "line": "data: [{\"path\": \"16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"url\": \"https://evalstate-kokoro-tts-streaming-demo.hf.space/gradio_api/stream/16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"size\": null, \"orig_name\": \"audio.wav\", \"mime_type\": null, \"is_stream\": true, \"meta\": {\"_type\": \"gradio.FileData\"}}]"}
+{"sequence": 5, "elapsed_seconds": 4.967161, "line": ""}
+{"sequence": 6, "elapsed_seconds": 7.442174, "line": "event: generating"}
+{"sequence": 7, "elapsed_seconds": 7.44223, "line": "data: [{\"path\": \"16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"url\": \"https://evalstate-kokoro-tts-streaming-demo.hf.space/gradio_api/stream/16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"size\": null, \"orig_name\": \"audio.wav\", \"mime_type\": null, \"is_stream\": true, \"meta\": {\"_type\": \"gradio.FileData\"}}]"}
+{"sequence": 8, "elapsed_seconds": 7.818075, "line": ""}
+{"sequence": 9, "elapsed_seconds": 8.187562, "line": "event: generating"}
+{"sequence": 10, "elapsed_seconds": 8.187648, "line": "data: [{\"path\": \"16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"url\": \"https://evalstate-kokoro-tts-streaming-demo.hf.space/gradio_api/stream/16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"size\": null, \"orig_name\": \"audio.wav\", \"mime_type\": null, \"is_stream\": true, \"meta\": {\"_type\": \"gradio.FileData\"}}]"}
+{"sequence": 11, "elapsed_seconds": 8.491464, "line": ""}
+{"sequence": 12, "elapsed_seconds": 9.099119, "line": "event: generating"}
+{"sequence": 13, "elapsed_seconds": 9.099219, "line": "data: [{\"path\": \"16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"url\": \"https://evalstate-kokoro-tts-streaming-demo.hf.space/gradio_api/stream/16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"size\": null, \"orig_name\": \"audio.wav\", \"mime_type\": null, \"is_stream\": true, \"meta\": {\"_type\": \"gradio.FileData\"}}]"}
+{"sequence": 14, "elapsed_seconds": 9.399056, "line": ""}
+{"sequence": 15, "elapsed_seconds": 9.80903, "line": "event: generating"}
+{"sequence": 16, "elapsed_seconds": 9.809128, "line": "data: [{\"path\": \"16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"url\": \"https://evalstate-kokoro-tts-streaming-demo.hf.space/gradio_api/stream/16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"size\": null, \"orig_name\": \"audio.wav\", \"mime_type\": null, \"is_stream\": true, \"meta\": {\"_type\": \"gradio.FileData\"}}]"}
+{"sequence": 17, "elapsed_seconds": 10.209761, "line": ""}
+{"sequence": 18, "elapsed_seconds": 10.209796, "line": "event: complete"}
+{"sequence": 19, "elapsed_seconds": 10.209802, "line": "data: [{\"path\": \"16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"url\": \"https://evalstate-kokoro-tts-streaming-demo.hf.space/gradio_api/stream/16b91749b8a840e5b91d77c0ec7955f0/140171525709376/10/playlist.m3u8\", \"size\": null, \"orig_name\": \"audio.wav\", \"mime_type\": null, \"is_stream\": true, \"meta\": {\"_type\": \"gradio.FileData\"}}]"}
+{"sequence": 20, "elapsed_seconds": 10.345049, "line": ""}
