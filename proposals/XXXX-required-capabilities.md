@@ -5,7 +5,7 @@
 - **Created**: 2026-04-11
 - **Author(s)**: Gabriel Zimmerman (@gjz22)
 - **Sponsor**: None
-- **PR**: https://github.com/modelcontextprotocol/transports-wg/pull/{NUMBER}
+- **PR**: https://github.com/modelcontextprotocol/transports-wg/pull/31
 
 ## Abstract
 
@@ -26,23 +26,60 @@ annotations and decide how to handle tools whose requirements they do
 not meet -- filtering them out, presenting them as unavailable, or
 surfacing a clear error if they are invoked.
 
-The annotation marks *hard* requirements.  A tool that can instead
-operate in **hybrid mode** -- using a capability when the `tools/call`
-request declares it and falling back to another mechanism when it does
-not -- works for every client and needs no annotation at all.
+The annotation marks when a capability is a *hard* requirement for a
+tool to execute.  A tool that can instead operate in *hybrid* mode --
+using a capability when the `tools/call` request declares it and
+falling back to another mechanism when it does not -- works for every
+client and needs no annotation at all.
 
 ## Motivation
 
+The motivation for this SEP is to let clients handle capability
+requirements gracefully.  Some tools only work if the client supports
+a particular capability -- elicitation to ask the user for input, or
+an extension such as tasks to run asynchronously -- but today a client
+has no way to know which tools those are until it calls one and the
+call fails.  This SEP lets a server mark each tool with the
+capabilities it requires, so the client can decide up front what to do
+with a tool it cannot support -- hide it from the model, show it as
+unavailable, or explain to the user what is missing -- instead of
+letting the failure surface in the middle of a conversation.
+
+The gap exists because of how capabilities are now declared: before
+SEP-2575, a client declared its capabilities once during
+initialization, so the server knew for the whole session what every
+request could rely on.
+SEP-2575 replaces this with per-request capabilities, and the request
+that decides which tools the model sees (`tools/list`) is not the
+request that needs the capabilities (`tools/call`).  The server cannot
+tell from a `tools/list` request whether a later `tools/call` will
+satisfy a tool's requirements, and the tool list gives the client no
+way to tell which tools depend on capabilities it lacks.
+
+Concretely, the SEP aims to:
+
+- **Keep unusable tools out of the model's context**, so the model
+  does not plan around tools that cannot run.
+- **Keep capability errors away from end users**, who neither know
+  nor care what an MCP capability is.
+- **Preserve per-request capability scoping and cacheable tool
+  lists**, rather than treating capabilities as global state or
+  making tool lists vary per client.
+- **Give the ecosystem one standard mechanism** in place of
+  incompatible ad hoc conventions.
+
+The SEP does not change how tools that can adapt to a missing
+capability behave (see
+[Hard Requirements vs. Hybrid Tools](#hard-requirements-vs-hybrid-tools)),
+does not replace call-time validation by the server, and does not
+address filtering tools by user authorization.
+
 ### The Cross-Request Capability Problem
 
-Per-request capabilities create an ambiguity when one request's behavior
-depends on the capabilities available in a different request.  The most
-concrete example is the relationship between `tools/list` and
-`tools/call`.
-
-Consider a server that provides a tool called `deploy_to_production`.
-This tool uses elicitation to prompt the user to log in before
-proceeding:
+Consider a server that provides a tool called `deploy_to_production`,
+which uses elicitation to prompt the user to log in before deploying.
+When the client invokes the tool, it declares elicitation support on
+that `tools/call` request:
 
 ```json5
 // tools/call request
@@ -62,31 +99,9 @@ proceeding:
 }
 ```
 
-A tool that uses a capability this way can be designed in one of two
-ways:
-
-1. **Hybrid mode**: the tool uses the capability when it is declared
-   on the `tools/call` request and falls back to another mechanism
-   when it is not.  For example, `deploy_to_production` could fall
-   back to returning a login URL in its tool result and asking the
-   caller to retry once authenticated, instead of prompting
-   interactively via elicitation.  This generalizes to any capability:
-   a tool that runs as a long-lived task when the client supports the
-   tasks extension could fall back to executing synchronously.
-   Hybrid tools work for every
-   client, and per-request capabilities (SEP-2575) already give them
-   everything they need to adapt at call time.
-
-2. **Hard requirement**: the tool has no reasonable fallback.  If
-   `deploy_to_production` has no out-of-band login flow, then without
-   elicitation it simply cannot authenticate the user.
-
-Hard requirements are the case this proposal addresses.  What should
-happen when a client that does not support elicitation calls
-`tools/list`?  The hard-requirement version of `deploy_to_production`
-cannot function for that client -- it would fail at the login step.
-But under SEP-2575 alone, nothing in the `tools/list` exchange tells
-either party about this mismatch:
+But the model only learns the tool exists from an earlier, separate
+`tools/list` request, and the capabilities on that request describe
+`tools/list` itself, not what later calls will support:
 
 ```json5
 // tools/list request -- what capabilities will tools/call have?
@@ -105,11 +120,32 @@ either party about this mismatch:
 }
 ```
 
-Without some form of cross-request coordination, the server does not
-have enough information to know whether a tool it returns will actually
-work for the client, and the client does not have the information to
-know whether it has the capabilities needed to execute the tools it
-receives.
+If the client does not support elicitation, `deploy_to_production`
+cannot work for it -- it would fail at the login step.  Yet under
+SEP-2575 alone, nothing in this exchange tells the server to leave the
+tool out, or tells the client that the tool needs elicitation.
+
+### Hard Requirements vs. Hybrid Tools
+
+Not every tool that uses a capability has this problem.  Such a tool
+can be designed in one of two ways:
+
+1. **Hybrid mode**: the tool uses the capability when it is declared
+   on the `tools/call` request and falls back to another mechanism
+   when it is not.  For example, `deploy_to_production` could fall
+   back to returning a login URL in its tool result and asking the
+   caller to retry once authenticated, instead of prompting
+   interactively via elicitation.  Likewise, a tool that runs as a
+   long-lived task when the client supports the tasks extension could
+   fall back to executing synchronously.  Hybrid tools work for every
+   client, and per-request capabilities (SEP-2575) already give them
+   everything they need to adapt at call time.
+2. **Hard requirement**: the tool has no reasonable fallback.  If
+   `deploy_to_production` has no out-of-band login flow, then without
+   elicitation it simply cannot authenticate the user.
+
+Only hard requirements need coordination between `tools/list` and
+`tools/call`, and they are the case this SEP addresses.
 
 ### How the Problem Surfaces
 
@@ -118,19 +154,16 @@ in two damaging ways:
 
 1. **Errors propagate to users who know nothing about MCP.**  When the
    model invokes a tool whose required capability the client lacks, the
-   server returns an error such as `Tool 'deploy_to_production'
-   requires elicitation capability`.  To the end user -- who has never
+   server returns an error such as `Tool 'deploy_to_production'  requires elicitation capability`.  To the end user -- who has never
    heard of MCP, capabilities, or elicitation -- this is meaningless
    jargon surfacing in the middle of their conversation.  They cannot
    act on it, and cannot even tell whether they did something wrong,
    the application is broken, or the tool is broken.
-
 2. **The model plans multi-step work toward a tool it cannot use, wasting tokens.**
-   A model plans around the tool list it is given.
-   Consider an incident-response flow where the model plans two steps:
-   first fetch the details of an incident to determine what needs to
-   be queried, then run a `long_running_query_job` tool -- a
-   task-based tool (see
+   A model plans around the tool list it is given.  Consider an
+   incident-response flow where the model plans two steps: first fetch
+   the details of an incident to determine what needs to be queried,
+   then run a `long_running_query_job` tool -- a task-based tool (see
    [Extension Capabilities: Tasks](#extension-capabilities-tasks)) --
    to execute that query.  If the client does not support the tasks
    extension, the second tool can never work, but nothing in the tool
@@ -147,7 +180,20 @@ Upfront filtering prevents both: a tool the client cannot support
 never enters the model's context, so the model plans only with tools
 that can actually run, and no capability error ever reaches the user.
 
-### Capability-Aware Tool Adaptation
+### Why Standardize This in the Protocol
+
+Even without this SEP, implementers will not leave this problem
+unsolved -- they will build their own ad hoc mechanisms to filter
+tools whose required capabilities the client lacks, whether by using
+approaches like the alternatives discussed in this document or
+something else entirely.  Because none of these conventions is
+standardized, implementations converge on them independently, with no
+interoperability guarantee, and may have to change them as the
+protocol's use of capabilities evolves.  Standardizing a single
+mechanism now, while the ecosystem is still young, gives
+implementations a well-defined target to converge on instead.
+
+### Where to Filter: Server-Side vs. Client-Side
 
 The fix is to filter: a tool that hard-requires a capability the
 client does not support should never be blindly offered to the model.
@@ -165,9 +211,8 @@ advantages.
 - **Arbitrarily complex filtering logic.**  The server can apply logic
   that static annotations cannot express: capabilities that interact
   (a tool that can use either of two capabilities and needs at least
-  one), decisions
-  that depend on runtime context, or requirements that vary by
-  argument.  A declarative annotation format has to anticipate every
+  one), decisions that depend on runtime context, or requirements that
+  vary by argument.  A declarative annotation format has to anticipate every
   such pattern; server code does not.
 - **Centralization.**  The adaptation logic is written once, on the
   server, instead of being reimplemented (with inevitable
@@ -211,7 +256,7 @@ advantages.
   server-side filtering to work, the `tools/list` request must somehow
   carry the capabilities of *other* requests -- for example by
   explicitly declaring the capabilities of each related method on
-  every request (see Alternative 1) -- which adds request complexity
+  every request (see Alternative 1a) -- which adds request complexity
   and coordination rules that per-tool annotations avoid entirely.
 
 Client-side filtering does carry a structural downside: filtering now
@@ -492,31 +537,112 @@ The main costs, relative to server-side filtering, are that clients
 must implement the matching logic and that the server cannot
 substitute one tool for another based on client capabilities -- a tool
 can only degrade internally via hybrid mode.
-[Capability-Aware Tool Adaptation](#capability-aware-tool-adaptation)
+[Where to Filter: Server-Side vs. Client-Side](#where-to-filter-server-side-vs-client-side)
 discusses why these costs are acceptable.
 
 ### Alternatives Considered
 
 The following matrix compares the primary proposal (tool-level
-required-capability annotations) with the two alternative coordination
-mechanisms across the goals that motivated this SEP.
+required-capability annotations) against the alternative coordination
+mechanisms -- two variants of server-side filtering (Alternatives 1a
+and 1b) and no coordination at all (Alternative 2) -- across the goals
+that motivated this SEP.
 
-| Goal | Required Capabilities (Primary) | Alt 1: Related Request Capabilities | Alt 2: No Capability Coordination |
-|---|---|---|---|
-| **Solves cross-request capability problem** (e.g. `tools/list` reflects what `tools/call` will support) | Yes: client matches its own capabilities against per-tool annotations | Yes, explicitly: the client declares the capabilities of related methods on each request | No: mismatches surface as call-time failures |
-| **Filtering** | Yes: client filters locally | Yes: server filters using the related-request capabilities | No |
-| **Substitution** (swap one tool for a lower-functionality alternative) | Partial: hybrid-mode tools degrade internally at call time; distinct fallback tools remain visible to all clients (see the `whenCapabilitiesUnavailable` modification under [Modifications Not Included](#modifications-not-included)) | Yes: server can freely substitute based on capabilities and runtime context | No: the client never sees the substitution opportunity |
-| **Parameterized adaptation** (decisions based on capability sub-fields) | Limited: client-side matching on nested sub-fields is error-prone | Yes: server has full access to the capability object | No |
-| **Tool list cacheable without capability cache key** | Yes: identical response for all clients | No: each declared related-capability set yields a different list | Yes: identical response for all clients |
-| **Client chooses how to respond** (hide, disable, allow-and-error) | Yes | No: filtered tools are invisible to the client | No: only call-time failure |
-| **Transparency to the client** (client sees all tools the server provides) | Yes, with their requirements | No: filtered tools are invisible to the client | Yes, but without requirement information |
-| **Preserves per-request capability scoping** | Yes: annotations are independent of request capabilities | Yes: capabilities are explicitly keyed by method | Yes |
-| **Simplicity for client implementers** | Medium: must implement matching for `requiredCapabilities` | Low without SDK support: must attach a map of related-request capabilities to each outgoing request | High: nothing to do |
-| **Simplicity for server implementers** | Medium: must declare capability requirements for every tool | Medium: must parse and apply related-request capabilities | High: validate at call time only |
-| **Request payload overhead** | Low: requests carry nothing new; annotations add modestly to `tools/list` responses | High: every request carries capabilities for multiple related methods | None |
-| **Compatibility with SEP-2575 stateless design** | Yes: each request is self-contained | Yes: each request is self-contained | Yes: each request is self-contained |
+| Goal | Required Capabilities (Primary) | Alt 1a: Related Request Capabilities | Alt 1b: Global Capability Scope | Alt 2: No Capability Coordination |
+| --- | --- | --- | --- | --- |
+| **Solves cross-request capability problem** (e.g. `tools/list` reflects what `tools/call` will support) | Yes: client matches its own capabilities against per-tool annotations | Yes, explicitly: the client declares the capabilities of related methods on each request | Yes, implicitly: the same capabilities are assumed to hold on every request | No: mismatches surface as call-time failures |
+| **Filtering** | Yes: client filters locally | Yes: server filters using the related-request capabilities | Yes: server filters the returned tool list | No |
+| **Substitution** (swap one tool for a lower-functionality alternative) | Partial: hybrid-mode tools degrade internally at call time; distinct fallback tools remain visible to all clients (see the `whenCapabilitiesUnavailable` modification under [Modifications Not Included](#modifications-not-included)) | Yes: server can freely substitute based on capabilities and runtime context | Yes: server can freely substitute based on capabilities and runtime context | No: the client never sees the substitution opportunity |
+| **Parameterized adaptation** (decisions based on capability sub-fields) | Limited: client-side matching on nested sub-fields is error-prone | Yes: server has full access to the capability object | Yes: server has full access to the capability object | No |
+| **Tool list cacheable without capability cache key** | Yes: identical response for all clients | No: each declared related-capability set yields a different list | No: each capability set yields a different list | Yes: identical response for all clients |
+| **Client chooses how to respond** (hide, disable, allow-and-error) | Yes | No: filtered tools are invisible to the client | No: filtered tools are invisible to the client | No: only call-time failure |
+| **Transparency to the client** (client sees all tools the server provides) | Yes, with their requirements | No: filtered tools are invisible to the client | No: filtered tools are invisible to the client | Yes, but without requirement information |
+| **Preserves per-request capability scoping** | Yes: annotations are independent of request capabilities | Yes: capabilities are explicitly keyed by method | No: capabilities are assumed global, not scoped to the declaring request | Yes |
+| **Simplicity for client implementers** | Medium: must implement matching for `requiredCapabilities` | Low without SDK support: must attach a map of related-request capabilities to each outgoing request | High: send the same capabilities on every request; no matching or per-method map to maintain | High: nothing to do |
+| **Simplicity for server implementers** | Medium: must declare capability requirements for every tool | Medium: must parse and apply related-request capabilities | High: use the capabilities on each request directly | High: validate at call time only |
+| **Request payload overhead** | Low: requests carry nothing new; annotations add modestly to `tools/list` responses | High: every request carries capabilities for multiple related methods | Low: a single `clientCapabilities` object, same on every request | None |
+| **Compatibility with SEP-2575 stateless design** | Yes: each request is self-contained | Yes: each request is self-contained | Yes: each request is self-contained, though correctness depends on the client's consistency across requests | Yes: each request is self-contained |
 
-#### Alternative 1: Related Request Capabilities
+#### Alternative 1: Server-Side Filtering
+
+Both mechanisms below have the server filter or adapt the
+`tools/list` response using capabilities the client is expected to
+provide on `tools/call` (and other related requests), rather than
+having the client filter against per-tool annotations.  They differ in
+how the server learns what those capabilities will be: Alternative 1a
+has the client declare them explicitly, keyed by method; Alternative
+1b has the server assume the capabilities on any request hold for all
+requests.  Both share the same two disadvantages relative to
+client-side filtering -- capability-dependent caching and invisible
+filtered tools -- and the following two subsections sketch possible
+mitigations for each before the mechanisms themselves are described.
+
+##### Mitigating the Cache-Key Problem: Tool Versioning
+
+The caching disadvantage could be mitigated by a **future** tool
+versioning mechanism, out of scope for this SEP and tracked
+separately.  If `tools/list` responses carried an ETag in the sense of
+HTTP conditional requests, a server doing capability-based filtering
+could mint a distinct ETag for each capability-conditioned variant of
+the tool list -- for example, one ETag for the list visible to a
+client that supports only elicitation, and a different ETag for a
+client that also supports sampling.  The server, not the cache, would
+then determine the effective cache key: a cache (including an MCP
+proxy) could store each variant under its ETag and serve the right one
+through an ordinary conditional-request flow (`If-None-Match` /
+`304 Not Modified`), rather than needing to construct a cache key from
+the client's full declared capability set itself.
+
+This mitigation assumes tool versioning exists as a protocol
+mechanism, which it does not today -- it would need to be proposed as
+its own track.  It also requires the server to maintain more than one
+active tool-list version at a time (at least one per distinct
+capability-conditioned variant it serves), which is additional
+server-side complexity beyond simply always returning the same list.
+
+##### Mitigating the Transparency Problem: Filtered Tool Metadata
+
+The transparency disadvantage -- that filtered tools are invisible to
+the client -- could be partially mitigated by having the server report
+what it filtered out, and why.  For example, `tools/list` could
+include a `_meta` field such as
+`io.modelcontextprotocol/filteredTools`, listing the tools omitted
+from the `tools` array because the client's declared capabilities did
+not satisfy their requirements, each entry carrying a `reasonFiltered`
+field describing what was missing:
+
+```json5
+// tools/list response with filtered-tool metadata
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [ /* ... visible tools ... */ ],
+    "_meta": {
+      "io.modelcontextprotocol/filteredTools": [
+        {
+          "name": "deploy_to_production",
+          "reasonFiltered": "Requires elicitation capability (for login)"
+        }
+      ]
+    }
+  }
+}
+```
+
+This restores much of the transparency that server-side filtering
+otherwise sacrifices: a client (or its UI) can still discover which
+additional tools exist and what capability would unlock them, even
+though the tools themselves remain absent from the callable list.  It
+does not close the gap entirely, since a filtered tool's full
+definition (its `inputSchema`, description, and so on) is still
+withheld.  It also effectively asks the server to publish the same
+kind of per-tool capability-requirement information that this
+proposal's `requiredCapabilities` annotation carries -- just inverted
+(naming what is missing rather than what is required) and delivered
+only for the tools a given client cannot see.
+
+##### Alternative 1a: Related Request Capabilities
 
 In this approach, a request declares not only its own capabilities,
 but also the capabilities the client will provide on *related*
@@ -570,8 +696,9 @@ would need to manually track which request types are related to which
 and remember to include the right capabilities each time.
 
 **Advantages:**
+
 - All the server-side filtering benefits described in
-  [Capability-Aware Tool Adaptation](#capability-aware-tool-adaptation)
+  [Where to Filter: Server-Side vs. Client-Side](#where-to-filter-server-side-vs-client-side)
   -- arbitrarily complex filtering logic and centralized adaptation --
   plus dynamic replacement of one tool with another and reliable
   server-side matching of capability sub-fields.
@@ -583,14 +710,19 @@ and remember to include the right capabilities each time.
   client can actually execute.
 
 **Disadvantages:**
+
 - Caching becomes capability-dependent: any cache of `tools/list`
   results must include the declared related-capability set in its
   cache key, and capability changes force re-fetching.  This
   complicates MCP proxy servers in particular, which could otherwise
-  serve one cached tool list to all downstream clients.
+  serve one cached tool list to all downstream clients.  (See
+  [Mitigating the Cache-Key Problem: Tool Versioning](#mitigating-the-cache-key-problem-tool-versioning)
+  above for a possible future mitigation.)
 - Filtered tools are invisible, so the client cannot show them as
   disabled, explain what would unlock them, or choose to allow them
-  and fail gracefully.
+  and fail gracefully.  (See
+  [Mitigating the Transparency Problem: Filtered Tool Metadata](#mitigating-the-transparency-problem-filtered-tool-metadata)
+  above for a possible mitigation.)
 - Significantly increases the complexity of each request.  Clients
   must construct and maintain a map of related-request capabilities,
   and servers must parse and interpret that map.  Without SDK support
@@ -606,6 +738,94 @@ and remember to include the right capabilities each time.
   types, and per-tool annotations convey the same information with no
   per-request overhead.
 
+##### Alternative 1b: Global Capability Scope
+
+In this approach, per-request client capabilities are treated as
+**globally scoped**: a client sends the same
+`io.modelcontextprotocol/clientCapabilities` object on every request,
+and a server that receives capabilities on any request assumes those
+same capabilities apply to all requests from that client.  In
+particular, the server uses the capabilities on a `tools/list` request
+to filter or adapt the returned tool list, trusting that the same
+capabilities will be present on subsequent `tools/call` requests:
+
+```json5
+// tools/list request from a client that does NOT support elicitation
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list",
+  "params": {
+    "_meta": {
+      "io.modelcontextprotocol/clientCapabilities": {
+        "sampling": {}
+      }
+    }
+  }
+}
+
+// Response: deploy_to_production is filtered out, since the client
+// cannot log in.
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Get current weather",
+        "inputSchema": { /* ... */ }
+      }
+    ]
+  }
+}
+```
+
+If a client's capabilities change, it re-issues applicable list
+requests with the updated capabilities rather than relying on cached
+results.  The server still validates capabilities on each
+`tools/call`, since a client (buggy or otherwise) may declare
+different capabilities than it did on `tools/list`.
+
+**Advantages:**
+
+- All the server-side filtering benefits described in
+  [Where to Filter: Server-Side vs. Client-Side](#where-to-filter-server-side-vs-client-side)
+  -- arbitrarily complex filtering logic and centralized adaptation --
+  plus dynamic replacement of one tool with another and reliable
+  server-side matching of capability sub-fields.
+- The simplest possible mechanism for clients: send the same
+  capabilities object on every request, with no per-method map to
+  construct and no matching logic to implement.
+- The tool list returned by `tools/list` always matches what the
+  client can actually execute.
+
+**Disadvantages:**
+
+- Caching becomes capability-dependent: any cache of `tools/list`
+  results must include the client's capability set in its cache key,
+  and capability changes force re-fetching.  This complicates MCP
+  proxy servers in particular, which could otherwise serve one cached
+  tool list to all downstream clients.  (See
+  [Mitigating the Cache-Key Problem: Tool Versioning](#mitigating-the-cache-key-problem-tool-versioning)
+  above for a possible future mitigation.)
+- Filtered tools are invisible, so the client cannot show them as
+  disabled, explain what would unlock them, or choose to allow them
+  and fail gracefully.  (See
+  [Mitigating the Transparency Problem: Filtered Tool Metadata](#mitigating-the-transparency-problem-filtered-tool-metadata)
+  above for a possible mitigation.)
+- Redefines SEP-2575's per-request capabilities as de facto global
+  state.  If the protocol ever adds capability use to a request type
+  that doesn't currently have it (e.g., elicitation during
+  `tools/list`), a client cannot support the capability on one request
+  type but not another without conflict.
+- Relies on an assumption of cross-request consistency that the
+  server cannot verify at list time -- exactly the kind of ad hoc
+  convention that
+  [Why Standardize This in the Protocol](#why-standardize-this-in-the-protocol)
+  argues implementers will reach for on their own, absent a
+  standardized mechanism.
+
 #### Alternative 2: No Capability Coordination
 
 In this approach -- the status quo under SEP-2575 alone -- no
@@ -616,17 +836,26 @@ server only checks capabilities when a tool is actually invoked via
 requires, the call simply fails with an error.
 
 **Advantages:**
+
 - Maximum simplicity: no annotations, no scoping rules, no matching
   logic.  Servers already need to validate capabilities at call time,
   so this requires no additional mechanism.
 - Tool lists are identical for all clients and trivially cacheable.
 
 **Disadvantages:**
+
 - Exhibits both failure modes described in
   [How the Problem Surfaces](#how-the-problem-surfaces): raw
   capability errors reach end users who know nothing about MCP, and
   the model wastes tokens planning multi-step work toward tools that
   cannot run.
+- Leaves the coordination problem for implementers to solve
+  informally rather than through a standardized mechanism -- see
+  [Why Standardize This in the Protocol](#why-standardize-this-in-the-protocol).
+  Implementers filling the gap with ad hoc conventions, whether drawn
+  from the alternatives discussed in this document or invented
+  independently, gain no interoperability guarantee and may need to
+  change them as the protocol's use of capabilities evolves.
 - Hard for agents to recover from failures gracefully.  An agent may
   have invested several turns building up context and planning an
   approach that relies on a specific tool, only to have that tool
