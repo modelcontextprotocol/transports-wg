@@ -4,54 +4,62 @@
 - **Authors:** [Kurtis Van Gent](https://github.com/kurtisvg), [Shaun Smith](https://github.com/evalstate), [Sam Morrow](https://github.com/SamMorrowDrums)
 - **Related:** [Problem statement](problem-statement.md), [Definition Tags #57](https://github.com/modelcontextprotocol/transports-wg/pull/57), [Groups #19](https://github.com/modelcontextprotocol/progressive-disclosure-wg/pull/19)
 
-Should MCP support only list-level tags, or per-primitive tags that can also carry list context?
+Should MCP support only collection tags, or also tags for individual primitives?
 
-A definition tag identifies an advertised definition or set of definitions. Clients return it with a request so the server can tell what they used to prepare the call. Clients treat tags as opaque. The examples below use tools, but the same choice applies to prompts and resources.
+A definition tag identifies the advertised definitions used to prepare a request. Clients treat tags as opaque and return them to the server. Option 1 identifies the collection. Option 2 also identifies the called primitive, while keeping collection context for additions, empty lists, and pagination. The choice of fields remains open.
 
-Both options must preserve the tag used to prepare a call, even after the client's cache refreshes. A changed tag does not automatically mean incompatibility: the server can accept the call, accept it with a refresh notice, route it, or reject it before execution.
+Both options must keep the tags used to prepare a call, even if a background refresh runs while the call waits for approval. A mismatch does not necessarily mean incompatibility: the server can accept, accept with a refresh notice, route, or reject before execution. A match confirms only the definitions covered by the tag; permission checks still apply.
 
-Tags do not change TTLs, cache keys, or authorization rules. A list tag identifies a collection; an HTTP ETag can identify a particular page. The [caching rules](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching) still apply.
+Collection tags let clients detect pages from different catalog states across any transport. An HTTP ETag validates an HTTP representation, which may be just one page. Neither option changes the [caching rules](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching).
 
-## Option 1: One tag per list
+## Option 1: Collection-only tags
 
-`tools/list` returns one tag for the complete list available to the caller. Suppose the list contains `search` and `publish_report`. Calls to either tool carry the list tag `L1`.
+`tools/list` returns tag `L1` for the complete list available to the caller. Suppose that list contains `search` and `publish_report`. Calls to either tool carry `L1`. Clients keep one tag per collection snapshot, regardless of how many tools it contains.
 
-The service adds a required argument to `publish_report`, changing the list tag to `L2`. An old call to either tool still carries `L1`. The server can see that the list changed, but the tag alone does not say whether the called tool changed. To establish that `search` is unchanged, it needs the earlier catalog or an equivalent mapping.
+The service adds a required argument to `publish_report`, changing the list to `L2`. An old call to either tool still carries `L1`. The server knows the list changed, but needs the earlier catalog or an equivalent mapping to establish that `search` is unchanged.
 
-One value captures additions, removals, and changes across the list. It can also identify a common snapshot across pages. The trade-off is that the protocol exposes no independent primitive tag; the server must recover individual definitions from the list reference when it needs them.
+This matters during a rolling deployment. A new instance may know only `L2` and have no record of `L1`. It cannot use that list tag alone to distinguish an unchanged `search` from one whose advertised meaning changed. [#57's rollout example](https://github.com/modelcontextprotocol/transports-wg/blob/7c39cdb1a797e1240c9dea1830c05c7e0938a159/proposals/XXXX-definition-tags.md#rolling-deployment) suggests ignoring unknown tags to avoid repeated rejection. That avoids a retry loop, but skips the definition check.
 
-This is the scope proposed by [#57](https://github.com/modelcontextprotocol/transports-wg/blob/7c39cdb1a797e1240c9dea1830c05c7e0938a159/proposals/XXXX-definition-tags.md#the-tag-field).
+This is the scope proposed by [#57](https://github.com/modelcontextprotocol/transports-wg/blob/7c39cdb1a797e1240c9dea1830c05c7e0938a159/proposals/XXXX-definition-tags.md#the-tag-field). Its `knownTags` map carries the collection and discovery tags the client holds. Requests carry no individual primitive tag.
 
-## Option 2: One tag per primitive
+## Option 2: Per-primitive tags with collection context
 
-Each tool has its own tag, which the client returns when calling it. In the same example, `search` has tag `S1` and `publish_report` has tag `P1`.
+Each tool has its own tag. In the same example, `search` has `S1` and `publish_report` has `P1`. Collection context is still available; primitive-only tags would miss additions and cannot identify an empty list.
 
-Adding the required argument changes `publish_report` to `P2`, while `search` stays at `S1`. The server can compare the tag on a `search` call with its current tag and establish that the definition is unchanged, without looking up an earlier catalog.
+Adding the required argument changes `publish_report` to `P2`, while `search` stays at `S1`. A new instance can compare `S1` with its current definition without knowing the old catalog. This requires unchanged definitions to have the same tag across instances. A mismatch such as `P1` versus `P2` still needs a compatibility decision.
 
-This exposes an independent version for each primitive and puts a tag on every entry. A primitive-only tag says nothing about changes elsewhere in the list: `S1` alone cannot reveal whether the client knows about a newly added tool. Per-primitive tags can also include list context, as described below.
+A `tools/call` or `prompts/get` would carry the invoked primitive's tag plus collection or group context. It would not send every primitive tag in the client's cache. Which group tags to include remains open, so that context is not necessarily a fixed-size map.
+
+There is more data in discovery responses: one tag per tagged entry. For example, a 64-character hex tag adds about 73 bytes per entry in compact JSON, or 730 kB for 10,000 entries before compression. That matters more for short resource descriptors than large tool schemas. This estimate assumes separate primitive and collection tags; a composite value may be longer.
 
 ## Additional Considerations
 
 ### Per-primitive tags can also cover the list
 
-A per-primitive tag can include both revisions, such as `L1-S1`. The client returns it unchanged; the server decodes it or looks up its parts. These labels illustrate the contents, not a proposed wire format.
+Option 2 can carry the primitive and collection references in one string or separate fields. A composite tag such as `L1-S1` lets the server inspect both parts while the client returns it unchanged.
 
 In the same rollout, `publish_report` changes to `P2` and the list changes to `L2`:
 
-| Call             | Client tag | Current tag | What the server can determine                                      |
-| ---------------- | ---------- | ----------- | ------------------------------------------------------------------ |
-| `search`         | `L1-S1`    | `L2-S1`     | The tool is unchanged. Accept the call and suggest a list refresh. |
-| `publish_report` | `L1-P1`    | `L2-P2`     | The tool changed. Check whether the earlier call can be honored.   |
+| Call             | Client tag | Current tag | What the server can determine                                        |
+| ---------------- | ---------- | ----------- | -------------------------------------------------------------------- |
+| `search`         | `L1-S1`    | `L2-S1`     | The tool is unchanged; it can accept the call and suggest a refresh. |
+| `publish_report` | `L1-P1`    | `L2-P2`     | The tool changed; it must decide whether to honor the earlier call.  |
 
-Adding a new tool would change only the list part of existing tools' tags. A call to any of them could then prompt the client to refresh.
+Adding a tool changes the list reference. If a tool is removed, the list mismatch can also prompt a refresh before tool lookup. It does not prove the missing name ever belonged to that list; distinguishing removal from an invented name may still require history.
 
-Per-primitive tags can therefore cover list-level behavior as well as individual definitions. Empty lists and page comparisons also need a list tag that the client can access, even when each entry's composite tag is opaque.
+A composite tag does not remove the need to expose the collection tag on empty lists or for client-side page comparisons. It also changes every entry's full tag whenever the list changes. Hashing both parts together without a mapping would lose the ability to check them separately.
 
-The cost is that every complete tag changes whenever the list changes, even if its tool part stays the same. The server must be able to check the parts separately; hashing them together without retaining a mapping loses that detail.
+### Lists that vary by caller and service
+
+A server that filters 500 tools by each caller's permissions may have many different list tags for one release. Keeping earlier catalogs or rebuilding the caller's complete list on every call can be costly, although servers may cache or share those catalogs.
+
+A primitive tag lets the server check just the invoked definition. That avoids enumerating the whole list for this check; it does not make authorization or collection freshness checks free. [#57](https://github.com/modelcontextprotocol/transports-wg/blob/7c39cdb1a797e1240c9dea1830c05c7e0938a159/proposals/XXXX-definition-tags.md#rationale) also notes that computing a collection tag may cost more than the call itself.
+
+At a gateway, a deployment in backend A can change the combined list while backend B's tools stay unchanged. Primitive tags let B, or the gateway, check B's definition directly. A gateway that rewrites names or schemas still needs a mapping to the definitions its backends serve.
 
 ### Tools shared across groups
 
-Groups can contain the same tool while their membership and instructions change independently. The [groups draft in #19](https://github.com/helloeve/experimental-ext-grouping/blob/15b2a5cf919702ae95a591856525486c857b3ea5/seps/0000-progressive-disclosure-groups.md#placement-and-naming) requires identical definitions for shared tools and tells clients to register each tool once. Within a client view, these tools appear in group contents rather than also appearing in `tools/list`.
+In [Groups #19](https://github.com/modelcontextprotocol/progressive-disclosure-wg/blob/15b2a5cf919702ae95a591856525486c857b3ea5/seps/0000-progressive-disclosure-groups.md#placement-and-naming), `groups/list` returns summaries. `groups/get(name)` fetches a group's instructions, scoped definitions, and child-group references. Scoped tools are omitted from `tools/list`, but can appear in several groups with identical definitions. Clients register each tool once.
 
 Suppose groups A and B both contain `search` at `S1`:
 
@@ -62,32 +70,38 @@ Suppose groups A and B both contain `search` at `S1`:
 | Change A's instructions               | Unchanged    | A changes      |
 | Remove `search` from A, keep it in B  | Unchanged    | A changes      |
 
-A per-group tag could cover the instructions, definitions, and child-group references returned by `groups/get(name)`. That is a different scope from the directory of summaries returned by `groups/list`, and it needs to identify the particular group.
+Collection-only tags would identify the group contents, from which the server could recover a tool definition. Per-primitive tags let `search` keep `S1` in both groups.
 
-With collection-only tags, the server would recover the called tool's definition from the earlier group contents or a mapping. With per-primitive tags, `search` can keep the same tag in both groups, while each group has its own tag.
+A group-specific composite tag complicates that sharing: A would return `A1-S1` and B would return `B1-S1`. If stored inside the tool definition, those tags make the copies differ. A common catalog component could keep the copies identical, but an edit elsewhere in that catalog would change the tool's tag too.
 
-Putting group-specific context inside the shared tool's tag creates a problem: A would return `A1-S1` while B returns `B1-S1`. If those tags are part of the tool definition, the copies differ. Keeping only one also loses the other group's context.
+Keeping `S1` on the tool and carrying group references alongside it lets each group change independently. Group context also matters when a call relies on instructions from several groups, including groups that contain no tools.
 
-One option is to keep `S1` on the shared tool and carry group references alongside it. A composite tag can still work if its collection part is shared wherever the tool appears. We need to decide how calls identify group context, especially when they rely on instructions from several groups. A matching tool tag alone cannot detect changed group instructions.
+Both options need a way to identify each group: #57's method-keyed `knownTags` map cannot distinguish two `groups/get(name)` results by method alone.
+
+### Prompts, resources, and discovery
+
+A prompt call can carry the tag of its named prompt, much like a tool call. A resource read may instead come from a listed resource, a URI template, or an unlisted URI supplied by a tool or user. A template tag could identify the definition used to build the URI, but the request also needs to identify that template. A direct URI may have no discovered definition to tag. These tags identify definitions, not resource contents.
+
+`server/discover` instructions can affect calls without belonging to an individual primitive. If covered, they need a response-level tag under either option, as #57 proposes.
 
 ## Comparison
 
-The per-primitive option below includes list context where needed.
+The table compares the supported scopes; it does not require a particular encoding for Option 2.
 
-| Question                                   | List-only tags                                      | Per-primitive tags with list context                       |
-| ------------------------------------------ | --------------------------------------------------- | ---------------------------------------------------------- |
-| Independent primitive version?             | Not exposed by the protocol.                        | Identified directly.                                       |
-| Called tool unchanged after a list change? | Requires the earlier catalog or equivalent mapping. | Compare the primitive part.                                |
-| Newly added tool?                          | The list tag changes.                               | The list part changes.                                     |
-| Tool shared across groups?                 | Recover its definition from a group tag.            | Share the tool tag; track group context separately.        |
-| Bookkeeping?                               | Fewer tags; may need catalog history or mappings.   | A tag per entry; manage collection parts or group context. |
-
-The choice is whether to carry individual definition tags or leave servers to recover that information from collection tags. Per-primitive tags offer both scopes, with more information to issue and track. Neither option alone decides how long to support old definitions or whether a changed definition is compatible.
+| Question                                   | Collection-only tags                               | Per-primitive tags with collection context                         |
+| ------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------ |
+| New instance receives an unknown list tag? | Cannot isolate the called definition's change.     | Can compare its current primitive tag, if stable across instances. |
+| Caller-specific lists?                     | Checking freshness may require the selected list.  | Can check the invoked definition separately from list freshness.   |
+| Added or removed tools?                    | Collection tags signal a refresh.                  | Collection context provides the same signal.                       |
+| Discovery payload?                         | One tag per collection response.                   | Also a tag per tagged primitive entry.                             |
+| Request payload?                           | Collection and discovery tags.                     | Also the invoked primitive's tag; group context may vary.          |
+| Paused calls?                              | Save the collection tags used to prepare the call. | Save those tags and the invoked primitive's tag.                   |
+| Shared tools across groups?                | Recover definitions from group tags.               | Share primitive tags; retain group context.                        |
 
 ## Open questions
 
-- **Selected collections:** Which filtered or partially discovered list does a tag cover? A tag does not prove that the client fetched every page.
-- **Group context:** Which group tags should a call carry when several groups' instructions influenced it? Where should those references live?
-- **Referenced definitions:** Should a group tag cover top-level tools it references or the contents of nested groups? The groups draft treats [nesting as navigation](https://github.com/helloeve/experimental-ext-grouping/blob/15b2a5cf919702ae95a591856525486c857b3ea5/seps/0000-progressive-disclosure-groups.md#nested-groups), so changes need not automatically propagate to every parent.
-- **Cost:** How do the extra tags compare with catalog history and mappings for a simple server or a gateway? A gateway that rewrites definitions may need translation under either option.
-- **Other primitives:** A resource read may come from a listed resource, a template, or a direct URI. Which definition and discovery context should it identify?
+- **Collection scope:** How should tags cover filtered or partially discovered catalogs?
+- **Adoption:** #57 makes tags optional. Should collection and primitive tags remain independently optional, letting servers start with collection-only support?
+- **Group context:** Which group tags should a call carry, and how should they be keyed? Should they cover referenced tools or nested contents? The groups draft treats [nesting as navigation](https://github.com/modelcontextprotocol/progressive-disclosure-wg/blob/15b2a5cf919702ae95a591856525486c857b3ea5/seps/0000-progressive-disclosure-groups.md#nested-groups), so changes need not propagate to every parent.
+- **Field layout and coverage:** Where should each reference go, which definition fields should it cover, and how should resource reads identify a source template?
+- **Cost and retention:** What must a simple server or gateway compute and retain under each option? How long should old definitions remain usable?
