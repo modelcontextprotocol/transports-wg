@@ -4,13 +4,7 @@
 - **Authors:** [Kurtis Van Gent](https://github.com/kurtisvg), [Shaun Smith](https://github.com/evalstate), [Sam Morrow](https://github.com/SamMorrowDrums)
 - **Related:** [Problem statement](problem-statement.md), [Definition Tags #57](https://github.com/modelcontextprotocol/transports-wg/pull/57), [Groups #19](https://github.com/modelcontextprotocol/progressive-disclosure-wg/pull/19)
 
-Should MCP support only collection tags, or also tags for individual primitives?
-
-A definition tag identifies the advertised definitions used to prepare a request. Clients treat tags as opaque and return them to the server. Option 1 identifies the collection. Option 2 also identifies the called primitive, while keeping collection context for additions, empty lists, and pagination. The choice of fields remains open.
-
-Both options must keep the tags used to prepare a call, even if a background refresh runs while the call waits for approval. A mismatch does not necessarily mean incompatibility: the server can accept, accept with a refresh notice, route, or reject before execution. A match confirms only the definitions covered by the tag; permission checks still apply.
-
-Collection tags let clients detect pages from different catalog states across any transport. An HTTP ETag validates an HTTP representation, which may be just one page. Neither option changes the [caching rules](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching).
+A definition tag tells the server which advertised definitions a client used to prepare a request. The choice is between collection-only tags and per-primitive tags that also retain collection context. Both use opaque tags; the exact field layout remains open.
 
 ## Option 1: Collection-only tags
 
@@ -49,6 +43,8 @@ Adding a tool changes the list reference. If a tool is removed, the list mismatc
 
 A composite tag does not remove the need to expose the collection tag on empty lists or for client-side page comparisons. It also changes every entry's full tag whenever the list changes. Hashing both parts together without a mapping would lose the ability to check them separately.
 
+Collection tags let clients detect pages from different catalog states across any transport. An HTTP ETag validates an HTTP representation, which may be just one page. Neither option changes the [caching rules](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching).
+
 ### Lists that vary by caller and service
 
 A server that filters 500 tools by each caller's permissions may have many different list tags for one release. Keeping earlier catalogs or rebuilding the caller's complete list on every call can be costly, although servers may cache or share those catalogs.
@@ -86,7 +82,7 @@ A prompt call can carry the tag of its named prompt, much like a tool call. A re
 
 ## Comparison
 
-The table compares the supported scopes; it does not require a particular encoding for Option 2.
+Both options must keep the tags used to prepare a call, even if a background refresh runs while the call waits for approval. A mismatch does not necessarily mean incompatibility: the server can accept, accept with a refresh notice, route, or reject before execution. A match confirms only the definitions covered by the tag; permission checks still apply.
 
 | Question                                   | Collection-only tags                               | Per-primitive tags with collection context                         |
 | ------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------ |
