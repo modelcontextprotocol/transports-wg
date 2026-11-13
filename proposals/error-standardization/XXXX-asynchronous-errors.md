@@ -18,7 +18,7 @@ This SEP defines asynchronous errors:
 - **What they say.** Four members of the error's `data`, usable with any error code: `reason`, a machine-readable cause; `retryable`, whether repeating the operation can succeed and is safe; `retryAfterMs`, how long to wait first; and `correlationId`, an identifier that the user can quote to the server's operator, who can then find the failure in the server's logs.
 - **A new error for transient conditions.** `Unavailable` reports a condition on the server's side that a later attempt can overcome: the server is shutting down or restarting, is overloaded, has kept the operation as long as it allows, or depends on a system that is down. Other conditions, such as a client that reads too slowly or an account whose allowance is used up, keep the codes that describe them, and carry the same members.
 
-The error that [transports-wg#67][pr-67] proposes for streams that end for authorization reasons, `AuthorizationEnded`, was the first asynchronous error. Its reviewers asked for the same pattern for other reasons and other operations. This SEP builds on that with the intention to replat those errors on top of this proposal.
+The error that [transports-wg#67][pr-67] proposes for streams that end for authorization reasons, `AuthorizationEnded`, was the first asynchronous error. Its reviewers asked for the same pattern for other reasons and other operations. This SEP generalizes it, so that `AuthorizationEnded` can be defined on top of this proposal.
 
 ## Motivation
 
