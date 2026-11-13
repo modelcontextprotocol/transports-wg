@@ -255,9 +255,17 @@ advantages.
 
 #### Advantages of Client-Side Filtering
 
-- **Caching.**  The `tools/list` response is identical for every
-  client, so a cached tool list does not need to incorporate the
-  client's capability set into its cache key.  This matters for
+- **Caching.**  The `tools/list` response does not depend on the
+  client's capabilities, so a cached tool list does not need to
+  incorporate the client's capability set into its cache key.  The
+  response may still vary by user identity or authorization, but that
+  axis is already expressed by SEP-2549's `cacheScope`
+  (`"public"` / `"private"`); extensions add no separate axis, since
+  they are declared within the client's capabilities
+  (`capabilities.extensions`).  Server-side capability filtering would
+  add a second, independent axis that `cacheScope` cannot express --
+  `"private"` alone is insufficient, because the same user can connect
+  from clients with different capabilities.  This matters for
   clients that cache tool lists across sessions and for servers that
   want to serve `tools/list` from static content, but it is
   particularly important for simplifying MCP proxy servers: a proxy
