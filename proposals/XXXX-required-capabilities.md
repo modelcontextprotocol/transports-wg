@@ -45,13 +45,17 @@ with a tool it cannot support -- hide it from the model, show it as
 unavailable, or explain to the user what is missing -- instead of
 letting the failure surface in the middle of a conversation.
 
-The gap exists because of how capabilities are now declared: before
+The gap exists because of how capabilities are declared.  Before
 SEP-2575, a client declared its capabilities once during
-initialization, so the server knew for the whole session what every
-request could rely on.
-SEP-2575 replaces this with per-request capabilities, and the request
-that decides which tools the model sees (`tools/list`) is not the
-request that needs the capabilities (`tools/call`).  The server cannot
+initialization, nominally for the whole session -- but what a session
+guaranteed was ambiguous: Streamable HTTP sessions were optional,
+stateless and load-balanced deployments often could not see the
+initialization capabilities on later requests, and stdio had no
+explicit session at all, so many servers simply assumed.  SEP-2575
+resolves that ambiguity with per-request capabilities, which makes the
+coordination problem explicit: the request that decides which tools
+the model sees (`tools/list`) is not the request that needs the
+capabilities (`tools/call`).  The server cannot
 tell from a `tools/list` request whether a later `tools/call` will
 satisfy a tool's requirements, and the tool list gives the client no
 way to tell which tools depend on capabilities it lacks.
@@ -60,8 +64,9 @@ Concretely, the SEP aims to:
 
 - **Keep unusable tools out of the model's context**, so the model
   does not plan around tools that cannot run.
-- **Keep capability errors away from end users**, who neither know
-  nor care what an MCP capability is.
+- **Move capability handling ahead of the tool call**, so the client
+  decides how to treat an unsupported tool before the model selects
+  it, rather than reacting to a call-time error mid-turn.
 - **Preserve per-request capability scoping and cacheable tool
   lists**, rather than treating capabilities as global state or
   making tool lists vary per client.
@@ -152,13 +157,25 @@ Only hard requirements need coordination between `tools/list` and
 When the mismatch goes undetected until `tools/call` time, it manifests
 in two damaging ways:
 
-1. **Errors propagate to users who know nothing about MCP.**  When the
-   model invokes a tool whose required capability the client lacks, the
-   server returns an error such as `Tool 'deploy_to_production'  requires elicitation capability`.  To the end user -- who has never
-   heard of MCP, capabilities, or elicitation -- this is meaningless
-   jargon surfacing in the middle of their conversation.  They cannot
-   act on it, and cannot even tell whether they did something wrong,
-   the application is broken, or the tool is broken.
+1. **The harness discovers the mismatch only reactively, after the
+   model has already committed to the tool.**  When the model invokes
+   a tool whose required capability the client lacks, the server
+   returns a `MissingRequiredClientCapabilityError` (`-32021`) whose
+   `data.requiredCapabilities` lists what is missing (see
+   [Server Validation at Call Time](#server-validation-at-call-time)).
+   This is a JSON-RPC protocol error, not a tool execution error: the
+   specification only permits (**MAY**), rather than recommends,
+   passing protocol errors to the model, and the structured `data`
+   lets the harness recognize the condition and handle it gracefully
+   -- for example, telling the user the tool is not available in this
+   client rather than echoing raw capability jargon.  But however well
+   the harness handles it, the handling is reactive.  The LLM call
+   that selected the tool and generated its arguments was unnecessary:
+   its tokens and latency were spent producing a call that could never
+   succeed.  And the harness is left to improvise mid-turn with no
+   good option -- tell the user the request cannot be completed, hand
+   the error back to the model and hope it recovers, or drop the call
+   silently.
 2. **The model plans multi-step work toward a tool it cannot use, wasting tokens.**
    A model plans around the tool list it is given.  Consider an
    incident-response flow where the model plans two steps: first fetch
@@ -171,14 +188,18 @@ in two damaging ways:
    first step, then hits the wall at the second.  At best, it
    recognizes the limitation and responds that it retrieved the
    incident details but has no ability to run the query.  If instead
-   the call is attempted and the error is thrown, the response is
-   unpredictable: the model may retry, surface the raw error to the
-   user (failure mode 1), or confabulate around the failure.  Either
-   way, the work invested toward an unusable goal is wasted.
+   the call is attempted and the harness passes the `-32021` error
+   back to the model (failure mode 1), the response is unpredictable:
+   the model may retry, relay the error to the user, or confabulate
+   around the failure.  Either way, the work invested toward an
+   unusable goal is wasted.
 
 Upfront filtering prevents both: a tool the client cannot support
 never enters the model's context, so the model plans only with tools
-that can actually run, and no capability error ever reaches the user.
+that can actually run, no LLM call is spent selecting a tool that
+cannot succeed, and the harness decides how to present the missing
+capability before the conversation starts rather than in the middle
+of a turn.
 
 ### Why Standardize This in the Protocol
 
@@ -214,6 +235,16 @@ advantages.
   one), decisions that depend on runtime context, or requirements that
   vary by argument.  A declarative annotation format has to anticipate every
   such pattern; server code does not.
+- **Capability-tailored tool definitions.**  Beyond including or
+  excluding a tool, the server can customize the tool definition
+  itself to the declared capabilities.  For example, the description
+  can tell the model that the tool will prompt the user for input
+  when elicitation is available, or that it runs as a long-lived task
+  when the client supports the tasks extension, and say something
+  different (or expose a different input schema) when it does not.
+  With client-side filtering every client receives the same
+  definition, so a hybrid tool's description has to cover all of its
+  behaviors at once.
 - **Centralization.**  The adaptation logic is written once, on the
   server, instead of being reimplemented (with inevitable
   inconsistencies) in every client.  Servers also already filter the
@@ -554,6 +585,7 @@ that motivated this SEP.
 | **Filtering** | Yes: client filters locally | Yes: server filters using the related-request capabilities | Yes: server filters the returned tool list | No |
 | **Substitution** (swap one tool for a lower-functionality alternative) | Partial: hybrid-mode tools degrade internally at call time; distinct fallback tools remain visible to all clients (see the `whenCapabilitiesUnavailable` modification under [Modifications Not Included](#modifications-not-included)) | Yes: server can freely substitute based on capabilities and runtime context | Yes: server can freely substitute based on capabilities and runtime context | No: the client never sees the substitution opportunity |
 | **Parameterized adaptation** (decisions based on capability sub-fields) | Limited: client-side matching on nested sub-fields is error-prone | Yes: server has full access to the capability object | Yes: server has full access to the capability object | No |
+| **Capability-tailored tool definitions** (e.g. description or schema varies with the capabilities provided) | No: every client receives the same definition; hybrid tools must describe all behaviors at once | Yes: server tailors definitions to the related-request capabilities | Yes: server tailors definitions to the capabilities on `tools/list` | No: no basis for knowing what `tools/call` will support |
 | **Tool list cacheable without capability cache key** | Yes: identical response for all clients | No: each declared related-capability set yields a different list | No: each capability set yields a different list | Yes: identical response for all clients |
 | **Client chooses how to respond** (hide, disable, allow-and-error) | Yes | No: filtered tools are invisible to the client | No: filtered tools are invisible to the client | No: only call-time failure |
 | **Transparency to the client** (client sees all tools the server provides) | Yes, with their requirements | No: filtered tools are invisible to the client | No: filtered tools are invisible to the client | Yes, but without requirement information |
@@ -845,10 +877,11 @@ requires, the call simply fails with an error.
 **Disadvantages:**
 
 - Exhibits both failure modes described in
-  [How the Problem Surfaces](#how-the-problem-surfaces): raw
-  capability errors reach end users who know nothing about MCP, and
-  the model wastes tokens planning multi-step work toward tools that
-  cannot run.
+  [How the Problem Surfaces](#how-the-problem-surfaces): the harness
+  learns of a mismatch only from a call-time `-32021` error, after an
+  LLM call has already been spent selecting the tool, and the model
+  wastes tokens planning multi-step work toward tools that cannot
+  run.
 - Leaves the coordination problem for implementers to solve
   informally rather than through a standardized mechanism -- see
   [Why Standardize This in the Protocol](#why-standardize-this-in-the-protocol).
